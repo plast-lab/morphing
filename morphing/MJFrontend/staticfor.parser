@@ -1,0 +1,53 @@
+BodyDecl staticfor_declaration = 
+  staticfor_header.i staticfor_body.l
+  {: return new StaticForDecl(i, l); :}
+  ;
+
+List staticfor_body =
+    class_body_declaration.c {: return new List().add(c); :}
+  | LBRACE OR class_body_declarations.l OR RBRACE {: return l; :}
+  ;
+
+IteratorDecl staticfor_header = 
+  LT pattern_type_parameters.p RT LBRACK pattern_name_parameters.n RBRACK FOR LPAREN pattern.p COLON baseset.b RPAREN 
+  {: return new IteratorDecl(p, n, p, b); :} 
+  ;  
+
+List pattern_type_parameters =
+    pattern_type_parameter.p {: return new List().add(p); :}  
+  | pattern_type_parameters.l COMMA pattern_type_parameter.p {: return l.add(p); :} 
+  ;
+
+PatternTypeVariable pattern_type_parameter =
+    type_parameter.p {: return new PatternTypeVariable(new Modifiers(), p.getID(), new List(), new List(), false); :}
+  | type_parameter.p MULT {: return new PatternTypeVariable(new Modifiers(), p.getID(), new List(), new List(), true); :}
+  ; 
+
+List pattern_name_parameters =
+    pattern_name_parameter.p {: return new List().add(p); :}
+  | pattern_name_parameters.l COMMA pattern_name_parameter.p {: return l.add(p); :}
+  ;
+
+PatternNameVariable pattern_name_parameter =
+    IDENTIFIER.id {: return new PatternNameVariable(id); :}
+  ;
+    
+Pattern pattern = 
+  type.t IDENTIFIER.id LPAREN formal_types:l RPAREN 
+  {: return new Pattern(t, id, l); :}
+  ;
+
+List formal_types = 
+    type.t {: return new List().add(t); :}
+  | formal_types.l COMMA type.t {: return l.add(t); :}
+  ; 
+
+BaseSet baseset =
+    type.t reflection_elmt.e {: return new baseSet(t, e); :}
+  ;
+
+RefElmtEnum reflection_elmt =
+    "methods" {: return RefElmtEnum.METHODS; :}
+  | "fields"  {: return RefElmtEnum.FIELDS;  :}
+  ;
+
