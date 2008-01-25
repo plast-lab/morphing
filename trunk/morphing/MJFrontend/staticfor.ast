@@ -1,0 +1,10 @@
+PatternTypeVariable : TypeVariable ::= <star:boolean>;
+PatternNameVariable ::= <ID:String>;
+
+StaticForDecl : MemberDecl ::= IteratorDecl BodyDecl*;
+
+IteratorDecl ::= PatternTypeParameter:PatternTypeVariable* PatternNameParameter:PatternNameVariable* Pattern BaseSet;
+
+Pattern ::= TypeAccess:Access <ID:String> Parameter:TypeAccess* EmptyBracket* Exception:Access*;
+
+BaseSet ::= TypeAccess:Access <RefElmt:RefElmtEnum>;
