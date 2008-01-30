@@ -1,0 +1,51 @@
+aspect MJLookupMethod {
+    /**
+     * JastAddJ uses a method signature map to store mappings from 
+     * String (method signature) to MethodDecl.  This no longer works
+     * for reflectively declared methods. We will keep the statically
+     * declared methods the way they are. And use another data structure
+     * for reflectively declared methods.
+     **/
+
+    syn lazy Collection TypeDecl.reflectiveMethods() {
+	Set set = new HashSet();
+	for ( int i=0; i<getNumBodyDecl(); i++) {
+	    if ( getBodyDecl(i) instanceof StaticForDecl ) {
+		StaticForDecl sfd = (StaticForDecl) getBodyDecl(i);
+		for ( int j=0; j<sfd.getNumBodyDecl(); j++) {
+		    if (sfd.getBodyDecl(j) instanceof MethodDecl )
+			set.add(sfd.getBodyDecl(j));
+		}
+	    }
+	}
+	return set;
+    }
+    eq TypeVariable.reflectiveMethods() {
+	Set set = new HashSet();
+	for ( int i=0; i<getNumTypeBound(); i++) {
+	    set.addAll(getTypeBound(i).type().reflectiveMethods());
+	}
+	return set;
+    }
+    
+    // Modify how methods are retrieved.
+    /*
+    refine LookupMethod eq AbstractDot.getRight().lookupMethod(String name) {
+	if ( patternNameVariables.contains(name)) {
+	    //	    return lookupVariableNameMethod(name);
+
+	    TypeDecl leftType = getLeft().type();
+	    if ( getRefBaseType().equals(leftType) ) {
+	    // first see whether this name refers to the pattern name.
+	    MethodDecl patternDecl = 
+		enclosingRefIterator().getPattern().patternMethodDecl();
+	    if ( patternDecl.getID().equals(name)) {
+		Collection c = new ArrayList();
+		c.add(patternDecl);
+		return c;
+	    }
+	}
+	return LookupMethod.AbstractDot.getRight().lookupMethod(name);
+    }
+    */
+}

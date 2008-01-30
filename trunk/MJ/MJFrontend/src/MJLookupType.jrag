@@ -1,0 +1,21 @@
+aspect MJLookupType {
+
+
+    inh SimpleSet StaticForDecl.lookupType(String name);
+    syn SimpleSet StaticForDecl.localLookupType(String name) {
+	return getIteratorDecl().localLookupType(name);
+    }
+    syn SimpleSet IteratorDecl.localLookupType(String name) {
+	List patternTVs = getPatternTypeParameterList();
+	for (int i=0; i<patternTVs.getNumChild(); i++) {
+	    if ( ((TypeVariable) patternTVs.getChild(i)).name().equals(name))
+		return SimpleSet.emptySet.add(patternTVs.getChild(i));
+	 }
+	return SimpleSet.emptySet;
+    }
+
+    eq StaticForDecl.getIteratorDecl().lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);
+
+    eq StaticForDecl.getBodyDecl(int index).lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);
+
+}
