@@ -1,0 +1,18 @@
+VectorTypeVariable : TypeVariable;
+AllMatchingTypeVariable : TypeVariable;
+PatternNameVariable ::= <ID:String>;
+
+StaticForDecl : MemberDecl ::= IteratorDecl BodyDecl*;
+
+IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern*;
+
+Pattern ::= TypeAccess:Access <ID:String> Parameter:TypeAccess* EmptyBracket* Exception:Access* BaseSet; 
+
+NestedPattern : Pattern ::= <IsPositive:boolean>;
+
+BaseSet ::= TypeAccess:Access RefElmt;
+
+RefElmt ::= <ElmtName:String>;
+
+PatternMethodDecl : MethodDecl ;
+

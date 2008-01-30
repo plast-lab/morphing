@@ -1,0 +1,113 @@
+aspect MJNameCheck {
+    public void StaticForDecl.nameCheck() {
+	/*
+	getIteratorDecl().nameCheck();
+
+	for ( int i=0; i<getNumBodyDecl(); i++) {
+	    getBodyDecl(i).nameCheck();
+	}
+	*/
+	// This is where we put the stuff for checking disjointness.
+    }
+
+    syn MethodDecl TypeDecl.everyMethod () {
+	StaticForDecl sfd = new StaticForDecl();
+	
+	/**
+	 * pattern: _ m(A) throws E : T.methods
+	 * where _ is the ALlMatchingTypeVariable, which matches void.
+	 **/
+	AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), "R", new List(), new List());
+	VectorTypeVariable A = new VectorTypeVariable(new Modifiers(), "A",
+						      new List(), new List());
+	VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), "E",
+						      new List(), new List());
+	PatternNameVariable m = new PatternNameVariable("m");
+	Pattern p = new Pattern(R.createQualifiedAccess(),"m",
+				new List().add(A.createQualifiedAccess()),
+				new List(),
+				new List().add(E.createQualifiedAccess()),
+				new BaseSet(createQualifiedAccess(), 
+					    new RefElmt("methods")));
+				
+	IteratorDecl id = new IteratorDecl(new List().add(R).add(A).add(E),
+					   new List().add(m),
+					   p, new List());
+
+	MethodDecl md = new MethodDecl(new Modifiers(), 
+				       R.createQualifiedAccess(),
+				       "m", 
+				       new List().add(A.createQualifiedAccess()),
+				       new List(),
+				       new List().add(E.createQualifiedAccess()),
+				       new Opt());
+	sfd.setIteratorDecl(id);
+	sfd.setBodyDeclList(new List().add(md));
+	return md;
+    }
+
+    refine NameCheck public void MethodDecl.nameCheck() {
+	// make sure that method signature is disjoint from all
+	// other method signatures.
+
+	// 8.4
+	// 8.4.2
+
+	// Right now, the implementation for checking reflective method
+	// conflicts are very inefficient (repeated iterator loops).  Maybe
+	// we can improve this later. --SSH
+
+	if ( isReflectiveDecl()) {
+	    // reflectively declared method. check that it is disjoint
+	    // from all other methods in the class.
+	    Collection methods = new ArrayList();
+	    methods.addAll(hostType().methodsSignatureMap().values());
+	    methods.addAll(hostType().reflectiveMethods());
+
+	    for (Iterator mIt = methods.iterator(); mIt.hasNext(); ) {
+		MethodDecl md = (MethodDecl) mIt.next();
+
+		if ( !this.isUniqueFrom(md) && this != md )
+		    error("method with signature " + signature() + " is multiply declared in type " + hostType().typeName());
+	    }
+	    
+	    // if the superclass is a type variable, then special treatment
+	    // is needed: this method needs to be disjoint from a staticfor
+	    // declaration representing all methods in the type variable.
+	    if ( hostType().isClassDecl() && 
+		 ((ClassDecl) hostType()).hasSuperclass() &&
+		 ((ClassDecl) hostType()).superclass().isTypeVariable()) {
+		MethodDecl md = ((ClassDecl) hostType()).superclass().everyMethod();
+		if (!isUniqueFrom(md) && this != md )
+		    error("method with signature " + signature() + " is multiply declared in type " + hostType().typeName());
+	    }
+	} else {
+	    // static method. But still needs to make sure it does
+	    // not conflict with reflectively declared methods in this
+	    // and super host types.
+	    if(!hostType().methodsSignature(signature()).contains(this))
+		error("method with signature " + signature() + " is multiply declared in type " + hostType().typeName());
+	    else {
+		// check that it's disjoint from all other reflective declarations.
+		Collection methods = hostType().reflectiveMethods();
+		for ( Iterator mIt = methods.iterator(); mIt.hasNext(); ) {
+		    MethodDecl md = (MethodDecl) mIt.next();
+		    
+		    if ( !this.isUniqueFrom(md) && this != md ) 
+			error("method with signature " + signature() + " is multiply declared in type " + hostType().typeName());
+		}
+	    }
+	}
+	
+	// 8.4.3.4
+	if(isNative() && hasBlock())
+	    error("native methods must have an empty semicolon body");
+	// 8.4.5
+	if(isAbstract() && hasBlock())
+	    error("abstract methods must have an empty semicolon body");
+	// 8.4.5
+	if(!hasBlock() && !(isNative() || isAbstract()))
+	    error("only abstract and native methods may have an empty semicolon body");
+	
+    }
+}

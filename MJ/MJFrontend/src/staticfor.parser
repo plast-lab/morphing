@@ -1,0 +1,68 @@
+BodyDecl class_member_declaration =
+    staticfor_declaration.b {: return b; :}
+  ;
+
+BodyDecl staticfor_declaration = 
+    staticfor_header.i staticfor_body.l
+  {: return new StaticForDecl(i, l); :}
+  ;
+
+List staticfor_body =
+    class_body_declaration.c {: return new List().add(c); :}
+  | LBRACE OR class_body_declarations.l OR RBRACE {: return l; :}
+  ;
+
+IteratorDecl staticfor_header = 
+    LT type_parameter_list_1.l LBRACK pattern_name_parameters.n RBRACK FOR LPAREN pattern.p RPAREN 
+    {: return new IteratorDecl(l, n, p, new List()); :} 
+  | LT type_parameter_list_1.l LBRACK pattern_name_parameters.n RBRACK FOR LPAREN pattern.p nested_patterns.np RPAREN 
+    {: return new IteratorDecl(l, n, p, np); :} 
+  ;  
+
+List nested_patterns =
+    SEMI nested_pattern.p {: return new List().add(p); :}
+  | nested_patterns.l nested_pattern.p {: return l.add(p); :}
+  ;
+
+TypeVariable type_parameter_1 = 
+    IDENTIFIER.v MULT GT {: return new VectorTypeVariable(new Modifiers(), v, new List(), new List()); :}
+  | IDENTIFIER.v MULT type_bound_1.l {: return new VectorTypeVariable(new Modifiers(), v, new List(), l); :}
+  ;
+
+List pattern_name_parameters =
+    pattern_name_parameter.p {: return new List().add(p); :}
+  | pattern_name_parameters.l COMMA pattern_name_parameter.p {: return l.add(p); :}
+  ;
+
+PatternNameVariable pattern_name_parameter =
+    IDENTIFIER.id {: return new PatternNameVariable(id); :}
+  ;
+    
+Pattern pattern = 
+     type.t IDENTIFIER.id LPAREN formal_types.l RPAREN COLON baseset.b
+     {: return new Pattern(t, id, l, new List(), new List(), b); :}
+  |  type.t IDENTIFIER.id LPAREN RPAREN COLON baseset.b
+     {: return new Pattern(t, id, new List(), new List(), new List(), b); :}
+  ;
+
+NestedPattern nested_pattern =
+     NO type.t IDENTIFIER.id LPAREN formal_types.l RPAREN  COLON baseset.b
+     {: return new NestedPattern(t, id, l, new List(), new List(), b, false); :}
+  |  SOME type.t IDENTIFIER.id LPAREN RPAREN COLON baseset.b
+     {: return new NestedPattern(t, id, new List(), new List(), new List(), b, true); :}
+  ;
+
+List formal_types = 
+    type.t {: return new List().add(t); :}
+  | formal_types.l COMMA type.t {: return l.add(t); :}
+  ; 
+
+BaseSet baseset =
+    type.t reflection_elmt.e 
+    {: return new BaseSet(t, e); :}
+  ;
+
+RefElmt reflection_elmt =
+    METHODS {: return new RefElmt("methods"); :}
+  | FIELDS  {: return new RefElmt("fields"); :}
+  ;
