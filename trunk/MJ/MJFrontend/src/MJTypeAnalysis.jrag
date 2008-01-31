@@ -1,0 +1,115 @@
+aspect MJTypeAnalysis {
+
+    refine TypeAnalysis public TypeDecl ClassDecl.superclass() {
+	if(isObject())
+	    return null;
+	if(hasSuperClassAccess() && !isCircular()) {
+	    if ( getSuperClassAccess().type().canbeSuperclass()) 
+		return getSuperClassAccess().type();
+	    else {
+		// this is a constrained type variable. make sure to
+		// mark that it is used as a supertype.
+		((ConstrainedTypeVariable) getSuperClassAccess().type()).setUsedAsSupertype(true);
+		return getSuperClassAccess().type();
+	    }
+	}
+	return typeObject();
+    }
+
+
+    refine TypeAnalysis public Iterator ClassDecl.interfacesIterator() {
+	return new Iterator() {
+		public boolean hasNext() {
+		    computeNextCurrent();
+		    return current != null;
+		}
+		public Object next() {
+		    return current;
+		}
+		public void remove() {
+		    throw new UnsupportedOperationException();
+		}
+		private int index = 0;
+		private TypeDecl current = null;
+		private void computeNextCurrent() {
+		    current = null;
+		    if(isObject() || isCircular())
+			return;
+		    while(index < getNumImplements()) {
+			TypeDecl typeDecl = getImplements(index++).type();
+			if(!typeDecl.isCircular() && typeDecl.canbeSuperinterface()) {
+			    current = typeDecl;
+			    return;
+			}
+		    }
+		}
+	    };
+    }
+    
+    refine TypeAnalysis public Iterator InterfaceDecl.superinterfacesIterator() {
+	return new Iterator() {
+		public boolean hasNext() {
+		    computeNextCurrent();
+		    return current != null;
+		}
+		public Object next() {
+		    return current;
+		}
+		public void remove() {
+		    throw new UnsupportedOperationException();
+		}
+		private int index = 0;
+		private TypeDecl current = null;
+		private void computeNextCurrent() {
+		    current = null;
+		    if(isCircular()) return;
+		    while(index < getNumSuperInterfaceId()) {
+			TypeDecl typeDecl = getSuperInterfaceId(index++).type();
+			if(!typeDecl.isCircular() && typeDecl.canbeSuperinterface()) {
+			    current = typeDecl;
+			    return;
+			}
+		    }
+		}
+	    };
+    }
+}
+
+aspect MJCircularity {
+    // Each type has a chain of dependent types.
+    syn lazy boolean TypeDecl.circularlyDefined(Set currentChain) = currentChain.contains(this);
+
+    eq ClassDecl.circularlyDefined(Set currentChain) {
+	if ( currentChain.contains(this)) return true;
+
+	currentChain.add(this);
+
+	if ( hasSuperclass())
+	    if ( superclass().circularlyDefined(currentChain)) return true;
+	for ( Iterator ifIt = interfacesIterator(); ifIt.hasNext(); ) {
+	    if ( ((TypeDecl) ifIt.next()).circularlyDefined(currentChain))
+		return true;
+	}
+
+	// add all the types this uses for reflective declaration.
+	Collection rm = reflectiveMethods();
+	for ( Iterator rmIt = rm.iterator(); rmIt.hasNext(); ) {
+	    TypeDecl baseType = ((MethodDecl) rmIt.next()).enclosingRefIterator().getPattern().reflectiveBaseType();
+	    if ( baseType.circularlyDefined(currentChain))
+		return true;
+	}
+
+	return false;
+    }
+
+    eq ParTypeDecl.circularlyDefined(Set currentChain) = genericDecl().circularlyDefined(currentChain);
+	
+    refine TypeAnalysis eq ClassDecl.isCircular() {
+	if (TypeAnalysis.ClassDecl.isCircular()) return true;
+	return circularlyDefined(new HashSet());
+    }
+    refine TypeAnalysis eq InterfaceDecl.isCircular() {
+	if (TypeAnalysis.InterfaceDecl.isCircular()) return true;
+	return circularlyDefined(new HashSet());
+    }    
+}

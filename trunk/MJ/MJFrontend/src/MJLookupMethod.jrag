@@ -29,23 +29,68 @@ aspect MJLookupMethod {
     }
     
     // Modify how methods are retrieved.
-    /*
     refine LookupMethod eq AbstractDot.getRight().lookupMethod(String name) {
-	if ( patternNameVariables.contains(name)) {
-	    //	    return lookupVariableNameMethod(name);
-
-	    TypeDecl leftType = getLeft().type();
-	    if ( getRefBaseType().equals(leftType) ) {
-	    // first see whether this name refers to the pattern name.
-	    MethodDecl patternDecl = 
-		enclosingRefIterator().getPattern().patternMethodDecl();
-	    if ( patternDecl.getID().equals(name)) {
-		Collection c = new ArrayList();
-		c.add(patternDecl);
-		return c;
-	    }
-	}
+	if ( isNameVariable(name)) 
+	    return getLeft().type().memberMethods(getNameVariable(name));
 	return LookupMethod.AbstractDot.getRight().lookupMethod(name);
     }
-    */
+
+    syn Collection TypeDecl.memberMethods(PatternNameVariable name) = Collections.EMPTY_LIST;
+
+    eq TypeVariable.memberMethods(PatternNameVariable name) {
+	Collection methods = new ArrayList();
+
+	if ( name.reflectiveBaseType() == this ) 
+	    // If the name is exactly what is used to match on the outermost
+	    // reflective loop, then the method designated by the name is
+	    // exactly what is specified by the pattern.
+	    methods.add(name.enclosingRefIterator().getPattern().patternMethodDecl());
+	else if ( false ) {
+	    // TODO
+	    // otherwise, if :
+	    // 1. the type is the reflective base type for a nested pattern, AND
+	    // 2. name is the name variable used in the nested pattern, AND
+	    // 3. the nested pattern is guaranteed to have a range of exactly one.
+	    // then again the method is what's specified by the nested pattern.
+
+	} else {
+	    // look into bounds.
+	    for ( int i=0; i<getNumTypeBound(); i++) {
+		methods.addAll(getTypeBound(i).type().memberMethods(name));
+	    }
+	}
+	return methods;
+    }
+	
+}
+
+aspect MJLookupConstructor {
+
+    boolean ConstrainedTypeVariable.usedAsSupertype = false;
+    public boolean ConstrainedTypeVariable.usedAsSupertype() {
+	return usedAsSupertype; 
+    }
+    public void ConstrainedTypeVariable.setUsedAsSupertype(boolean p) {
+	usedAsSupertype = p;
+    }
+
+    // a TypeVariable constrained to be a class and used as a superclass
+    // must also provide a default constructor.
+    // this is assumed -- like the fact that it must also not be final.
+    eq ConstrainedTypeVariable.isFinal() = 
+	usedAsSupertype ? true : super.isFinal() ;
+    eq ConstrainedTypeVariable.constructors() {
+	if ( getConstraint().equals("class")) {
+	    ConstructorDecl cd = new ConstructorDecl(new Modifiers(new List().add(new Modifier("public"))), typeName(), new List(), new List(), new Opt(), new Block());
+	    addBodyDecl(cd);
+	    cd.is$Final = true;
+
+	    Collection c = new ArrayList();
+	    c.add(cd);
+	    return c;
+	}
+	return super.constructors();
+    }
+
+    // TODO: what about super constructor?  any?
 }
