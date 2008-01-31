@@ -52,8 +52,8 @@ aspect MJTypeCheckCore {
 		
 		// first, the patterns must be iterating over types in the same
 		// hierarchy.
-		if ( !p1.getRefBaseType().subtype(p2.getRefBaseType()) &&
-		     !p2.getRefBaseType().subtype(p2.getRefBaseType()))
+		if ( !p1.reflectiveBaseType().subtype(p2.reflectiveBaseType()) &&
+		     !p2.reflectiveBaseType().subtype(p2.reflectiveBaseType()))
 		    continue;
 
 		if ( p1.isPositiveCondition() && p2.isPositiveCondition()) {

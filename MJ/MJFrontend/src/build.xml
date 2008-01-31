@@ -91,6 +91,9 @@
         <file name="Identifiers.flex"/>
         <file name="postamble.flex"/>
       </filelist>
+      <filelist dir=".">
+        <file name="MJkeywords.flex"/>
+      </filelist>
     </concat>
 	  <!-- generate the scanner -->
 		<jflex file="scanner/JavaScanner.flex" outdir="scanner" nobak="yes"/>
@@ -107,6 +110,9 @@
 	      <file name="parser/errorrecovery.parser"/>
     </filelist>
 	  <fileset dir="${Java1.5Frontend}">
+	      <include name="*.parser"/>
+	  </fileset>
+	  <fileset dir=".">
 	      <include name="*.parser"/>
 	  </fileset>
 	</concat>

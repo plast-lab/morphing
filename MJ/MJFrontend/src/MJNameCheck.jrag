@@ -10,12 +10,12 @@ aspect MJNameCheck {
 	// This is where we put the stuff for checking disjointness.
     }
 
-    syn MethodDecl TypeDecl.everyMethod () {
+    syn lazy MethodDecl TypeDecl.everyMethod () {
 	StaticForDecl sfd = new StaticForDecl();
 	
 	/**
 	 * pattern: _ m(A) throws E : T.methods
-	 * where _ is the ALlMatchingTypeVariable, which matches void.
+	 * where _ is the AllMatchingTypeVariable, which matches void.
 	 **/
 	AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), "R", new List(), new List());
 	VectorTypeVariable A = new VectorTypeVariable(new Modifiers(), "A",
@@ -37,12 +37,21 @@ aspect MJNameCheck {
 	MethodDecl md = new MethodDecl(new Modifiers(), 
 				       R.createQualifiedAccess(),
 				       "m", 
-				       new List().add(A.createQualifiedAccess()),
+				       new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
 				       new List(),
 				       new List().add(E.createQualifiedAccess()),
 				       new Opt());
 	sfd.setIteratorDecl(id);
 	sfd.setBodyDeclList(new List().add(md));
+
+	addBodyDecl(sfd);
+
+	sfd.is$Final = true;
+	md.is$Final = true;
+
+	sfd.bypassErrorChecking = true;
+	md.bypassErrorChecking = true;
+
 	return md;
     }
 
@@ -111,3 +120,4 @@ aspect MJNameCheck {
 	
     }
 }
+
