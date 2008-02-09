@@ -1,0 +1,210 @@
+import org.objectweb.asm.*;
+import org.objectweb.asm.tree.*;
+import java.io.*;
+
+aspect MJGenerateClassfile {
+    /*
+    public void StaticForMethodDecl.generateMethod(DataOutputStream out, ConstantPool cp) throws IOException {
+	super.generateMethod(out, cp);
+    }
+    */
+
+    public class ASMIteratorDeclAttribute extends org.objectweb.asm.Attribute {
+	String signature = null;
+	
+	public ASMIteratorDeclAttribute(final String sig) {
+	    super("IteratorDecl");
+	    signature = sig;
+	}
+
+	public String signature() {
+	    return signature;
+	}
+
+	public boolean isUnknown() { return false; }
+
+	protected org.objectweb.asm.Attribute read(ClassReader cr, int off, int len,
+				 char[] buf, int codeOff, Label[] labels) {
+	    return new ASMIteratorDeclAttribute(cr.readUTF8(off, buf));
+	}
+
+	protected ByteVector write(ClassWriter cw, byte[] code, int len,
+				   int maxStack, int maxLocals) {
+	    return new ByteVector().putShort(cw.newUTF8(signature));
+	}
+
+    }
+
+    public void ParClassDecl.generateClassfile() {
+	try {
+	    
+	    TypeDecl gt = genericDecl();
+	    
+	    // TODO: should check whether gt already exists and has the proper
+	    // timestamp: i.e. its timestamp is newer than the timestamp of its
+	    // generic decl as well as all type arguments.
+	    String gtSource = gt.destinationPath() + File.separator + gt.constantPoolName() + ".class";
+	    String outFileName = gt.destinationPath() + File.separator + expandedConstantPoolName() + ".class";
+
+	    if(Program.verbose()) 
+		System.out.println("Writing class file to " + outFileName);
+
+	    File gtFile = new File(gtSource);
+	    FileInputStream fis = new FileInputStream(gtFile);
+
+	    // load class.
+	    ClassReader cr = new ClassReader(fis);
+	    ClassNode cn = new ClassNode();
+
+	    cr.accept(cn, 
+		      new org.objectweb.asm.Attribute[] { new ASMIteratorDeclAttribute("") }, 
+		      0);
+	    
+	    // transform ClassNode cn.
+	    expand(cn);
+	    
+	    // write class.
+	    File outFile = new File(outFileName);
+	    ClassWriter cw = new ClassWriter(cr, 0);
+	    cn.accept(cw);
+	    
+	    FileOutputStream f = new FileOutputStream(outFileName);
+	    DataOutputStream out = new DataOutputStream(new BufferedOutputStream(f));
+	    
+	    out.write(cw.toByteArray());
+	    out.close();
+	} catch (IOException e) {
+	    e.printStackTrace();
+	}
+    }
+
+    eq PatternTypeVariable.constantPoolName() = classTypeSignature();
+
+    refine StaticImportsCodegen protected TypeDecl MethodAccess.methodQualifierType() {
+	TypeDecl typeDecl = null;
+
+	// from GenericsCodegen
+	if(decl().isStatic())
+	    typeDecl = decl().hostType();
+	else {
+	    // from CreateBCode MethodAccess.methodQualifierType()
+	    if(hasPrevExpr())
+		typeDecl = prevExpr().type();
+	    else {
+		typeDecl = hostType();
+		while(typeDecl != null && !typeDecl.hasMethod(name()))
+		    typeDecl = typeDecl.enclosingType();
+	    }
+	}
+
+	// from StaticImportsCodegen
+	if ( typeDecl == null ) 
+	    typeDecl = decl().hostType();
+
+	TypeDecl hostType = hostType();
+	while ( hostType.isInnerType()) 
+	    hostType = hostType.hostType();
+	
+	if ( hostType().needsExpansion() && typeDecl.needsExpansion()) 	
+	    return typeDecl;
+
+	return typeDecl.erasure();
+    }
+
+    refine CodeGeneration public void MethodDecl.emitInvokeMethod(CodeGeneration gen, TypeDecl hostType) {
+	if(hostType.isInterfaceDecl()) {
+	    int size = type().variableSize() - 1;
+	    for(int i = 0; i < getNumParameter(); i++)
+		size -= getParameter(i).type().variableSize();
+	    String classname = 
+		hostType().needsExpansion() ? hostType.expandedConstantPoolName() : hostType.constantPoolName();
+	    String      desc = descName();
+	    String      name = name();
+	    int index = gen.constantPool().addInterfaceMethodref(classname, name, desc);
+	    int numArg = 1; // instance
+	    for(int i = 0; i < getNumParameter(); i++)
+		numArg += getParameter(i).type().variableSize();
+	    gen.emit(Bytecode.INVOKEINTERFACE, size).add2(index).add(numArg).add(0);
+	}
+	else {
+	    String classname = hostType().needsExpansion() ? hostType.expandedConstantPoolName() : hostType.constantPoolName();
+	    String      desc = descName();
+	    String      name = name();
+	    int index = gen.constantPool().addMethodref(classname, name, desc);
+	    if(isStatic()) {
+		int size = type().variableSize();
+		for(int i = 0; i < getNumParameter(); i++)
+		    size -= getParameter(i).type().variableSize();
+		gen.emit(Bytecode.INVOKESTATIC, size).add2(index);
+	    }
+	    else {
+		int size = type().variableSize() - 1;
+		for(int i = 0; i < getNumParameter(); i++)
+		    size -= getParameter(i).type().variableSize();
+		gen.emit(Bytecode.INVOKEVIRTUAL, size).add2(index);
+	    }
+	}
+    }
+}
+
+aspect MJAttributes {
+    eq StaticForMethodDecl.attributes() {
+	Collection c = super.attributes();
+	// add attribute about the iterator decl.
+	c.add(new IteratorDeclAttribute(hostType().constantPool(), 
+					getIteratorDecl().signature()));
+	return c;
+    }
+
+    class IteratorDeclAttribute extends Attribute {
+	public IteratorDeclAttribute(ConstantPool cp, String iteratorSig) {
+	    super(cp, "IteratorDecl");
+	    u2(cp.addUtf8(iteratorSig));
+	}
+    }
+    
+    syn String IteratorDecl.signature() {
+	// <R;..>[m;..] (A)R;[m]T;methods; -(A)R;[m]T;methods;+(A)R[m]T;methods 
+	StringBuffer buf = new StringBuffer();
+	buf.append("<");
+	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
+	    buf.append(getPatternTypeParameter(i).classTypeSignature());
+	}  
+	buf.append(">");
+	buf.append("[");
+	for ( int i=0; i<getNumPatternNameParameter(); i++) {
+	    buf.append(getPatternNameParameter(i).getID() + ";");
+	}
+	buf.append("]");
+	buf.append(getPattern().signature());
+	for ( int i=0; i<getNumNestedPattern(); i++) {
+	    buf.append(getNestedPattern(i).signature());
+	}
+	return buf.toString();
+    }
+    syn String Pattern.signature() {
+	StringBuffer buf = new StringBuffer(patternMethodDecl().methodTypeSignature());
+	buf.append("[");
+	buf.append(getID());
+	buf.append("]");
+	buf.append(getBaseSet().signature());
+	return buf.toString();
+    }
+    syn String NestedPattern.signature() {
+	StringBuffer buf = new StringBuffer();
+	if ( getIsPositive()) buf.append("+");
+	else buf.append("-");
+	buf.append(super.signature());
+	return buf.toString();
+    }
+
+    syn String BaseSet.signature() {
+	StringBuffer buf = new StringBuffer(getTypeAccess().type().classTypeSignature());
+	buf.append(getRefElmt().signature());
+	return buf.toString();
+    }
+
+    syn String RefElmt.signature() {
+	return getElmtName() + ";";
+    }
+}
