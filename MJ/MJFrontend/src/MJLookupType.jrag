@@ -1,10 +1,5 @@
 aspect MJLookupType {
 
-
-    inh SimpleSet StaticForDecl.lookupType(String name);
-    syn SimpleSet StaticForDecl.localLookupType(String name) {
-	return getIteratorDecl().localLookupType(name);
-    }
     syn SimpleSet IteratorDecl.localLookupType(String name) {
 	List patternTVs = getPatternTypeParameterList();
 	for (int i=0; i<patternTVs.getNumChild(); i++) {
@@ -14,8 +9,16 @@ aspect MJLookupType {
 	return SimpleSet.emptySet;
     }
 
-    eq StaticForDecl.getIteratorDecl().lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);
+    inh SimpleSet StaticForMethodDecl.lookupType(String name);
+    syn SimpleSet StaticForMethodDecl.localLookupType(String name) = getIteratorDecl().localLookupType(name);
+    eq StaticForMethodDecl.getChild().lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);
 
-    eq StaticForDecl.getBodyDecl(int index).lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);
+    inh SimpleSet StaticForConstructorDecl.lookupType(String name);
+    syn SimpleSet StaticForConstructorDecl.localLookupType(String name) = getIteratorDecl().localLookupType(name);
+    eq StaticForConstructorDecl.getChild().lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);
+
+    inh SimpleSet StaticForFieldDeclaration.lookupType(String name);
+    syn SimpleSet StaticForFieldDeclaration.localLookupType(String name) = getIteratorDecl().localLookupType(name);
+    eq StaticForFieldDeclaration.getChild().lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);
 
 }

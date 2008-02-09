@@ -1,4 +1,12 @@
 aspect MJTypeAnalysis {
+    
+    inh BodyDecl Pattern.hostBodyDecl();
+    inh BodyDecl IteratorDecl.hostBodyDecl();
+    eq IteratorDecl.getPattern().hostBodyDecl() = hostBodyDecl();
+    eq IteratorDecl.getNestedPattern(int i).hostBodyDecl() = hostBodyDecl();
+    eq StaticForMethodDecl.getIteratorDecl().hostBodyDecl() = this;
+    eq StaticForConstructorDecl.getIteratorDecl().hostBodyDecl() = this;
+    eq StaticForFieldDeclaration.getIteratorDecl().hostBodyDecl() = this;
 
     refine TypeAnalysis public TypeDecl ClassDecl.superclass() {
 	if(isObject())
@@ -94,7 +102,7 @@ aspect MJCircularity {
 	// add all the types this uses for reflective declaration.
 	Collection rm = reflectiveMethods();
 	for ( Iterator rmIt = rm.iterator(); rmIt.hasNext(); ) {
-	    TypeDecl baseType = ((MethodDecl) rmIt.next()).enclosingRefIterator().getPattern().reflectiveBaseType();
+	    TypeDecl baseType = ((MethodDecl) rmIt.next()).reflectiveBaseType();
 	    if ( baseType.circularlyDefined(currentChain))
 		return true;
 	}

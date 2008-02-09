@@ -6,7 +6,7 @@
        gen             - generates java files
        genClean        - removes all generated files and their class files
 -->
-<project name="MJ" default="build">
+<project name="MJFrontend" default="build">
 
 <!-- location of Java1.4Frontend -->
 <property name="Java1.4Frontend" value="../../JastAddJ/Java1.4Frontend"/>
@@ -49,6 +49,9 @@
 			<include name="**/*.ast"/>
 			<include name="**/*.jrag"/>
 			<include name="**/*.jadd"/>      
+			<exclude name="BytecodeAttributes.jrag"/>
+			<exclude name="BytecodeDescriptor.jrag"/>
+			<exclude name="BytecodeReader.jrag"/>
 		</fileset>
 		<fileset dir=".">
 			<include name="**/*.ast"/>
@@ -130,7 +133,7 @@
     <delete>
       <fileset dir="." includes="**/*.class"/>
     </delete>
-    <delete file="JavaChecker.jar"/>
+    <delete file="MJChecker.jar"/>
 	  <delete file="Java1.5Frontend-src.jar"/>
 </target>
 
@@ -150,9 +153,9 @@
 
 <!-- build binaries -->
 <target name="jar" depends="build">
-  <jar destfile="JavaChecker.jar" basedir="." includes="**/*.class" excludes="test/**">
+  <jar destfile="MJChecker.jar" basedir="." includes="**/*.class" excludes="test/**">
     <manifest>
-      <attribute name="Main-Class" value="JavaChecker"/>
+      <attribute name="Main-Class" value="MJChecker"/>
     </manifest>
   </jar>
 </target>
