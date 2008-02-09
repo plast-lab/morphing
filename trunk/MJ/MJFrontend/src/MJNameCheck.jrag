@@ -1,18 +1,6 @@
 aspect MJNameCheck {
-    public void StaticForDecl.nameCheck() {
-	/*
-	getIteratorDecl().nameCheck();
-
-	for ( int i=0; i<getNumBodyDecl(); i++) {
-	    getBodyDecl(i).nameCheck();
-	}
-	*/
-	// This is where we put the stuff for checking disjointness.
-    }
 
     syn lazy MethodDecl TypeDecl.everyMethod () {
-	StaticForDecl sfd = new StaticForDecl();
-	
 	/**
 	 * pattern: _ m(A) throws E : T.methods
 	 * where _ is the AllMatchingTypeVariable, which matches void.
@@ -34,25 +22,21 @@ aspect MJNameCheck {
 					   new List().add(m),
 					   p, new List());
 
-	MethodDecl md = new MethodDecl(new Modifiers(), 
-				       R.createQualifiedAccess(),
-				       "m", 
-				       new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
-				       new List(),
-				       new List().add(E.createQualifiedAccess()),
-				       new Opt());
-	sfd.setIteratorDecl(id);
-	sfd.setBodyDeclList(new List().add(md));
-
-	addBodyDecl(sfd);
+	StaticForMethodDecl sfd = 
+	    new StaticForMethodDecl(new Modifiers(),
+				    R.createQualifiedAccess(),
+				    "m", 
+				    new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
+				    new List(),
+				    new List().add(E.createQualifiedAccess()),
+				    new Opt(),
+				    id);
 
 	sfd.is$Final = true;
-	md.is$Final = true;
+	addBodyDecl(sfd);
 
 	sfd.bypassErrorChecking = true;
-	md.bypassErrorChecking = true;
-
-	return md;
+	return sfd;
     }
 
     refine NameCheck public void MethodDecl.nameCheck() {

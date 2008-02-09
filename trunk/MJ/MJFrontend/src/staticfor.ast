@@ -1,8 +1,14 @@
-VectorTypeVariable : TypeVariable;
-AllMatchingTypeVariable : TypeVariable;
+PatternTypeVariable : TypeVariable;
+VectorTypeVariable : PatternTypeVariable;
+AllMatchingTypeVariable : PatternTypeVariable;
+
 PatternNameVariable ::= <ID:String>;
 
 StaticForDecl : MemberDecl ::= IteratorDecl BodyDecl*;
+
+StaticForConstructorDecl : ConstructorDecl ::= IteratorDecl;
+StaticForMethodDecl : MethodDecl ::= IteratorDecl;
+StaticForFieldDeclaration : FieldDeclaration ::=  IteratorDecl;
 
 IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern*;
 
@@ -14,5 +20,5 @@ BaseSet ::= TypeAccess:Access RefElmt;
 
 RefElmt ::= <ElmtName:String>;
 
-PatternMethodDecl : MethodDecl ;
+PatternMethodDecl : StaticForMethodDecl ;
 

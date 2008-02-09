@@ -3,7 +3,57 @@ package AST;
 aspect StaticFor {
 
     eq StaticForDecl.isStatic() = true;
+
+    interface StaticForDeclaration {
+	IteratorDecl getIteratorDecl();
+	public ASTNode setEnd(int i);
+	public ASTNode setStart(int i);
+    }
+    StaticForMethodDecl implements StaticForDeclaration;
+    StaticForFieldDeclaration implements StaticForDeclaration;
+    StaticForConstructorDecl implements StaticForDeclaration;
+
+    // StaticForDecl may have multiple body decl's. Rewrite to a list
+    // of StaticForDeclaration
+    rewrite StaticForDecl in TypeDecl.getBodyDecl() {
+	when ( getNumBodyDecl() > 1 ) 
+	    to List {
+	    List declList = new List();
+	    for ( int i=0; i<getNumBodyDecl(); i++) {
+		declList.addChild((ASTNode) getBodyDecl(i).createStaticForDeclarationFrom((IteratorDecl) getIteratorDecl().fullCopy()));
+	    }
+	    return declList;
+	}
+    }
     
+    // StaticForDecl with single BodyDecl -> StaticForDeclaration.
+    rewrite StaticForDecl {
+	when ( getNumBodyDecl() == 1 )
+	    to ASTNode {
+	    StaticForDeclaration decl = getBodyDecl(0).createStaticForDeclarationFrom(getIteratorDecl());
+	    decl.setStart(start);
+	    decl.setEnd(end);
+	    return (ASTNode) decl;
+	}
+    }
+
+    public StaticForDeclaration BodyDecl.createStaticForDeclarationFrom(IteratorDecl id) {
+	throw new Error("Cannot create StaticForDeclaration for " +
+			getClass().getName());
+    }
+    public StaticForDeclaration ConstructorDecl.createStaticForDeclarationFrom(IteratorDecl id) {
+	return new StaticForConstructorDecl(getModifiers(), getID(), getParameterList(), getExceptionList(), getConstructorInvocationOpt(), getBlock(), id);
+    }
+    public StaticForDeclaration MethodDecl.createStaticForDeclarationFrom(IteratorDecl id) {
+	return new StaticForMethodDecl(getModifiers(), getTypeAccess(), getID(), getParameterList(), getEmptyBracketList(), getExceptionList(), getBlockOpt(), id);
+    }
+    public StaticForDeclaration FieldDeclaration.createStaticForDeclarationFrom(IteratorDecl id) {
+	return new StaticForFieldDeclaration(getModifiers(), getTypeAccess(), getID(), getInitOpt(), id);
+    }
+
+    // TODO: MemberClassDecl, MemberInterfaceDecl, StaticInitializer
+    
+
     public void PatternNameVariable.toString(StringBuffer s) {
 	s.append(getID());
     }
@@ -44,5 +94,6 @@ aspect StaticFor {
     public void RefElmt.toString(StringBuffer s) {
 	s.append(getElmtName());
     }
-    
+
+    syn TypeDecl BaseSet.baseType() = getTypeAccess().type();
 }

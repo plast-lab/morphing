@@ -10,13 +10,9 @@ aspect MJLookupMethod {
     syn lazy Collection TypeDecl.reflectiveMethods() {
 	Set set = new HashSet();
 	for ( int i=0; i<getNumBodyDecl(); i++) {
-	    if ( getBodyDecl(i) instanceof StaticForDecl ) {
-		StaticForDecl sfd = (StaticForDecl) getBodyDecl(i);
-		for ( int j=0; j<sfd.getNumBodyDecl(); j++) {
-		    if (sfd.getBodyDecl(j) instanceof MethodDecl )
-			set.add(sfd.getBodyDecl(j));
-		}
-	    }
+	    if ( getBodyDecl(i).isReflectiveDecl()  &&
+		 getBodyDecl(i) instanceof MethodDecl )
+		set.add(getBodyDecl(i));
 	}
 	return set;
     }
@@ -27,7 +23,70 @@ aspect MJLookupMethod {
 	}
 	return set;
     }
-    
+    eq ParTypeDecl.reflectiveMethods() {
+	Collection refMethods = genericDecl().reflectiveMethods();
+	Set substitutedMethods = new HashSet();
+	for ( Iterator rmIt = refMethods.iterator(); rmIt.hasNext(); ) {
+	    MethodDecl md = (MethodDecl) rmIt.next();
+	    if ( md.usesTypeVariable()) {
+		BodyDecl bd = md.p(this);
+		bd.is$Final = true;
+		addBodyDecl(bd);
+		substitutedMethods.add(bd);
+	    } else 
+		substitutedMethods.add(md);
+	}
+	return substitutedMethods;
+    }
+
+    protected StaticForMethodDecl StaticForMethodDecl.original;
+    syn StaticForMethodDecl StaticForMethodDecl.original() = original != null ? original : this;
+
+    public BodyDecl StaticForMethodDecl.p(ParTypeDecl parTypeDecl) {
+	// TODO: this is not good enough for generic methods.
+	// Might need a StaticForGenericMethodDecl...
+	// What I really need is for StaticForMethodDecl to be a proxy for
+	// the underlying MethodDecl. But it is simply too hard to duplicate
+	// all the functionalities in MethodDecl.
+	// May be a nice functionality for JastAdd.
+	StaticForMethodDecl m = 
+	    new StaticForMethodDecl((Modifiers)getModifiers().fullCopy(), 
+				    getTypeAccess().type().substituteReturnType(parTypeDecl),
+				    getID(),
+				    getParameterList().substitute(parTypeDecl),
+				    new List(),
+				    getExceptionList().substitute(parTypeDecl),
+				    new Opt(),
+				    getIteratorDecl().substitute(parTypeDecl));
+	m.original = this;
+	return m;
+    }
+
+    public IteratorDecl IteratorDecl.substitute(ParTypeDecl parTypeDecl) {
+	return new IteratorDecl((List) getPatternTypeParameterList().fullCopy(), (List) getPatternNameParameterList().fullCopy(), getPattern().substitute(parTypeDecl), getNestedPatternList().substitute(parTypeDecl));
+    }
+    public Pattern Pattern.substitute(ParTypeDecl parTypeDecl) {
+	return new Pattern(getTypeAccess().type().substitute(parTypeDecl),
+			   getID(),
+			   getParameterList().substitute(parTypeDecl),
+			   new List(),
+			   getExceptionList().substitute(parTypeDecl),
+			   getBaseSet().substitute(parTypeDecl));
+    }
+    public NestedPattern NestedPattern.substitute(ParTypeDecl parTypeDecl) {
+	return new NestedPattern(getTypeAccess().type().substitute(parTypeDecl),
+				 getID(),
+				 getParameterList().substitute(parTypeDecl),
+				 new List(),
+				 getExceptionList().substitute(parTypeDecl),
+				 getBaseSet().substitute(parTypeDecl),
+				 getIsPositive());
+    }
+    public BaseSet BaseSet.substitute(ParTypeDecl parTypeDecl) {
+	return new BaseSet(getTypeAccess().type().substitute(parTypeDecl),
+			   (RefElmt) getRefElmt().fullCopy());
+    }
+
     // Modify how methods are retrieved.
     refine LookupMethod eq AbstractDot.getRight().lookupMethod(String name) {
 	if ( isNameVariable(name)) 
@@ -62,6 +121,78 @@ aspect MJLookupMethod {
 	return methods;
     }
 	
+    syn lazy HashMap TypeDecl.allMethodsMap() = methodsSignatureMap();
+
+    eq ClassDecl.allMethodsMap() {
+	HashMap allMethods = super.allMethodsMap();
+	
+	// get all the reflective methods, expanded.
+	Collection refMethods = reflectiveMethods();
+	for (Iterator refIt = refMethods.iterator(); refIt.hasNext(); ) {
+	    StaticForMethodDecl m = (StaticForMethodDecl) refIt.next();
+	    Collection c = m.expand();
+	    for ( Iterator cIt = c.iterator(); cIt.hasNext(); ) {
+		MethodDecl md = (MethodDecl) cIt.next();
+		if ( !allMethods.containsKey(md.signature()))
+		    putSimpleSetElement(allMethods, md.signature(), md);
+	    }
+	}
+	return allMethods;
+    }
+
+    syn lazy Collection StaticForMethodDecl.expand() {
+	IteratorDecl mIt = getIteratorDecl();
+	if ( !mIt.getPattern().getBaseSet().type().grounded())
+	    throw new Error("Cannot return the reflective elements of a " +
+			    "reflective iterator when the base type is " +
+			    "not grounded");
+
+	Collection methods = new ArrayList();
+	for ( Iterator refElmts = mIt.reflectiveElmts().values().iterator();
+	      refElmts.hasNext(); ) {
+	    Map substitutions = (Map) refElmts.next();	
+	    methods.add(substitute(substitutions));
+	}
+	return methods;
+    }
+
+    public MethodDecl StaticForMethodDecl.substitute(Map substitution) {
+	return new MethodDecl((Modifiers) getModifiers().fullCopy(),
+			      getTypeAccess().type().substitute(substitution),
+			      substitution.containsKey(getID()) ?
+			      (String) substitution.get(getID()) : getID(),
+			      getParameterList().substitute(substitution),
+			      new List(),
+			      getExceptionList().substitute(substitution),
+			      new Opt());
+    }
+
+    public List List.substitute(Map submap) {
+	List list = new List();
+	for ( int i=0; i<getNumChild(); i++) {
+	    ASTNode node = getChild(i);
+	    if ( node instanceof Access)
+		list.add(((Access) node).type().substitute(submap));
+	    else
+		throw new Error("Can only substitute lists of access nodes but node number " + i + " is of type " + node.getClass().getName());
+	}
+	return list;
+    }
+
+    public Access TypeDecl.substitute(Map submap) {
+	return createBoundAccess();
+    }
+    public Access TypeVariable.substitute(Map submap) {
+	if ( submap.containsKey(this))
+	    ((TypeDecl) submap.get(this)).createBoundAccess();
+	return createBoundAccess();
+    }
+    public Access ParTypeDecl.substitute(Map submap) {
+	List list = new List();
+	for ( int i=0; i<getNumArgument(); i++) 
+	    list.add(getArgument(i).type().substitute(submap));
+	return new ParTypeAccess(genericDecl().createQualifiedAccess(), list);
+    }
 }
 
 aspect MJLookupConstructor {
@@ -74,16 +205,18 @@ aspect MJLookupConstructor {
 	usedAsSupertype = p;
     }
 
-    // a TypeVariable constrained to be a class and used as a superclass
-    // must also provide a default constructor.
-    // this is assumed -- like the fact that it must also not be final.
+
+    // A constrained TypeVariable used as a supertype must not be final.
     eq ConstrainedTypeVariable.isFinal() = 
-	usedAsSupertype ? true : super.isFinal() ;
+	usedAsSupertype ? false : super.isFinal() ;
+
+    // Add a default constructor to a TypeVariable constrained to be a class. 
     eq ConstrainedTypeVariable.constructors() {
 	if ( getConstraint().equals("class")) {
 	    ConstructorDecl cd = new ConstructorDecl(new Modifiers(new List().add(new Modifier("public"))), typeName(), new List(), new List(), new Opt(), new Block());
 	    addBodyDecl(cd);
 	    cd.is$Final = true;
+	    cd.bypassErrorChecking = true;
 
 	    Collection c = new ArrayList();
 	    c.add(cd);
