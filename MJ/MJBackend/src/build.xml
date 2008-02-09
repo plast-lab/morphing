@@ -6,13 +6,17 @@
        gen             - generates java files
        genClean        - removes all generated files and their class files
 -->
-<project name="MJ" default="build">
+<project name="MJBackend" default="build">
 
 <!-- location of Java1.4Frontend -->
 <property name="Java1.4Frontend" value="../../JastAddJ/Java1.4Frontend"/>
 
 <!-- location of Java1.5Frontend -->
 <property name="Java1.5Frontend" value="../../JastAddJ/Java1.5Frontend"/>
+
+<!-- location of MJFrontend -->
+<property name="MJFrontend" value="../../MJFrontend/src"/>
+
 
 <!-- location of Java1.4Backend -->
 <property name="Java1.4Backend" value="../../JastAddJ/Java1.4Backend"/>
@@ -61,12 +65,20 @@
 			<include name="**/*.ast"/>
 			<include name="**/*.jrag"/>
 			<include name="**/*.jadd"/>      
+			<exclude name="BytecodeAttributes.jrag"/>
+			<exclude name="BytecodeDescriptor.jrag"/>
+			<exclude name="BytecodeReader.jrag"/>
 		</fileset>
 		<fileset dir="${Java1.5Backend}">
 			<include name="**/*.ast"/>
 			<include name="**/*.jrag"/>
 			<include name="**/*.jadd"/>
 		</fileset>
+		<fileset dir="${MJFrontend}">
+			<include name="**/*.ast"/>
+			<include name="**/*.jrag"/>
+			<include name="**/*.jadd"/>      
+                </fileset>
 		<fileset dir=".">
 			<include name="**/*.ast"/>
 			<include name="**/*.jrag"/>
@@ -108,6 +120,9 @@
         <file name="Identifiers.flex"/>
         <file name="postamble.flex"/>
       </filelist>
+      <filelist dir="${MJFrontend}">
+        <file name="MJkeywords.flex"/>
+      </filelist>      
     </concat>
 	  <!-- generate the scanner -->
 		<jflex file="scanner/JavaScanner.flex" outdir="scanner" nobak="yes"/>
@@ -122,10 +137,13 @@
 	      <file name="parser/preamble.parser"/>
 	      <file name="parser/java14.parser"/>
 	      <file name="parser/errorrecovery.parser"/>
-    </filelist>
+	   </filelist>
 	  <fileset dir="${Java1.5Frontend}">
 	      <include name="*.parser"/>
 	  </fileset>
+          <fileset dir="${MJFrontend}">
+	      <include name="*.parser"/>
+          </fileset>
 	</concat>
 	<!-- generate the parser phase 2, translating .lalr to .beaver -->
 		<java classpath="${tools}/JastAddParser.jar:${tools}/beaver-rt.jar" classname="Main" fork="true">
@@ -141,8 +159,8 @@
     <delete>
       <fileset dir="." includes="**/*.class"/>
     </delete>
-    <delete file="JavaChecker.jar"/>
-	  <delete file="Java1.5Frontend-src.jar"/>
+    <delete file="MJCompiler.jar"/>
+	  <delete file="MJBackend-src.jar"/>
 </target>
 
 <!-- remove generated source files -->
@@ -161,30 +179,24 @@
 
 <!-- build binaries -->
 <target name="jar" depends="build">
-  <jar destfile="JavaChecker.jar" basedir="." includes="**/*.class" excludes="test/**">
+  <jar destfile="MJCompiler.jar" basedir="." includes="**/*.class" excludes="test/**">
     <manifest>
-      <attribute name="Main-Class" value="JavaChecker"/>
+      <attribute name="Main-Class" value="MJCompiler"/>
     </manifest>
   </jar>
 </target>
 
 <!-- build a source distribution -->
 <target name="source" depends="build">
-  <jar destfile="MJ-src.jar">
+  <jar destfile="MJBackend-src.jar">
 			<fileset dir="../..">
         <!-- include backend source file -->
-				<include name="MJ/src/**/*.ast"/>
-				<include name="MJ/src/**/*.jrag"/>
-				<include name="MJ/src/**/*.jadd"/>
-        <!-- include parser and scanner -->
-				<include name="MJ/src/**/*.parser"/>
-				<include name="MJ/src/*.flex"/>
+				<include name="MJBackend/src/MJCompiler.java"/>
+				<include name="MJBackend/src/**/*.ast"/>
+				<include name="MJBackend/src/**/*.jrag"/>
+				<include name="MJBackend/src/**/*.jadd"/>
         <!-- include buildfile used to build the backend -->
-				<include name="MJ/src/build.xml"/>
-        <!-- include readme and licence -->
-<!--				<include name="Java1.5Frontend/README"/>
-				<include name="Java1.5Frontend/licences/BSD"/>
--->
+				<include name="MJBackend/src/build.xml"/>
 			</fileset>
       <manifest>
       </manifest>

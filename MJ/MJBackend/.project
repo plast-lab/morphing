@@ -3,6 +3,7 @@
 	<name>MJBackend</name>
 	<comment></comment>
 	<projects>
+		<project>ASM3.1</project>
 	</projects>
 	<buildSpec>
 		<buildCommand>
