@@ -22,7 +22,8 @@ aspect MJExpansion {
 		StaticForMethodDecl md = genericDecl().reflectiveMethod(mn);
 		
 		if ( md != null ) {
-		    StaticForMethodDecl subMd = (StaticForMethodDecl) md.p(this);
+		    ParStaticForMethodDecl subMd = 
+			(ParStaticForMethodDecl) md.p(this);
 		    IteratorDecl id = subMd.getIteratorDecl();
 
 		    // get the mappings for each element in the iterator decl
@@ -30,6 +31,12 @@ aspect MJExpansion {
 		    for ( Iterator subMaps = id.reflectiveElmts().values().iterator();
 			  subMaps.hasNext(); ) {
 			Map substitutions = (Map) subMaps.next();
+			// put into the map the parameterization from this
+			GenericClassDecl gcd = (GenericClassDecl) genericDecl();
+			for ( int i=0; i<gcd.getNumTypeParameter(); i++) {
+			    substitutions.put(gcd.getTypeParameter(i),
+					      getArgument(i).type());
+			}
 
 			MethodNode newNode = copyMethodNode(mn);
 
@@ -40,8 +47,15 @@ aspect MJExpansion {
 			    newNode.name = mn.name;
 
 			// TODO: modify exceptions.
+			// TODO: copy signature?	
+
 			// TODO:change instructions.
-			// TODO: copy signature?			
+			InsnTransformVisitor insnVisitor = new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), subMd, substitutions);
+			newNode.accept(insnVisitor);
+
+			newNode.instructions = insnVisitor.instructions;
+			newNode.localVariables = insnVisitor.localVariables;
+			newNode.tryCatchBlocks = insnVisitor.tryCatchBlocks;
 
 			newMethods.add(newNode);
 		    }
@@ -159,12 +173,14 @@ aspect MJExpansion {
     eq ParTypeDecl.expandedName() {
 	StringBuffer buf = new StringBuffer("$$");
 	buf.append(name());
+	// $$L for <
+	buf.append("$$L");
 	for ( int i=0; i<getNumArgument(); i++ ) {
 	    TypeDecl argType = getArgument(i).type();
-	    buf.append("$" + 
-		       TypeDecl.convertToExpandedName(argType.expandedConstantPoolName()) +
-		       "$");
+	    buf.append(TypeDecl.convertToExpandedName(argType.expandedConstantPoolName()));
 	}	
+	// $$R for >
+	buf.append("$$R");
 	return buf.toString();
     }
     eq RawClassDecl.expandedName() {
@@ -175,9 +191,50 @@ aspect MJExpansion {
 	throw new Error("Interfaces with reflective declarations cannot be " +
 			"raw types.");
     }
-
+    // $$S for /
     protected static String TypeDecl.convertToExpandedName ( String n ) {
-	return n.replaceAll("[/]", "_");
+	return n.replace("/", "$$S");
+    }
+
+    // TODO: not finished.
+    syn lazy TypeDecl ParStaticForMethodDecl.parseConstantPoolName(String n) {
+	// Package and Type Name
+	StringBuffer packageName = new StringBuffer();
+	
+	int i, last = 0;
+	while( (i = n.indexOf("/")) > 0 ) {
+	    if ( last > 0 )
+		packageName.append(".");
+	    packageName.append(n.substring(last, i));
+	}
+
+	// what's left is the type name.
+	String typeName = n.substring(last);
+
+	TypeDecl t = null;
+
+	// if it begins with $$, then it is an expanded constant pool name.
+	if ( typeName.startsWith("$$")) {
+	    
+	} else {
+	    /*
+	    String[] names = typeName.split("\\$");
+	    for(int i = 1; i < names.length; i++)
+		t = t.lookupType(names[i]);
+	    */
+	    // TODO: i don't know if this works with innerclasess.
+	    TypeAccess ta = new TypeAccess(packageName.toString(), typeName);
+	    this.addAccess(ta);
+	    t = ta.type();
+	    /*
+	    if ( packageName.length() == 0) 
+		t = (TypeDecl) lookupType(typeName).iterator().next();
+	    else
+		t = lookupType(packageName.toString(), typeName);
+	    */
+	}
+
+	return t;
     }
 
     public java.util.Set ASTNode.collectExpansionTypes() {

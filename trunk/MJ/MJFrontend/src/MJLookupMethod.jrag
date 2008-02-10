@@ -42,23 +42,33 @@ aspect MJLookupMethod {
     protected StaticForMethodDecl StaticForMethodDecl.original;
     syn StaticForMethodDecl StaticForMethodDecl.original() = original != null ? original : this;
 
+    HashMap StaticForMethodDecl.parMethodDeclMap = new HashMap();
+
     public BodyDecl StaticForMethodDecl.p(ParTypeDecl parTypeDecl) {
+	// check that this substitution doesn't already exist.
+	if ( parMethodDeclMap.get(parTypeDecl) != null)
+	    return (BodyDecl) parMethodDeclMap.get(parTypeDecl);
+	
 	// TODO: this is not good enough for generic methods.
 	// Might need a StaticForGenericMethodDecl...
 	// What I really need is for StaticForMethodDecl to be a proxy for
 	// the underlying MethodDecl. But it is simply too hard to duplicate
 	// all the functionalities in MethodDecl.
 	// May be a nice functionality for JastAdd.
-	StaticForMethodDecl m = 
-	    new StaticForMethodDecl((Modifiers)getModifiers().fullCopy(), 
-				    getTypeAccess().type().substituteReturnType(parTypeDecl),
-				    getID(),
-				    getParameterList().substitute(parTypeDecl),
-				    new List(),
-				    getExceptionList().substitute(parTypeDecl),
-				    new Opt(),
-				    getIteratorDecl().substitute(parTypeDecl));
+	ParStaticForMethodDecl m = 
+	    new ParStaticForMethodDecl((Modifiers)getModifiers().fullCopy(), 
+				       getTypeAccess().type().substituteReturnType(parTypeDecl),
+				       getID(),
+				       getParameterList().substitute(parTypeDecl),
+				       new List(),
+				       getExceptionList().substitute(parTypeDecl),
+				       new Opt(),
+				       getIteratorDecl().substitute(parTypeDecl),
+				       new List(), new List());
 	m.original = this;
+	this.addParStaticForMethodDecl(m);
+	parMethodDeclMap.put(parTypeDecl, m);
+
 	return m;
     }
 
@@ -184,7 +194,7 @@ aspect MJLookupMethod {
     }
     public Access TypeVariable.substitute(Map submap) {
 	if ( submap.containsKey(this))
-	    ((TypeDecl) submap.get(this)).createBoundAccess();
+	    return ((TypeDecl) submap.get(this)).createBoundAccess();
 	return createBoundAccess();
     }
     public Access ParTypeDecl.substitute(Map submap) {

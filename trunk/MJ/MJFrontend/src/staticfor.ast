@@ -7,7 +7,8 @@ PatternNameVariable ::= <ID:String>;
 StaticForDecl : MemberDecl ::= IteratorDecl BodyDecl*;
 
 StaticForConstructorDecl : ConstructorDecl ::= IteratorDecl;
-StaticForMethodDecl : MethodDecl ::= IteratorDecl;
+StaticForMethodDecl : MethodDecl ::= IteratorDecl ParStaticForMethodDecl*;
+ParStaticForMethodDecl : StaticForMethodDecl ::= Access*;
 StaticForFieldDeclaration : FieldDeclaration ::=  IteratorDecl;
 
 IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern*;

@@ -1,0 +1,114 @@
+import org.objectweb.asm.tree.*;
+
+aspect MJInstructionTransform {
+        
+    public class InsnTransformVisitor extends org.objectweb.asm.MethodAdapter {
+	public InsnList instructions = new InsnList();
+	java.util.List tryCatchBlocks = new java.util.ArrayList();
+	java.util.List localVariables = new java.util.ArrayList();
+
+	ParStaticForMethodDecl md;
+	Map substitutions;
+
+	public InsnTransformVisitor(MethodVisitor mv, 
+				    ParStaticForMethodDecl md,
+				    Map substitutions) {
+	    super(mv);
+	    this.md = md;
+	    this.substitutions = substitutions;
+	}
+
+
+	public void visitFieldInsn(int opcode, String owner, String name, String desc) {
+	    instructions.add(new FieldInsnNode(opcode, owner, name, desc));
+	}
+
+	public void visitIincInsn(int var, int increment) {
+	    instructions.add(new IincInsnNode(var, increment));
+	}
+
+	public void visitInsn(int opcode) {
+	    instructions.add(new InsnNode(opcode));
+	}
+
+	public void visitIntInsn(int opcode, int operand) {
+	    instructions.add(new IntInsnNode(opcode, operand));
+	}
+
+	public void visitJumpInsn(int opcode, Label label) {
+	    instructions.add(new JumpInsnNode(opcode, new LabelNode(label)));
+	}
+
+	public void visitLabel(Label label) {
+	    instructions.add(new LabelNode(label));
+	}
+
+	public void visitLdcInsn(Object cst) {
+	    instructions.add(new LdcInsnNode(cst));
+	}
+
+	public void visitLineNumber(int line, Label start) {
+	    instructions.add(new LineNumberNode(line, new LabelNode(start)));
+	}
+
+	public void visitLocalVariable(String name,String desc,String signature,Label start,Label end,int index) {
+	    localVariables.add(new LocalVariableNode(name, desc, signature, new LabelNode(start), new LabelNode(end), index));
+	}
+	
+
+	public void visitLookupSwitchInsn(Label dflt, int[] keys, Label[] labels) {
+	    instructions.add(new LookupSwitchInsnNode(new LabelNode(dflt), keys, makeLabelArray(labels)));
+	}
+
+	public void visitMethodInsn(final int opcode,
+				    final String owner,
+				    final String name,
+				    final String desc) {
+	    String newOwner = owner;
+
+	    // parse owner to get the type's package and real name.
+	    // we only need to change it if the owner involves type variables
+	    TypeDecl ownerType = md.parseConstantPoolName(owner);
+	    if ( ownerType.needsExpansion()) {
+		ownerType = ownerType.substitute(substitutions).type();
+		newOwner = ownerType.expandedConstantPoolName();
+	    }
+	    String newName = name;
+	    if ( md.isNameVariable(name)) 
+		newName = (String) substitutions.get(md.getNameVariable(name));
+
+	    instructions.add(new MethodInsnNode(opcode, newOwner, 
+						newName, desc));
+	}
+
+	public void visitMultiANewArrayInsn(String desc, int dims) {
+	    instructions.add(new MultiANewArrayInsnNode(desc, dims));
+	}
+
+	public void visitTableSwitchInsn(int min, int max, Label dflt, Label[] labels) {
+	    instructions.add(new TableSwitchInsnNode(min, max, new LabelNode(dflt), makeLabelArray(labels)));
+	}
+
+	public void visitTypeInsn(int opcode, String type) {
+	    instructions.add(new TypeInsnNode(opcode, type));
+	}
+
+	public void visitVarInsn(int opcode, int var) {
+	    instructions.add(new VarInsnNode(opcode, var));
+	}
+
+	public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {
+	    tryCatchBlocks.add(new TryCatchBlockNode(new LabelNode(start), new LabelNode(end), new LabelNode(handler), type));
+	}
+
+
+	private LabelNode[] makeLabelArray(Label[] labels) {
+	    LabelNode[] nodes = new LabelNode[labels.length];
+	    for ( int i=0; i<labels.length; i++) {
+		nodes[i] = new LabelNode(labels[i]);
+	    }
+	    return nodes;
+	}
+
+    }
+}

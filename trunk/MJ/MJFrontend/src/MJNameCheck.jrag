@@ -30,7 +30,7 @@ aspect MJNameCheck {
 				    new List(),
 				    new List().add(E.createQualifiedAccess()),
 				    new Opt(),
-				    id);
+				    id, new List());
 
 	sfd.is$Final = true;
 	addBodyDecl(sfd);
