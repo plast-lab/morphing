@@ -112,7 +112,8 @@ aspect MJPattern {
 				  (List) getExceptionList().fullCopy(),
 				  new Opt(), 
 				  //(IteratorDecl) enclosingRefIterator().fullCopy()
-				  enclosingRefIterator());
+				  enclosingRefIterator(),
+				  new List());
 	
 	pd.is$Final = true;
 	pd.bypassErrorChecking = true;

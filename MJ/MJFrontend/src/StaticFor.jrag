@@ -45,7 +45,7 @@ aspect StaticFor {
 	return new StaticForConstructorDecl(getModifiers(), getID(), getParameterList(), getExceptionList(), getConstructorInvocationOpt(), getBlock(), id);
     }
     public StaticForDeclaration MethodDecl.createStaticForDeclarationFrom(IteratorDecl id) {
-	return new StaticForMethodDecl(getModifiers(), getTypeAccess(), getID(), getParameterList(), getEmptyBracketList(), getExceptionList(), getBlockOpt(), id);
+	return new StaticForMethodDecl(getModifiers(), getTypeAccess(), getID(), getParameterList(), getEmptyBracketList(), getExceptionList(), getBlockOpt(), id, new List());
     }
     public StaticForDeclaration FieldDeclaration.createStaticForDeclarationFrom(IteratorDecl id) {
 	return new StaticForFieldDeclaration(getModifiers(), getTypeAccess(), getID(), getInitOpt(), id);
