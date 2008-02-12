@@ -1,17 +1,21 @@
 PatternTypeVariable : TypeVariable;
 VectorTypeVariable : PatternTypeVariable;
 AllMatchingTypeVariable : PatternTypeVariable;
+NonVoidType : TypeDecl;
 
 PatternNameVariable ::= <ID:String>;
 
 StaticForDecl : MemberDecl ::= IteratorDecl BodyDecl*;
 
 StaticForConstructorDecl : ConstructorDecl ::= IteratorDecl;
-StaticForMethodDecl : MethodDecl ::= IteratorDecl ParStaticForMethodDecl*;
-ParStaticForMethodDecl : StaticForMethodDecl ::= Access*;
+StaticForMethodDecl : MethodDecl ::= IteratorDecl DecompiledAccess:Access* ;
+ParStaticForMethodDecl : StaticForMethodDecl ::= ExpandedMethodDecl*; 
+ExpandedMethodDecl : MethodDecl;
+
 StaticForFieldDeclaration : FieldDeclaration ::=  IteratorDecl;
 
 IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern*;
+ParIteratorDecl : IteratorDecl;
 
 Pattern ::= TypeAccess:Access <ID:String> Parameter:TypeAccess* EmptyBracket* Exception:Access* BaseSet; 
 

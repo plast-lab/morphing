@@ -2,16 +2,123 @@ aspect MJExpansion {
 
     protected void ParClassDecl.expand(ClassNode cn) {
 	// change name
-	cn.name = expandedName();
-	
-	// inspect methods for reflectively declared ones.
+	cn.name = expandedConstantPoolName();
+
+	// remove signature.
+	cn.signature = null;
+	// change source file.
+	//	cn.sourceFile = sourceFile();
+
+	// change superclass.
+	if ( hasSuperclass())
+	    cn.superName = superclass().expandedConstantPoolName();
+
+	// change interface.
+	java.util.List interfaces = new java.util.ArrayList();
+	for ( int i=0; i<getNumImplements(); i++) 
+	    interfaces.add(getImplements(i).type().expandedConstantPoolName());
+	cn.interfaces = interfaces;
+
+	// transform fields.
+	expandFields(cn);
+
+	// transform methods.
 	expandMethods(cn);
     }
 
+    // TODO: this may not be right... 
+    protected MemberNode BodyDecl.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
+	throw new Error("transformMemberNode not implemented by " +
+			getClass().getName());
+    }
+    protected MemberNode ConstructorDecl.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
+	MethodNode newNode = TypeDecl.copyMethodNode((MethodNode)mn);
+
+	// modify descriptor;
+	newNode.desc = descName();
+
+	// take away signature.
+	newNode.signature = null; //descName();
+
+	InsnTransformVisitor insnVisitor = new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), parClass, this, new HashMap());
+	
+	newNode.accept(insnVisitor);
+	
+	newNode.instructions = insnVisitor.instructions;
+	newNode.localVariables = insnVisitor.localVariables;
+	newNode.tryCatchBlocks = insnVisitor.tryCatchBlocks;
+
+	return newNode;	
+    }
+
+    protected MemberNode MethodDecl.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
+	MethodNode newNode = TypeDecl.copyMethodNode((MethodNode)mn);
+	
+	// see if we need to change name.
+	newNode.name = getID();
+	
+	// modify descriptor;
+	newNode.desc = descName();
+	
+	// modify signature.
+	newNode.signature = null; //descName();
+	
+	// TODO: modify exceptions.
+	
+	// TODO:change instructions.
+	InsnTransformVisitor insnVisitor = new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), parClass, this, expansionSubstitutions);
+	
+	newNode.accept(insnVisitor);
+	
+	newNode.instructions = insnVisitor.instructions;
+	newNode.localVariables = insnVisitor.localVariables;
+	newNode.tryCatchBlocks = insnVisitor.tryCatchBlocks;
+	
+	// remove IteratorDecl attribute.
+	if ( newNode.attrs != null ) {
+	    for ( int j=0; j<newNode.attrs.size(); j++) {
+		if ( ((org.objectweb.asm.Attribute)newNode.attrs.get(j)).type.equals("IteratorDecl"))
+		    newNode.attrs.remove(j);
+	    }
+	}
+	return newNode;
+    }
+
+    protected MemberNode FieldDeclaration.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
+	// TODO: take care of reflectively declared fields.
+	
+	FieldNode newNode = TypeDecl.copyFieldNode((FieldNode) mn);
+
+	// change desc.
+	newNode.desc = type().typeDescriptor();
+	
+	// take away signature.
+	newNode.signature = null;
+	
+	return newNode;
+    }
+
+    protected void ParClassDecl.expandFields(ClassNode cn) {
+	java.util.List fields = cn.fields;
+	java.util.List newFields = new ArrayList();
+
+	for ( Iterator fIt = fields.iterator(); fIt.hasNext(); ) {
+	    FieldNode fn = (FieldNode) fIt.next();
+	    FieldDeclaration fd = findField(fn);
+	    
+	    // TODO: take care of reflectively declared fields.
+	    
+	    FieldNode newNode = (FieldNode) fd.transformMemberNode(fn, this);
+	    newFields.add(newNode);
+	}
+
+	cn.fields = newFields;
+    }
+    
     protected void ParClassDecl.expandMethods(ClassNode cn) {
 	java.util.List methods = cn.methods;
 	java.util.List newMethods = new ArrayList();
-	
+
 	for ( Iterator mIt = methods.iterator(); mIt.hasNext(); ) {
 	    MethodNode mn = (MethodNode) mIt.next();
 	    if ( reflectiveMemberNode(mn) ) {
@@ -24,39 +131,14 @@ aspect MJExpansion {
 		if ( md != null ) {
 		    ParStaticForMethodDecl subMd = 
 			(ParStaticForMethodDecl) md.p(this);
-		    IteratorDecl id = subMd.getIteratorDecl();
+		    List expandedMethods = subMd.expandedMethods();
 
-		    // get the mappings for each element in the iterator decl
-		    // 's range.
-		    for ( Iterator subMaps = id.reflectiveElmts().values().iterator();
-			  subMaps.hasNext(); ) {
-			Map substitutions = (Map) subMaps.next();
-			// put into the map the parameterization from this
-			GenericClassDecl gcd = (GenericClassDecl) genericDecl();
-			for ( int i=0; i<gcd.getNumTypeParameter(); i++) {
-			    substitutions.put(gcd.getTypeParameter(i),
-					      getArgument(i).type());
-			}
+		    for ( int i=0; i<expandedMethods.getNumChild(); i++) {
+			ExpandedMethodDecl expandedMd = 
+			    (ExpandedMethodDecl) expandedMethods.getChild(i);
 
-			MethodNode newNode = copyMethodNode(mn);
-
-			// see if we need to change name.
-			if ( subMd.isNameVariable(subMd.getID()))
-			    newNode.name = (String) substitutions.get(subMd.getNameVariable(subMd.getID()));
-			else 
-			    newNode.name = mn.name;
-
-			// TODO: modify exceptions.
-			// TODO: copy signature?	
-
-			// TODO:change instructions.
-			InsnTransformVisitor insnVisitor = new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), subMd, substitutions);
-			newNode.accept(insnVisitor);
-
-			newNode.instructions = insnVisitor.instructions;
-			newNode.localVariables = insnVisitor.localVariables;
-			newNode.tryCatchBlocks = insnVisitor.tryCatchBlocks;
-
+			MethodNode newNode = 
+			    (MethodNode) expandedMd.transformMemberNode(mn, this);
 			newMethods.add(newNode);
 		    }
 		} else {
@@ -65,13 +147,76 @@ aspect MJExpansion {
 				    "reflectively declared method " +
 				    mn.name);
 		}
-	    } else
-		newMethods.add(mn);
+	    } else {
+		MethodNode newMn = (MethodNode) findMethod(mn).transformMemberNode(mn, this);
+		newMethods.add(newMn);
+	    }
 	}
 	cn.methods = newMethods;
     }
 
-    public MethodNode TypeDecl.copyMethodNode(MethodNode mn) {
+    public BodyDecl TypeDecl.findMethod(MethodNode mn) {
+	if ( mn.name.equals("<init>")) {
+	    // check constructors.
+	    for (Iterator cIt = constructors().iterator(); cIt.hasNext(); ) {
+		ConstructorDecl cd = (ConstructorDecl) cIt.next();
+		if ( cd.isSameMethod(mn)) return cd;
+	    }
+	} else {
+	    for ( Iterator mIt = methodsIterator(); mIt.hasNext(); ) {
+		MethodDecl md = (MethodDecl) mIt.next();
+		if ( md.isSameMethod(mn)) return md;
+	    }
+	}
+	return null;
+    }
+    public FieldDeclaration TypeDecl.findField(FieldNode fn) {
+	for ( Iterator fIt = fields(fn.name).iterator(); fIt.hasNext(); ) {
+	    FieldDeclaration f = (FieldDeclaration) fIt.next();
+	    if ( f.getID().equals(fn.name))
+		return f;
+	}
+	return null;
+    }
+
+    public boolean ConstructorDecl.isSameMethod(MethodNode mn) {
+	return mn.name.equals("<init>")
+	    && (mn.signature == null || 
+		mn.signature.equals(constructorTypeSignature()));
+    }
+    public boolean ConstructorDeclSubstituted.isSameMethod(MethodNode mn) {
+	return ((ConstructorDecl) getOriginal()).isSameMethod(mn);
+    }
+    public boolean MethodDecl.isSameMethod(MethodNode mn) {
+	return mn.name.equals(getID()) &&
+	    (mn.signature == null || 
+	     mn.signature.equals(methodTypeSignature()));
+    }
+    public boolean MethodDeclSubstituted.isSameMethod(MethodNode mn) {
+	return ((MethodDecl) getOriginal()).isSameMethod(mn);
+    }
+
+    public StaticForMethodDecl TypeDecl.reflectiveMethod(MethodNode mn) {
+	Collection rmethods = reflectiveMethods();
+	for ( Iterator rmIt = rmethods.iterator(); rmIt.hasNext(); ) {
+	    StaticForMethodDecl md = (StaticForMethodDecl) rmIt.next();
+	    if ( md.getIteratorDecl().signature().equals(iteratorDeclAttribute(mn)) && mn.name.equals(md.getID()) && 
+		 mn.desc.equals(md.descName()) &&
+		 mn.signature.equals( md.methodTypeSignature()))
+		return md;
+	}
+	return null;
+    }
+    
+    public static FieldNode TypeDecl.copyFieldNode(FieldNode fn) {
+	return new FieldNode(fn.access,
+			     fn.name,
+			     fn.desc,
+			     fn.signature,
+			     fn.value);
+    }
+
+    public static MethodNode TypeDecl.copyMethodNode(MethodNode mn) {
 	MethodNode newNode = new MethodNode();
 	newNode.access = mn.access;
 	newNode.name = mn.name;
@@ -90,55 +235,6 @@ aspect MJExpansion {
 	newNode.maxStack = mn.maxStack;
 	newNode.maxLocals = mn.maxLocals;
 	return newNode;
-    }
-
-    // A map from elements in the reflective range to the mappings 
-    // resulting from the pattern variables to the concrete values in
-    // the element.
-    syn Map IteratorDecl.reflectiveElmts() {
-	// in order to call this, base type must be fully grounded.
-	if ( !getPattern().getBaseSet().getTypeAccess().type().grounded())
-	    // this should never happen.
-	    throw new Error("Cannot return the reflective elements of a " +
-			    "reflective iterator when the base type is " +
-			    "not grounded");
-
-	Map refElmtsMap = new HashMap();
-
-	if ( getPattern().getBaseSet().iterateMethods()) {
-	    Map methods = getPattern().getBaseSet().type().allMethodsMap();
-	    MethodDecl patternMd = getPattern().patternMethodDecl();
-
-	    // find all methods that fall into the range of this
-	    // iterator decl.
-	    for ( Iterator mIt = methods.values().iterator(); 
-		  mIt.hasNext(); ) {
-		MethodDecl md = (MethodDecl) mIt.next();
-		HashMap map = new HashMap();
-
-		if ( md.canUnifySignature(patternMd, map,
-					  patternTypeVariables(),
-					  patternNameVariables()))
-		    refElmtsMap.put(md, map);
-	    }
-	} else {
-	    // iterate over fields.
-	}
-
-	return refElmtsMap;
-    }
-
-    syn lazy boolean BaseSet.iterateMethods () = getRefElmt().getElmtName().equals("methods");
-    syn lazy boolean BaseSet.iterateFields () = getRefElmt().getElmtName().equals("fields");
-
-    public StaticForMethodDecl TypeDecl.reflectiveMethod(MethodNode mn) {
-	Collection rmethods = reflectiveMethods();
-	for ( Iterator rmIt = rmethods.iterator(); rmIt.hasNext(); ) {
-	    StaticForMethodDecl md = (StaticForMethodDecl) rmIt.next();
-	    if ( md.getIteratorDecl().signature().equals(iteratorDeclAttribute(mn)))
-		return md;
-	}
-	return null;
     }
     
     public String TypeDecl.iteratorDeclAttribute(MemberNode mn) {
@@ -197,15 +293,16 @@ aspect MJExpansion {
     }
 
     // TODO: not finished.
-    syn lazy TypeDecl ParStaticForMethodDecl.parseConstantPoolName(String n) {
+    syn lazy TypeDecl BodyDecl.parseConstantPoolName(String n) {
 	// Package and Type Name
 	StringBuffer packageName = new StringBuffer();
 	
 	int i, last = 0;
-	while( (i = n.indexOf("/")) > 0 ) {
+	while( (i = n.indexOf("/", last)) > 0 ) {
 	    if ( last > 0 )
 		packageName.append(".");
 	    packageName.append(n.substring(last, i));
+	    last = i+1;
 	}
 
 	// what's left is the type name.
@@ -224,8 +321,9 @@ aspect MJExpansion {
 	    */
 	    // TODO: i don't know if this works with innerclasess.
 	    TypeAccess ta = new TypeAccess(packageName.toString(), typeName);
-	    this.addAccess(ta);
-	    t = ta.type();
+	    //	    this.addDecompiledAccess(ta);
+	    //t = lookupType(packageName.toString(), typeName);
+	    t = retrieveType(ta);
 	    /*
 	    if ( packageName.length() == 0) 
 		t = (TypeDecl) lookupType(typeName).iterator().next();
@@ -236,93 +334,133 @@ aspect MJExpansion {
 
 	return t;
     }
-
-    public java.util.Set ASTNode.collectExpansionTypes() {
-	java.util.Set types = new java.util.HashSet();
-	for ( int i=0; i<getNumChild(); i++) 
-	    types.addAll(getChild(i).collectExpansionTypes());
-	return types;
+    eq ParStaticForMethodDecl.parseConstantPoolName(String n) = original.parseConstantPoolName(n);
+    eq FieldDeclarationSubstituted.parseConstantPoolName(String n) = getOriginal().parseConstantPoolName(n);
+    eq MethodDeclSubstituted.parseConstantPoolName(String n) = getOriginal().parseConstantPoolName(n);
+    eq ExpandedMethodDecl.parseConstantPoolName(String n) = original.parseConstantPoolName(n);
+    eq ConstructorDeclSubstituted.parseConstantPoolName(String n) = getOriginal().parseConstantPoolName(n);
+    
+    syn lazy TypeDecl BodyDecl.retrieveType(TypeAccess ta) {
+	this.addChild(ta);
+	TypeDecl t = ta.type();
+	
+	this.children[numChildren-1] = null;
+	this.numChildren = numChildren-1;
+	return t;
     }
 
-    public java.util.Set CompilationUnit.collectExpansionTypes() {
-	java.util.Set types = new java.util.HashSet();
-	for ( int i=0; i<getNumTypeDecl(); i++) {
-	    types.addAll(getTypeDecl(i).collectExpansionTypes());
-	}
-	return types;
-    }
+    eq ConstructorDeclSubstituted.retrieveType(TypeAccess ta) = getOriginal().retrieveType(ta);
+    eq MethodDeclSubstituted.retrieveType(TypeAccess ta) = getOriginal().retrieveType(ta);
+    eq ExpandedMethodDecl.retrieveType(TypeAccess ta) = original.retrieveType(ta);
+    eq FieldDeclarationSubstituted.retrieveType(TypeAccess ta) = getOriginal().retrieveType(ta);
 
-    public java.util.Set ParTypeAccess.collectExpansionTypes() {
-	java.util.Set types = new java.util.HashSet();
+    public List GenericTypeDecl.getParTypeDeclList();
 
-	boolean grounded = true;
-	for ( int i=0; i<getNumTypeArgument(); i++) {
-	    // regardless of whether all type arguments are grounded,
-	    // we still need to check for the types they refer to which
-	    // may need to be expanded.
-	    types.addAll(getTypeArgument(i).collectExpansionTypes());
-	    
-	    // check whether type argument is grounded.
-	    if (!getTypeArgument(i).type().grounded()) {
-		grounded = false;
-	    }
+    /**
+     * A TypeDecl needs expansion if:
+     * - it contains a reflective declaration block
+     * - it refers to types that needs expansion but cannot be expanded
+     *   i.e. is instantiated with at least one of its type parameters.
+     **/
+    /*
+    syn boolean ASTNode.needsExpansion() circular [false] {
+	for ( int i=0; i<getNumChild(); i++) {
+	    if ( getChild(i).needsExpansion())
+		return true;
 	}
-	if ( grounded && genericDecl().needsExpansion()) {
-	    // if all is grounded, and the generic type needs expansion.
-	    // then add this type
-	    types.add(type());
-	}
-	return types;
+	return false;
     }
-
-    // determine whether a type is grounded.
-    syn lazy boolean TypeDecl.grounded() = true;
-    eq TypeVariable.grounded() = false;
-    eq ParClassDecl.grounded() {
-	for ( int i=0; i<getNumArgument(); i++) {
-	    if ( !getArgument(i).type().grounded())
-		return false;
-	}
-	return true;
-    }
-    eq ParInterfaceDecl.grounded() {
-	for ( int i=0; i<getNumArgument(); i++) {
-	    if ( !getArgument(i).type().grounded())
-		return false;
-	}
-	return true;
-    }
-
-    // determine whether a type needs expansion.
-    syn lazy boolean TypeDecl.needsExpansion() {
+    */
+    syn boolean TypeDecl.needsExpansion() circular [true] {
+	// check all body decls.
 	for ( int i=0; i<getNumBodyDecl(); i++) {
 	    if ( getBodyDecl(i).needsExpansion()) return true;
 	}
 	return false;
     }
     eq ClassDecl.needsExpansion() {
+	// TODO: there appears to be a bug is inCircular. An innerclass's
+	// superclass's qualifier may not be a type access: e.g.
+	// ListItr's superclass Itr has qualifier AbstractCollection<E>,
+	// which has type ParTypeAccess, which is not a TypeAccess.
+	// Look into this.
+	// For now, we only inspect non-nested classes.
+	if ( isInnerClass()) return false;
+
+	// check whether superclass and interfaces needs expansion
 	if ( hasSuperclass() && superclass().needsExpansion())
 	    return true;
-	for ( Iterator ifIt = interfacesIterator(); ifIt.hasNext(); ) 
-	    if (((TypeDecl) ifIt.next()).needsExpansion()) return true;
-
+	for ( Iterator ifIt = interfacesIterator(); ifIt.hasNext(); ) {
+	    if ( ((TypeDecl) ifIt.next()).needsExpansion())
+		return true;
+	}
 	return super.needsExpansion();
     }
-
-    syn lazy boolean BodyDecl.needsExpansion() = false;
-    eq StaticForMethodDecl.needsExpansion() = getIteratorDecl().needsExpansion();
-    eq StaticForConstructorDecl.needsExpansion() = getIteratorDecl().needsExpansion();
-    eq StaticForFieldDeclaration.needsExpansion() = getIteratorDecl().needsExpansion();
-
-    syn lazy boolean IteratorDecl.needsExpansion() {
-	if ( getPattern().needsExpansion()) return true;
-	for ( int i=0; i<getNumNestedPattern(); i++) {
-	    if ( getNestedPattern(i).needsExpansion()) return true;
-	}	
+    eq InterfaceDecl.needsExpansion() {
+	for ( Iterator ifIt = superinterfacesIterator(); ifIt.hasNext(); ) 
+	    if ( ((TypeDecl) ifIt.next()).needsExpansion()) return true;
+	return super.needsExpansion();
+    }
+    eq ParTypeDecl.needsExpansion() {
+	// check whether the generic decl needs expansion.
+	if ( genericDecl().needsExpansion()) {
+	    // check whether all type arguments can be expanded.
+	    for ( int i=0; i<getNumArgument(); i++) {
+		if ( !getArgument(i).type().canbeExpanded())
+		    return true;
+	    }
+	} else {
+	    // check whether any of the type arguments needs expansion.
+	    for ( int i=0; i<getNumArgument(); i++) {
+		if ( getArgument(i).type().needsExpansion() )
+		    return true;
+	    }
+	}
 	return false;
     }
-    syn lazy boolean Pattern.needsExpansion() = getBaseSet().getTypeAccess().type().needsExpansion();
-    
-    eq TypeVariable.needsExpansion() = true;
-    
+
+    syn boolean BodyDecl.needsExpansion() circular [true] {
+	return false;
+    }
+    eq MethodDecl.needsExpansion() {
+	// check return type.
+	if ( type().needsExpansion()) return true;
+	// check parameters.
+	for ( int i=0; i<getNumParameter(); i++) {
+	    if ( getParameter(i).type().needsExpansion())
+		return true;
+	}
+	// TODO: check exception.
+
+	// check body
+	if ( hasBlock())
+	    return getBlock().needsExpansion();
+	return false;
+    }
+    eq StaticForMethodDecl.needsExpansion() {
+	if ( getIteratorDecl().needsExpansion()) return true;
+	return super.needsExpansion();
+    }
+    syn boolean IteratorDecl.needsExpansion() circular [true] {
+	if ( getPattern().needsExpansion()) return true;
+	for ( int i=0; i<getNumNestedPattern(); i++)
+	    if ( getNestedPattern(i).needsExpansion())
+		return true;
+	return false;
+    }
+    syn boolean Pattern.needsExpansion() circular [true]  =
+	getBaseSet().getTypeAccess().type().needsExpansion();
+
+    syn boolean Stmt.needsExpansion() circular [true] {
+	return false;
+    }
+    eq Block.needsExpansion() {
+	// check all statements.
+	return false;
+    }
+
+    syn lazy boolean BodyDecl.isSubstitutedDecl() = false;
+    eq FieldDeclarationSubstituted.isSubstitutedDecl() = true;
+    eq MethodDeclSubstituted.isSubstitutedDecl() = true;
+    eq ConstructorDeclSubstituted.isSubstitutedDecl() = true;
 }

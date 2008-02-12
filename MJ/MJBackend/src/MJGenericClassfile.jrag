@@ -9,6 +9,16 @@ aspect MJGenerateClassfile {
     }
     */
 
+    refine GenerateClassfile public void CompilationUnit.generateClassfile() {
+	if(fromSource()) {
+	    for(int i = 0; i < getNumTypeDecl(); i++) {
+		getTypeDecl(i).generateClassfile();
+		// move this to later, after expansion.
+		// getTypeDecl(i).clear();
+	    }
+	}
+    }
+
     public class ASMIteratorDeclAttribute extends org.objectweb.asm.Attribute {
 	String signature = null;
 	
@@ -35,16 +45,23 @@ aspect MJGenerateClassfile {
 
     }
 
+    protected String ParClassDecl.sourceFile() {
+	TypeDecl gt = genericDecl();
+	String outFileName = gt.destinationPath() + File.separator + expandedConstantPoolName() + ".class";
+	return outFileName;
+    }
+
+    boolean ParClassDecl.generated = false;
     public void ParClassDecl.generateClassfile() {
+	if ( generated ) return;
 	try {
-	    
 	    TypeDecl gt = genericDecl();
 	    
 	    // TODO: should check whether gt already exists and has the proper
 	    // timestamp: i.e. its timestamp is newer than the timestamp of its
 	    // generic decl as well as all type arguments.
 	    String gtSource = gt.destinationPath() + File.separator + gt.constantPoolName() + ".class";
-	    String outFileName = gt.destinationPath() + File.separator + expandedConstantPoolName() + ".class";
+	    String outFileName = sourceFile();
 
 	    if(Program.verbose()) 
 		System.out.println("Writing class file to " + outFileName);
@@ -62,10 +79,10 @@ aspect MJGenerateClassfile {
 	    
 	    // transform ClassNode cn.
 	    expand(cn);
-	    
+
 	    // write class.
 	    File outFile = new File(outFileName);
-	    ClassWriter cw = new ClassWriter(cr, 0);
+	    ClassWriter cw = new ClassWriter(0);
 	    cn.accept(cw);
 	    
 	    FileOutputStream f = new FileOutputStream(outFileName);
@@ -73,6 +90,8 @@ aspect MJGenerateClassfile {
 	    
 	    out.write(cw.toByteArray());
 	    out.close();
+
+	    generated = true;
 	} catch (IOException e) {
 	    e.printStackTrace();
 	}
@@ -206,5 +225,27 @@ aspect MJAttributes {
 
     syn String RefElmt.signature() {
 	return getElmtName() + ";";
+    }
+}
+
+aspect FixJastadd {
+    // add signature attribute to constructors.
+    refine AnnotationsCodegen eq ConstructorDecl.attributes() {
+	Collection c = AnnotationsCodegen.ConstructorDecl.attributes();
+	if (needsSignatureAttribute())
+	    c.add(new SignatureAttribute(hostType().constantPool(),
+					 constructorTypeSignature()));
+	return c;
+    }
+    syn String ConstructorDecl.constructorTypeSignature() {
+	StringBuffer buf = new StringBuffer();
+	buf.append("(");
+	for ( int i=0; i<getNumParameter(); i++) 
+	    buf.append(getParameter(i).type().classTypeSignature());
+	buf.append(")");
+	buf.append(lookupType(PRIMITIVE_PACKAGE_NAME, "void").classTypeSignature());
+	for(int i = 0; i < getNumException(); i++)
+	    buf.append("^" + getException(i).type().classTypeSignature());
+	return buf.toString();
     }
 }
