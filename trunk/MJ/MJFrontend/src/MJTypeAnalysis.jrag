@@ -11,16 +11,9 @@ aspect MJTypeAnalysis {
     refine TypeAnalysis public TypeDecl ClassDecl.superclass() {
 	if(isObject())
 	    return null;
-	if(hasSuperClassAccess() && !isCircular()) {
-	    if ( getSuperClassAccess().type().canbeSuperclass()) 
-		return getSuperClassAccess().type();
-	    else {
-		// this is a constrained type variable. make sure to
-		// mark that it is used as a supertype.
-		((ConstrainedTypeVariable) getSuperClassAccess().type()).setUsedAsSupertype(true);
-		return getSuperClassAccess().type();
-	    }
-	}
+	if(hasSuperClassAccess() && !isCircular() &&
+	   getSuperClassAccess().type().canbeSuperclass()) 
+	    return getSuperClassAccess().type();
 	return typeObject();
     }
 
@@ -120,4 +113,43 @@ aspect MJCircularity {
 	if (TypeAnalysis.InterfaceDecl.isCircular()) return true;
 	return circularlyDefined(new HashSet());
     }    
+
+    // NonVoidType.
+    eq NonVoidType.isSupertypeOfClassDecl(ClassDecl type) = true;
+    eq NonVoidType.isSupertypeOfInterfaceDecl(InterfaceDecl type) = true;
+    eq NonVoidType.isSupertypeOfArrayDecl(ArrayDecl type) = true;
+    eq NonVoidType.isSupertypeOfPrimitiveType(PrimitiveType type) = true;
+    eq NonVoidType.isSupertypeOfNullType(NullType type) = true;
+    eq NonVoidType.isSupertypeOfVoidType(VoidType type) = false;
+
+    eq NonVoidType.isClassDecl() = true;
+    eq NonVoidType.isInterfaceDecl() = true;
+    eq NonVoidType.erasure() = this;
+    eq NonVoidType.accessibleFrom(TypeDecl type) = true;
+
+    syn lazy boolean TypeDecl.isNonVoidType() = false;
+    eq NonVoidType.isNonVoidType() = true;
+
+
+    eq PatternTypeVariable.erasure() {
+	if ( getTypeBound(0).type().isNonVoidType()) 
+	    return this;
+	return super.erasure();
+    }
+
+    eq PatternTypeVariable.typeDescriptor() = classTypeSignature();
+
+    refine GenericsCodegen eq TypeVariable.typeDescriptor() {
+	if ( this.hostType().needsExpansion())
+	    return this.classTypeSignature();
+    	return erasure().typeDescriptor();  
+    }
+
+    refine GenericsParTypeDecl eq MethodDecl.visibleTypeParameters() = !isStatic() || hostType().needsExpansion();
+    refine GenericsParTypeDecl eq FieldDeclaration.visibleTypeParameters() = !isStatic() || hostType().needsExpansion();
+    refine GenericsParTypeDecl eq StaticInitializer.visibleTypeParameters() = hostType().needsExpansion();
+    refine GenericsParTypeDecl eq MemberTypeDecl.visibleTypeParameters() = !isStatic() || hostType().needsExpansion();
+
+    public boolean NonVoidType.isNestedType() { return false; }
+    public void NonVoidType.java2Transformation() {}
 }

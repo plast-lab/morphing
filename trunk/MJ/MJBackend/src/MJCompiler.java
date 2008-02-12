@@ -20,18 +20,45 @@ class MJCompiler extends Frontend {
 				});
 		if (b) {
 			// generate the expanded classes.
-			for (java.util.Iterator etIt = expansionTypes.iterator(); etIt
-					.hasNext();) {
-				TypeDecl t = (TypeDecl) etIt.next();
-				t.generateClassfile();
-				t.clear();
+			for (java.util.Iterator iter = compiler.program
+					.compilationUnitIterator(); iter.hasNext();) {
+				CompilationUnit unit = (CompilationUnit) iter.next();
+				for (int i = 0; i < unit.getNumTypeDecl(); i++) {
+					TypeDecl td = unit.getTypeDecl(i);
+					if (td.isGenericType() 
+							&& td.needsExpansion()) {
+						List list = ((GenericTypeDecl) unit.getTypeDecl(i))
+								.getParTypeDeclList();
+						for (int j = 0; j < list.getNumChild(); j++) {
+							TypeDecl parTypeDecl = (TypeDecl) list.getChild(i);
+							// TODO: need to check for timestamp of maybe
+							// compiled file
+							// to make sure this expanded class doesn't already
+							// exist
+							if (parTypeDecl.canbeExpanded())
+								parTypeDecl.generateClassfile();
+						}
+					}
+				}
+			}
+
+			// clear.
+
+			for (java.util.Iterator iter = compiler.program
+					.compilationUnitIterator(); iter.hasNext();) {
+				CompilationUnit unit = (CompilationUnit) iter.next();
+				if (unit.fromSource()) {
+					for (int i = 0; i < unit.getNumTypeDecl(); i++) {
+						unit.getTypeDecl(i).clear();
+					}
+				}
 			}
 		}
 		return b;
 	}
 
 	protected void processNoErrors(CompilationUnit unit) {
-		expansionTypes.addAll(unit.collectExpansionTypes());
+		// expansionTypes.addAll(unit.collectExpansionTypes());
 		unit.java2Transformation();
 		unit.generateClassfile();
 	}

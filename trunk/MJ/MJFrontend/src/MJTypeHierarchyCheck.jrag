@@ -13,7 +13,7 @@ aspect MJTypeHierarchyCheck {
 	super.nameCheck();
 	if(hasSuperClassAccess() && 
 	   !getSuperClassAccess().type().canbeSuperclass())
-	    error("class may not inherit from " + getSuperClassAccess().type().typeName());
+	    error("class may not declare non-class type " + getSuperClassAccess().type().typeName() + " as superclass.");
 	if(isObject() && hasSuperClassAccess())
 	    error("class Object may not have superclass");
 	if(isObject() && getNumImplements() != 0)

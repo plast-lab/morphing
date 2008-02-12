@@ -1,5 +1,7 @@
 aspect MJTypeCheckCore {
 
+
+
     /**
      * This method is unique from m if
      * 1. their signatures (method name + parameters) do not unify  OR
@@ -41,6 +43,39 @@ aspect MJTypeCheckCore {
 	    return true;
 
 	return false;
+    }
+
+    syn lazy boolean MethodDecl.isSubsumedBy(IteratorDecl id, HashMap map) {
+	// first, this method needs to fall within the base pattern
+	// and the substitution mappings need to statisfy the nested conditions
+
+	// 1.method's declaring type needs to be a subtype of pattern's base type
+	TypeDecl baseType = id.getPattern().getBaseSet().type();
+	if ( !hostType().subtype(baseType)) return false;
+
+	// 2. we need to be able to unify the signature and the return type
+	if ( !canUnifySignature(id.getPattern().patternMethodDecl(),
+				map, id.patternTypeVariables(),
+				id.patternNameVariables()) ||
+	     !type().unifiesWith(id.getPattern().patternMethodDecl().type(),
+				 map, id.patternTypeVariables()))
+	    return false;
+	
+	// check each nested pattern condition is satisfied.
+	for ( int i=0; i<id.getNumNestedPattern(); i++ ) {
+	    if ( !id.getNestedPattern(i).satisfiedBy(map))
+		return false;
+	}
+
+	return true;
+    }
+
+
+    syn lazy boolean NestedPattern.satisfiedBy(Map uniMap) {
+	// expand the methods in the pattern after substitution.
+	
+	Map methods = substitute(uniMap).getBaseSet().type().allStaticMethodsMap();	
+	return getIsPositive() && methods.size() > 0 ;
     }
 
     public boolean MethodDecl.hasMutualExclusiveConditions(Collection patternConditions, Map uniMap) {
@@ -372,7 +407,12 @@ aspect MJTypeCheckCore {
     // primitive types can be matched by unbounded type variable, as well.
     eq PrimitiveType.matchedByUnmappedTypeVariable(TypeVariable t, Map uniMap,
 						   Collection uniTypeVars ) {
-	return t.getNumTypeBound() == 0;
+	if ( t.getNumTypeBound() == 1 &&
+	     t.getTypeBound(0).type().isNonVoidType()) {
+	    putIntoUnificationMap(uniMap, t, this);
+	    return true;
+	}
+	return false;
     }
 
 
@@ -406,7 +446,9 @@ aspect MJTypeCheckCore {
 	t.matchedByTypeVariable(this, uniMap, uniTypeVars);
 
     eq AllMatchingTypeVariable.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) = true;
-    
+
+    eq NonVoidType.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) = !t.isVoid();
+
     // The only type that can be matched by a ParTypeDecl is a ParTypeDecl
     syn lazy boolean TypeDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) = this.equals(t);
 
@@ -486,4 +528,20 @@ aspect MJTypeCheckCore {
 	    uniMap.remove(t1);
     }
 
+    refine Generics public void ParTypeAccess.typeCheck() {
+	Generics.ParTypeAccess.typeCheck();
+
+	GenericTypeDecl decl = (GenericTypeDecl)genericDecl();
+	for ( int i=0; i<getNumTypeArgument(); i++) {
+	    TypeVariable tv = decl.original().getTypeParameter(i);
+	    if (tv.isConstrainedTypeVariable()) {
+		if ( tv.mustbeClass() && 
+		     !getTypeArgument(i).type().isClassDecl())
+		    error("type argument " + i + " is not a class.");
+		else if ( tv.mustbeInterface() &&
+			  !getTypeArgument(i).type().isInterfaceDecl())
+		    error("type argument " + i + " is not an interface.");
+	    }
+	}
+    }
 }

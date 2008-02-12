@@ -6,21 +6,132 @@ aspect MJInstructionTransform {
 	public InsnList instructions = new InsnList();
 	java.util.List tryCatchBlocks = new java.util.ArrayList();
 	java.util.List localVariables = new java.util.ArrayList();
-
-	ParStaticForMethodDecl md;
+	
+	BodyDecl md;
+	ParClassDecl parClass;
 	Map substitutions;
 
 	public InsnTransformVisitor(MethodVisitor mv, 
-				    ParStaticForMethodDecl md,
+				    ParClassDecl parClass,
+				    BodyDecl md,
 				    Map substitutions) {
 	    super(mv);
 	    this.md = md;
+	    this.parClass = parClass;
 	    this.substitutions = substitutions;
 	}
 
+	protected TypeDecl retrieveOwnerType(String owner) {
+	    // parse owner to get the actual type.
+	    TypeDecl ownerType = md.parseConstantPoolName(owner);
+	    if ( ownerType.isParameterizedType() &&
+		 ((ParTypeDecl) ownerType).genericDecl() == parClass.genericDecl())
+		ownerType = parClass;
+	    else if ( ownerType.needsExpansion()) {
+		ownerType = ownerType.substitute(substitutions).type();
+	    } 
+	    return ownerType;
+	}
+	protected String retrieveOwner(String owner) {
+	    // parse owner to get the type's package and real name.
+	    // we only need to change it if the owner involves type variables
+	    TypeDecl ownerType = retrieveOwnerType(owner);
+	    return ownerType.expandedConstantPoolName();
+	}
 
+	protected int retrieveOpcode(String owner, String name, String desc) {
+	    BodyDecl bd = retrieveMethod(owner, name, desc);
+	    if ( bd instanceof ConstructorDecl) 
+		return org.objectweb.asm.Opcodes.INVOKESPECIAL;
+
+	    MethodDecl m = (MethodDecl) bd;
+	    if (m.isStatic()) 
+		return org.objectweb.asm.Opcodes.INVOKESTATIC;
+	    if (m.hostType().isInterfaceDecl())
+		return org.objectweb.asm.Opcodes.INVOKEINTERFACE;
+	    return org.objectweb.asm.Opcodes.INVOKEVIRTUAL;	    
+	}
+
+	protected BodyDecl retrieveMethod(String owner, String name, String desc) {
+	    TypeDecl ownerType = retrieveOwnerType(owner);
+	    // find the method in ownerType with name: name
+	    // and desciptor desc.
+	    String newDesc = retrieveMethodDesc(desc);
+
+	    if ( name.equals("<init>")) {
+		// constructors.
+		Collection c = ownerType.constructors();
+		for ( Iterator mIt = c.iterator(); mIt.hasNext(); ) {
+		    ConstructorDecl md = (ConstructorDecl) mIt.next();
+		    if ( md.descName().equals(newDesc))
+			return md;
+		}
+	    } else {
+		Collection c = ownerType.memberMethods(retrieveName(name));
+		for ( Iterator mIt = c.iterator(); mIt.hasNext(); ) {
+		    MethodDecl md = (MethodDecl) mIt.next();
+		    if ( md.descName().equals(newDesc))
+			return md;
+		}
+	    }
+	    throw new Error("Cannot find method " +
+			    retrieveName(name) + retrieveMethodDesc(desc) + 
+			    " in type " + ownerType.name());
+	}
+
+	protected String retrieveName(String name) {
+	    if ( md.isNameVariable(name)) 
+		return (String) substitutions.get(md.getNameVariable(name));
+	    return name;
+	}
+
+	protected String retrieveFieldDesc(String desc) {
+	    Signatures s = new Signatures(desc);
+	    Access ta = s.typeSignature();
+	    TypeDecl type = md.retrieveType((TypeAccess) ta);
+	    Access newTa = type.substitute(substitutions);
+
+	    if ( newTa.type().isUnknown()) {
+		System.err.println("unknown type: " + desc);
+		return desc;
+	    }
+	    return newTa.type().typeDescriptor();
+	}
+
+	protected String retrieveMethodDesc(String desc) {
+	    // parse desc name.
+	    Signatures.MethodSignature ms = new Signatures.MethodSignature(desc);
+	    StringBuffer buf = new StringBuffer();
+	    // parameter names.
+	    buf.append("(");
+	    for ( Iterator ptIt = ms.parameterTypes().iterator(); ptIt.hasNext(); ) {
+		TypeAccess ta = (TypeAccess) ptIt.next();
+		Access newTa = md.retrieveType(ta).substitute(parClass);
+		buf.append(newTa.type().typeDescriptor());
+	    }
+	    buf.append(")");
+
+	    // return type
+	    TypeAccess rt = (TypeAccess) ms.returnType();
+	    Access newRt = md.retrieveType(rt).substitute(substitutions);
+	    buf.append(newRt.type().typeDescriptor());
+
+	    // exceptions.
+	    /*
+	    if ( ms.hasExceptionList()) {
+		for ( int i=0; i<ms.exceptionList().getNumChild(); i++) {
+		    TypeAccess et = (TypeAccess) ms.exceptionList().getChild(i);
+		    Access newEt = md.retrieveType(et).substitute(substitutions);
+		    buf.append("^" + newEt.type().classTypeSignature());
+		}
+		}*/
+	    return buf.toString();
+	}
 	public void visitFieldInsn(int opcode, String owner, String name, String desc) {
-	    instructions.add(new FieldInsnNode(opcode, owner, name, desc));
+	    instructions.add(new FieldInsnNode(opcode, 
+					       retrieveOwner(owner), 
+					       retrieveName(name), 
+					       retrieveFieldDesc(desc)));
 	}
 
 	public void visitIincInsn(int var, int increment) {
@@ -64,21 +175,19 @@ aspect MJInstructionTransform {
 				    final String owner,
 				    final String name,
 				    final String desc) {
-	    String newOwner = owner;
+	    // desc needs to be parsed and reconstructed.
+	    // change opcode: maybe invokevirtual, invokeinterface, or
+	    // invokestatic.
+	    // if it's INVOKESPECIAL, leave alone.  
 
-	    // parse owner to get the type's package and real name.
-	    // we only need to change it if the owner involves type variables
-	    TypeDecl ownerType = md.parseConstantPoolName(owner);
-	    if ( ownerType.needsExpansion()) {
-		ownerType = ownerType.substitute(substitutions).type();
-		newOwner = ownerType.expandedConstantPoolName();
-	    }
-	    String newName = name;
-	    if ( md.isNameVariable(name)) 
-		newName = (String) substitutions.get(md.getNameVariable(name));
-
-	    instructions.add(new MethodInsnNode(opcode, newOwner, 
-						newName, desc));
+	    // TODO: remove the test so we can properly test the 
+	    // retrieving constructors from static methods --
+	    // needsExpansion isn't working correctly.
+	    int newOpcode = retrieveOpcode(owner, name, desc);
+	    instructions.add(new MethodInsnNode(newOpcode,
+						retrieveOwner(owner),
+						retrieveName(name), 
+						retrieveMethodDesc(desc)));
 	}
 
 	public void visitMultiANewArrayInsn(String desc, int dims) {
