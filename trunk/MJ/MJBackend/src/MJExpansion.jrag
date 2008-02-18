@@ -354,6 +354,13 @@ aspect MJExpansion {
 
 	TypeDecl t = null;
 
+	StringBuffer tnBuf = new StringBuffer(typeName);
+	Access a = Signatures.eatTypeName(packageName.toString(), tnBuf);
+	while ( tnBuf.length() > 0 )
+	  a = a.qualifiesAccess(Signatures.eatTypeName("", tnBuf));
+	t = retrieveType(a);
+	
+	/*
 	// if it begins with $$, then it is an expanded constant pool name.
 	if ( typeName.startsWith("$$")) {
 	    // look for the next $$L...$$R
@@ -385,23 +392,10 @@ aspect MJExpansion {
 	    // lookup the parameterized type.
 	    t = genericType.lookupParTypeDecl(paramList);
 	} else {
-	    /*
-	    String[] names = typeName.split("\\$");
-	    for(int i = 1; i < names.length; i++)
-		t = t.lookupType(names[i]);
-	    */
-	    // TODO: i don't know if this works with innerclasess.
 	    TypeAccess ta = new TypeAccess(packageName.toString(), typeName);
-	    //	    this.addDecompiledAccess(ta);
-	    //t = lookupType(packageName.toString(), typeName);
 	    t = retrieveType(ta);
-	    /*
-	    if ( packageName.length() == 0) 
-		t = (TypeDecl) lookupType(typeName).iterator().next();
-	    else
-		t = lookupType(packageName.toString(), typeName);
-	    */
 	}
+	*/
 
 	return t;
     }
