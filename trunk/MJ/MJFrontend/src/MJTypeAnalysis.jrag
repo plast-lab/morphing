@@ -137,14 +137,6 @@ aspect MJCircularity {
 	return super.erasure();
     }
 
-    eq PatternTypeVariable.typeDescriptor() = classTypeSignature();
-
-    refine GenericsCodegen eq TypeVariable.typeDescriptor() {
-	if ( this.hostType().needsExpansion())
-	    return this.classTypeSignature();
-    	return erasure().typeDescriptor();  
-    }
-
     refine GenericsParTypeDecl eq MethodDecl.visibleTypeParameters() = !isStatic() || hostType().needsExpansion();
     refine GenericsParTypeDecl eq FieldDeclaration.visibleTypeParameters() = !isStatic() || hostType().needsExpansion();
     refine GenericsParTypeDecl eq StaticInitializer.visibleTypeParameters() = hostType().needsExpansion();
@@ -152,4 +144,5 @@ aspect MJCircularity {
 
     public boolean NonVoidType.isNestedType() { return false; }
     public void NonVoidType.java2Transformation() {}
+
 }

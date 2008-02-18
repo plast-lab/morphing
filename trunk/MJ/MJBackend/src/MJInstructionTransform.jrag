@@ -1,7 +1,7 @@
 import org.objectweb.asm.tree.*;
 
 aspect MJInstructionTransform {
-        
+    
     public class InsnTransformVisitor extends org.objectweb.asm.MethodAdapter {
 	public InsnList instructions = new InsnList();
 	java.util.List tryCatchBlocks = new java.util.ArrayList();
@@ -24,10 +24,7 @@ aspect MJInstructionTransform {
 	protected TypeDecl retrieveOwnerType(String owner) {
 	    // parse owner to get the actual type.
 	    TypeDecl ownerType = md.parseConstantPoolName(owner);
-	    if ( ownerType.isParameterizedType() &&
-		 ((ParTypeDecl) ownerType).genericDecl() == parClass.genericDecl())
-		ownerType = parClass;
-	    else if ( ownerType.needsExpansion()) {
+	    if ( ownerType.needsExpansion()) {
 		ownerType = ownerType.substitute(substitutions).type();
 	    } 
 	    return ownerType;
@@ -88,7 +85,7 @@ aspect MJInstructionTransform {
 	protected String retrieveFieldDesc(String desc) {
 	    Signatures s = new Signatures(desc);
 	    Access ta = s.typeSignature();
-	    TypeDecl type = md.retrieveType((TypeAccess) ta);
+	    TypeDecl type = md.retrieveType(ta);
 	    Access newTa = type.substitute(substitutions);
 
 	    if ( newTa.type().isUnknown()) {
@@ -139,7 +136,13 @@ aspect MJInstructionTransform {
 	}
 
 	public void visitInsn(int opcode) {
-	    instructions.add(new InsnNode(opcode));
+	    if ( opcode >= org.objectweb.asm.Opcodes.IRETURN &&
+		 opcode <= org.objectweb.asm.Opcodes.RETURN &&
+		 md instanceof MethodDecl ) {
+		// may need to modify return code.
+		instructions.add(new InsnNode(((MethodDecl) md).type().returnOpcode()));
+	    } else
+		instructions.add(new InsnNode(opcode));
 	}
 
 	public void visitIntInsn(int opcode, int operand) {
@@ -163,7 +166,14 @@ aspect MJInstructionTransform {
 	}
 
 	public void visitLocalVariable(String name,String desc,String signature,Label start,Label end,int index) {
-	    localVariables.add(new LocalVariableNode(name, desc, signature, new LabelNode(start), new LabelNode(end), index));
+	    localVariables.add(new LocalVariableNode(retrieveName(name), 
+						     name.equals("this")? 
+						     parClass.expandedTypeDescriptor()
+						     : retrieveFieldDesc(desc), 
+						     null,//signature, 
+						     new LabelNode(start),
+						     new LabelNode(end), 
+						     index));
 	}
 	
 
@@ -199,6 +209,9 @@ aspect MJInstructionTransform {
 	}
 
 	public void visitTypeInsn(int opcode, String type) {
+	    // parse type to see whether it needs to be replaced with
+	    // expanded type name.
+	    
 	    instructions.add(new TypeInsnNode(opcode, type));
 	}
 
@@ -220,4 +233,16 @@ aspect MJInstructionTransform {
 	}
 
     }
+
+    public int TypeDecl.returnOpcode() { 
+	throw new Error("No opcode defined for type " + getClass().getName());
+    }
+    public int VoidType.returnOpcode() { return org.objectweb.asm.Opcodes.RETURN; }
+    public int PrimitiveType.returnOpcode() { return org.objectweb.asm.Opcodes.IRETURN; }
+    public int LongType.returnOpcode() { return org.objectweb.asm.Opcodes.LRETURN; }
+    public int FloatType.returnOpcode() { return org.objectweb.asm.Opcodes.FRETURN; }
+    public int DoubleType.returnOpcode() { return org.objectweb.asm.Opcodes.DRETURN; }
+    public int ReferenceType.returnOpcode() { return org.objectweb.asm.Opcodes.ARETURN; }
+    public int NullType.returnOpcode() { return org.objectweb.asm.Opcodes.RETURN; }
+
 }

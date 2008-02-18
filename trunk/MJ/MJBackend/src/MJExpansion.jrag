@@ -31,7 +31,17 @@ aspect MJExpansion {
 	throw new Error("transformMemberNode not implemented by " +
 			getClass().getName());
     }
-    protected MemberNode ConstructorDecl.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
+    protected MemberNode ConstructorDeclSubstituted.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
+	ParTypeDecl ht = (ParTypeDecl) hostType();
+	GenericTypeDecl gtd = (GenericTypeDecl) ht.genericDecl();
+
+	HashMap substitutions = new HashMap();
+	// put into the map the parameterization from this
+	for ( int i=0; i<gtd.getNumTypeParameter(); i++) {
+	    substitutions.put(gtd.getTypeParameter(i),
+			      ht.getArgument(i).type());
+	}
+	
 	MethodNode newNode = TypeDecl.copyMethodNode((MethodNode)mn);
 
 	// modify descriptor;
@@ -40,12 +50,15 @@ aspect MJExpansion {
 	// take away signature.
 	newNode.signature = null; //descName();
 
-	InsnTransformVisitor insnVisitor = new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), parClass, this, new HashMap());
+	InsnTransformVisitor insnVisitor = new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), parClass, this, substitutions);
 	
 	newNode.accept(insnVisitor);
 	
 	newNode.instructions = insnVisitor.instructions;
+	
+	// transform local variables.
 	newNode.localVariables = insnVisitor.localVariables;
+
 	newNode.tryCatchBlocks = insnVisitor.tryCatchBlocks;
 
 	return newNode;	
@@ -252,6 +265,16 @@ aspect MJExpansion {
 	return !iteratorDeclAttribute(mn).equals("");
     }
 
+    refine GenericsCodegen eq ParClassDecl.constantPoolName() =
+	shouldErase() ? GenericsCodegen.ParClassDecl.constantPoolName() 
+	: expandedConstantPoolName();
+    refine GenericsCodegen eq ParInterfaceDecl.constantPoolName() =
+	shouldErase() ? GenericsCodegen.ParInterfaceDecl.constantPoolName() 
+	: expandedConstantPoolName();
+    refine GenericsCodegen eq TypeVariable.constantPoolName() =
+	shouldErase() ? GenericsCodegen.TypeVariable.constantPoolName() 
+	: expandedConstantPoolName();
+
     syn lazy String TypeDecl.expandedConstantPoolName () = constantPoolName();
     eq ParTypeDecl.expandedConstantPoolName () {
     	String cpName = genericDecl().constantPoolName();
@@ -264,7 +287,27 @@ aspect MJExpansion {
     eq RawClassDecl.expandedConstantPoolName() = genericDecl().expandedConstantPoolName();
     eq RawInterfaceDecl.expandedConstantPoolName() = genericDecl().expandedConstantPoolName();
     eq TypeVariable.expandedConstantPoolName() = getID();
+
+    refine GenericsCodegen eq ParClassDecl.typeDescriptor() =
+	shouldErase() ? GenericsCodegen.ParClassDecl.typeDescriptor()
+	: expandedTypeDescriptor();
+    refine GenericsCodegen eq ParInterfaceDecl.typeDescriptor() = 
+	shouldErase() ? GenericsCodegen.ParInterfaceDecl.typeDescriptor()
+	: expandedTypeDescriptor();
+    
+    syn lazy String TypeDecl.expandedTypeDescriptor() = typeDescriptor();
+    eq ParTypeDecl.expandedTypeDescriptor() {
+    	String td = genericDecl().typeDescriptor();
+	int lastSlash = td.lastIndexOf('/');
 	
+	StringBuffer buf = new StringBuffer(td.substring(0,lastSlash+1) + 
+					    expandedName() + ";");
+	return buf.toString();	
+    }
+    eq RawClassDecl.expandedTypeDescriptor() = genericDecl().expandedTypeDescriptor();
+    eq RawInterfaceDecl.expandedTypeDescriptor() = genericDecl().expandedTypeDescriptor();
+    eq TypeVariable.expandedTypeDescriptor() = getID();
+
     syn lazy String TypeDecl.expandedName() = name();
     eq ParTypeDecl.expandedName() {
 	StringBuffer buf = new StringBuffer("$$");
@@ -274,6 +317,7 @@ aspect MJExpansion {
 	for ( int i=0; i<getNumArgument(); i++ ) {
 	    TypeDecl argType = getArgument(i).type();
 	    buf.append(TypeDecl.convertToExpandedName(argType.expandedConstantPoolName()));
+	    buf.append("$$C");
 	}	
 	// $$R for >
 	buf.append("$$R");
@@ -312,7 +356,34 @@ aspect MJExpansion {
 
 	// if it begins with $$, then it is an expanded constant pool name.
 	if ( typeName.startsWith("$$")) {
-	    
+	    // look for the next $$L...$$R
+	    int lindex = typeName.indexOf("$$L");
+	    int rindex = typeName.lastIndexOf("$$R");
+
+	    // lookup the generic type.
+	    String genericName = typeName.substring(2, lindex);
+	    TypeAccess ga = new TypeAccess(packageName.toString(), genericName);
+	    GenericTypeDecl genericType = (GenericTypeDecl) ((ParTypeDecl) retrieveType(ga)).genericDecl();
+
+	    String paramsString = typeName.substring(lindex+3, rindex-3);
+	    // split up params.
+	    String[] params = paramsString.split("\\$\\$C");
+	    java.util.ArrayList paramList = new java.util.ArrayList();
+	    for ( int j=0; j<params.length; j++) {
+		// split params up by $$S
+		String[] names = params[j].split("\\$\\$S");
+		StringBuffer pPackageName = new StringBuffer();
+		String pName = names[names.length-1];
+		for ( int k=0; k<names.length-1; k++) {
+		    if ( k > 0 ) pPackageName.append(".");
+		    pPackageName.append(names[k]);
+		}
+		TypeAccess paramAccess = new TypeAccess(pPackageName.toString(), pName);
+		paramList.add(retrieveType(paramAccess));
+	    }
+
+	    // lookup the parameterized type.
+	    t = genericType.lookupParTypeDecl(paramList);
 	} else {
 	    /*
 	    String[] names = typeName.split("\\$");
@@ -340,7 +411,7 @@ aspect MJExpansion {
     eq ExpandedMethodDecl.parseConstantPoolName(String n) = original.parseConstantPoolName(n);
     eq ConstructorDeclSubstituted.parseConstantPoolName(String n) = getOriginal().parseConstantPoolName(n);
     
-    syn lazy TypeDecl BodyDecl.retrieveType(TypeAccess ta) {
+    syn lazy TypeDecl BodyDecl.retrieveType(Access ta) {
 	this.addChild(ta);
 	TypeDecl t = ta.type();
 	
@@ -349,118 +420,16 @@ aspect MJExpansion {
 	return t;
     }
 
-    eq ConstructorDeclSubstituted.retrieveType(TypeAccess ta) = getOriginal().retrieveType(ta);
-    eq MethodDeclSubstituted.retrieveType(TypeAccess ta) = getOriginal().retrieveType(ta);
-    eq ExpandedMethodDecl.retrieveType(TypeAccess ta) = original.retrieveType(ta);
-    eq FieldDeclarationSubstituted.retrieveType(TypeAccess ta) = getOriginal().retrieveType(ta);
-
-    public List GenericTypeDecl.getParTypeDeclList();
-
-    /**
-     * A TypeDecl needs expansion if:
-     * - it contains a reflective declaration block
-     * - it refers to types that needs expansion but cannot be expanded
-     *   i.e. is instantiated with at least one of its type parameters.
-     **/
-    /*
-    syn boolean ASTNode.needsExpansion() circular [false] {
-	for ( int i=0; i<getNumChild(); i++) {
-	    if ( getChild(i).needsExpansion())
-		return true;
-	}
-	return false;
-    }
-    */
-    syn boolean TypeDecl.needsExpansion() circular [true] {
-	// check all body decls.
-	for ( int i=0; i<getNumBodyDecl(); i++) {
-	    if ( getBodyDecl(i).needsExpansion()) return true;
-	}
-	return false;
-    }
-    eq ClassDecl.needsExpansion() {
-	// TODO: there appears to be a bug is inCircular. An innerclass's
-	// superclass's qualifier may not be a type access: e.g.
-	// ListItr's superclass Itr has qualifier AbstractCollection<E>,
-	// which has type ParTypeAccess, which is not a TypeAccess.
-	// Look into this.
-	// For now, we only inspect non-nested classes.
-	if ( isInnerClass()) return false;
-
-	// check whether superclass and interfaces needs expansion
-	if ( hasSuperclass() && superclass().needsExpansion())
-	    return true;
-	for ( Iterator ifIt = interfacesIterator(); ifIt.hasNext(); ) {
-	    if ( ((TypeDecl) ifIt.next()).needsExpansion())
-		return true;
-	}
-	return super.needsExpansion();
-    }
-    eq InterfaceDecl.needsExpansion() {
-	for ( Iterator ifIt = superinterfacesIterator(); ifIt.hasNext(); ) 
-	    if ( ((TypeDecl) ifIt.next()).needsExpansion()) return true;
-	return super.needsExpansion();
-    }
-    eq ParTypeDecl.needsExpansion() {
-	// check whether the generic decl needs expansion.
-	if ( genericDecl().needsExpansion()) {
-	    // check whether all type arguments can be expanded.
-	    for ( int i=0; i<getNumArgument(); i++) {
-		if ( !getArgument(i).type().canbeExpanded())
-		    return true;
-	    }
-	} else {
-	    // check whether any of the type arguments needs expansion.
-	    for ( int i=0; i<getNumArgument(); i++) {
-		if ( getArgument(i).type().needsExpansion() )
-		    return true;
-	    }
-	}
-	return false;
-    }
-
-    syn boolean BodyDecl.needsExpansion() circular [true] {
-	return false;
-    }
-    eq MethodDecl.needsExpansion() {
-	// check return type.
-	if ( type().needsExpansion()) return true;
-	// check parameters.
-	for ( int i=0; i<getNumParameter(); i++) {
-	    if ( getParameter(i).type().needsExpansion())
-		return true;
-	}
-	// TODO: check exception.
-
-	// check body
-	if ( hasBlock())
-	    return getBlock().needsExpansion();
-	return false;
-    }
-    eq StaticForMethodDecl.needsExpansion() {
-	if ( getIteratorDecl().needsExpansion()) return true;
-	return super.needsExpansion();
-    }
-    syn boolean IteratorDecl.needsExpansion() circular [true] {
-	if ( getPattern().needsExpansion()) return true;
-	for ( int i=0; i<getNumNestedPattern(); i++)
-	    if ( getNestedPattern(i).needsExpansion())
-		return true;
-	return false;
-    }
-    syn boolean Pattern.needsExpansion() circular [true]  =
-	getBaseSet().getTypeAccess().type().needsExpansion();
-
-    syn boolean Stmt.needsExpansion() circular [true] {
-	return false;
-    }
-    eq Block.needsExpansion() {
-	// check all statements.
-	return false;
-    }
+    eq ConstructorDeclSubstituted.retrieveType(Access ta) = getOriginal().retrieveType(ta);
+    eq MethodDeclSubstituted.retrieveType(Access ta) = getOriginal().retrieveType(ta);
+    eq ExpandedMethodDecl.retrieveType(Access ta) = original.retrieveType(ta);
+    eq FieldDeclarationSubstituted.retrieveType(Access ta) = getOriginal().retrieveType(ta);
+    eq ParStaticForMethodDecl.retrieveType(Access ta) = original.retrieveType(ta);
 
     syn lazy boolean BodyDecl.isSubstitutedDecl() = false;
     eq FieldDeclarationSubstituted.isSubstitutedDecl() = true;
     eq MethodDeclSubstituted.isSubstitutedDecl() = true;
     eq ConstructorDeclSubstituted.isSubstitutedDecl() = true;
+
+    
 }

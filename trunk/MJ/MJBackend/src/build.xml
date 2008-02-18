@@ -77,7 +77,8 @@
 		<fileset dir="${MJFrontend}">
 			<include name="**/*.ast"/>
 			<include name="**/*.jrag"/>
-			<include name="**/*.jadd"/>      
+			<include name="**/*.jadd"/>
+			<exclude name="Attributes.jrag"/>      
                 </fileset>
 		<fileset dir=".">
 			<include name="**/*.ast"/>
