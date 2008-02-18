@@ -24,7 +24,10 @@ aspect MJInstructionTransform {
 	protected TypeDecl retrieveOwnerType(String owner) {
 	    // parse owner to get the actual type.
 	    TypeDecl ownerType = md.parseConstantPoolName(owner);
-	    if ( ownerType.needsExpansion()) {
+	    if ( ownerType.isRawType() && 
+		 ((ParTypeDecl) ownerType).genericDecl() == parClass.genericDecl())
+	    	ownerType = parClass;
+	    else if ( ownerType.needsExpansion()) {
 		ownerType = ownerType.substitute(substitutions).type();
 	    } 
 	    return ownerType;

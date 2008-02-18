@@ -876,10 +876,19 @@ aspect BytecodeReader {
         packageName.append(typeName);
         typeName = identifier();
       }
+
+      /*
       String[] names = typeName.split("\\$");
       Access a = new TypeAccess(packageName.toString(), names[0]);
       for(int i = 1; i < names.length; i++)
         a = a.qualifiesAccess(new TypeAccess(names[i]));
+      */
+
+      StringBuffer tnBuf = new StringBuffer(typeName);
+      Access a = eatTypeName(packageName.toString(), tnBuf);
+      while ( tnBuf.length() > 0 )
+	  a = a.qualifiesAccess(eatTypeName("", tnBuf));
+
       if(next("<")) { // type arguments of top level type
         a = new ParTypeAccess(a, typeArguments());
       }
@@ -890,16 +899,85 @@ aspect BytecodeReader {
       return a;
     }
 
+      public static Access eatTypeName(String packageName, StringBuffer buf) {
+	  Access a = null;
+	  if ( buf.length() > 2 && buf.substring(0, 2).equals("$$")) {
+	      buf.delete(0,2);
+
+	      // look for $$L
+	      int lindex = buf.indexOf("$$L");
+	      a = new TypeAccess(packageName,buf.substring(0,lindex));
+	      buf.delete(0, lindex);
+
+	      // look for the next corresponding $$R.
+	      int rindex = buf.indexOf("$$R");
+	      lindex = 0;
+	      int tmpIndex = 0;
+	      while ( ((tmpIndex = buf.indexOf("$$L", lindex+3)) != -1)  &&
+		      tmpIndex < rindex ) {
+		  lindex  = tmpIndex;
+		  rindex = buf.indexOf("$$R", rindex+3);
+	      }
+
+	      StringBuffer paramsBuf = 
+		  new StringBuffer(buf.substring(lindex+3, rindex));
+	      // split the params.
+	      List params = splitTypeParams(paramsBuf);
+	      
+	      buf.delete(0, rindex+3);
+	      a = new ParTypeAccess(a, params);
+	  } else {
+	      int dindex = buf.indexOf("$");
+	      // net an expanded type. find the next $ for qualified type.
+	      if ( dindex > 0 ) {
+		  a = new TypeAccess(packageName, buf.substring(0, dindex));
+		  buf.delete(0, dindex+1);
+	      } else {
+		  a = new TypeAccess(packageName, buf.substring(0));
+		  buf.delete(0, buf.length());
+	      }
+	  }
+	  return a;
+      }
+
+      // This is used to split up the expanded type parameter string.
+      // Types may start with package name.
+      public static List splitTypeParams(StringBuffer buf) {
+	  // first find possible package name.
+	  StringBuffer packageName = new StringBuffer();
+	  int slashIndex = 0;
+	  while ( (slashIndex = buf.indexOf("$$S")) > 0 &&
+		  buf.indexOf("$$") == slashIndex ) {
+	      // has package name.
+	      if ( packageName.length() > 0 ) packageName.append(".");
+	      packageName.append(buf.substring(0, slashIndex));
+	      buf.delete(0, slashIndex+3);
+	  }
+	  
+	  List params = new List();
+	  while ( buf.length() > 0 ) {
+	      Access a = eatTypeName(packageName.toString(), buf);
+	      params.addChild(a);
+	      // eat $$C
+	      buf.delete(0, 3);
+	  }
+
+	  return params;
+      }
+
     Access classTypeSignatureSuffix() {
       eat(".");
       String id = identifier();
+
+      /*
       String[] names = id.split("\\$");
       Access a = new TypeAccess(names[0]);
       for(int i = 1; i < names.length; i++)
         a = a.qualifiesAccess(new TypeAccess(names[i]));
       if(next("<")) {
         a = new ParTypeAccess(a, typeArguments());
-      }
+	}*/
+      Access a = eatTypeName("", new StringBuffer(id));
       return a;
     }
 
