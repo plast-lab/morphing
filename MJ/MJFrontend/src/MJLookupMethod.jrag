@@ -39,7 +39,6 @@ aspect MJLookupMethod {
 	return substitutedMethods;
     }
 
-
     refine LookupMethod eq ClassDecl.interfacesMethodsSignatureMap() {
 	HashMap map = new HashMap();
 	for(Iterator iter = interfacesIterator(); iter.hasNext(); ) {
@@ -52,6 +51,51 @@ aspect MJLookupMethod {
 	return map;
     }
 
+    refine LookupMethod eq TypeDecl.localMethodsSignatureMap() {
+	HashMap map = new HashMap(getNumBodyDecl());
+	for(int i = 0; i < getNumBodyDecl(); i++) {
+	    if(getBodyDecl(i) instanceof MethodDecl && 
+	       !(getBodyDecl(i) instanceof StaticForMethodDecl) ) {
+		MethodDecl decl = (MethodDecl)getBodyDecl(i);
+		map.put(decl.signature(), decl);
+	    }
+	}
+	return map;
+    }
+    
+    refine Generics eq ParClassDecl.localMethodsSignatureMap() {    
+	HashMap map = Generics.ParClassDecl.localMethodsSignatureMap();	
+	// add the ones from grounded reflective declarations.
+	Collection refMethods = reflectiveMethods();
+	for ( Iterator refIt = refMethods.iterator(); refIt.hasNext(); ) {
+	    ParStaticForMethodDecl md = (ParStaticForMethodDecl) refIt.next();
+	    if ( md.expandable() ) {
+		List expandedMethods = md.expandedMethods();
+		for ( int i=0; i<expandedMethods.getNumChild(); i++ ) {
+		    MethodDecl decl = (MethodDecl) expandedMethods.getChild(i);
+		    map.put(decl.signature(), decl);
+		}
+	    }
+	}
+	return map;
+    }
+    refine Generics eq ParInterfaceDecl.localMethodsSignatureMap() {    
+	HashMap map = Generics.ParInterfaceDecl.localMethodsSignatureMap();
+	// add the ones from grounded reflective declarations.
+	Collection refMethods = reflectiveMethods();
+	for ( Iterator refIt = refMethods.iterator(); refIt.hasNext(); ) {
+	    ParStaticForMethodDecl md = (ParStaticForMethodDecl) refIt.next();
+	    if ( md.expandable() ) {
+		List expandedMethods = md.expandedMethods();
+		for ( int i=0; i<expandedMethods.getNumChild(); i++ ) {
+		    MethodDecl decl = (MethodDecl) expandedMethods.getChild(i);
+		    map.put(decl.signature(), decl);
+		}
+	    }
+	}
+	return map;
+    }
+    
     protected StaticForMethodDecl StaticForMethodDecl.original;
     syn StaticForMethodDecl StaticForMethodDecl.original() = original != null ? original : this;
 
@@ -225,52 +269,12 @@ aspect MJLookupMethod {
     public Access ParTypeDecl.substitute(Map submap) {
 	java.util.ArrayList list = new java.util.ArrayList();
 	for ( int i=0; i<getNumArgument(); i++) 
-	    list.add(getArgument(i).type().substitute(submap));
+	    list.add(getArgument(i).type().substitute(submap).type());
 	return ((GenericTypeDecl) genericDecl()).lookupParTypeDecl(list).createBoundAccess();
     }
 
-}
-
-aspect MJMethodsExpansion {
-
-    /**
-     * A TypeDecl can be expanded if it is completely grounded.
-     **/
-    syn lazy boolean ASTNode.canbeExpanded() circular [false] = true;
-    eq ParTypeDecl.canbeExpanded() {
-	if ( genericDecl().needsExpansion()) {
-	    for ( int i=0; i<getNumArgument(); i++) {
-		if ( !getArgument(i).type().grounded())
-		    return false;
-	    } 	    
-	} else 
-	    for ( int i=0; i<getNumArgument(); i++) {
-		if ( !getArgument(i).type().canbeExpanded())
-		    return false;
-	    } 
-	return true;
-    }
-    
-    // determine whether a type is grounded.
-    syn lazy boolean TypeDecl.grounded() = true;
-    eq TypeVariable.grounded() = false;
-    eq ParClassDecl.grounded() {
-	for ( int i=0; i<getNumArgument(); i++) {
-	    if ( !getArgument(i).type().grounded())
-		return false;
-	} 
-	return true;
-    }
-    eq ParInterfaceDecl.grounded() {
-	for ( int i=0; i<getNumArgument(); i++) {
-	    if ( !getArgument(i).type().grounded())
-		return false;
-	}
-	return true;
-    }
-
     syn lazy List MethodDecl.expandedMethods () = new List().add(this);
-
+    eq StaticForMethodDecl.expandedMethods() = new List();
     eq ParStaticForMethodDecl.expandedMethods() {
 	ParTypeDecl ht = (ParTypeDecl) hostType();
 	GenericTypeDecl gtd = (GenericTypeDecl) ht.genericDecl();
@@ -299,9 +303,10 @@ aspect MJMethodsExpansion {
 	return getExpandedMethodDeclList();
     }
 
-    public Map MethodDecl.expansionSubstitutions = null;
-    public StaticForMethodDecl ExpandedMethodDecl.original = null;
+    public Map BodyDecl.expansionSubstitutions = null;
 
+    public StaticForMethodDecl ExpandedMethodDecl.original = null;
+    
 
     // A map from elements in the reflective range to the mappings 
     // resulting from the pattern variables to the concrete values in
@@ -314,7 +319,7 @@ aspect MJMethodsExpansion {
 
     eq ParIteratorDecl.reflectiveElmts() {
 	// in order to call this, base type must be fully grounded.
-	if ( !getPattern().getBaseSet().getTypeAccess().type().canbeExpanded())
+	if ( !getPattern().getBaseSet().getTypeAccess().type().grounded())
 	    // this should never happen.
 	    throw new Error("Cannot return the reflective elements of a " +
 			    "reflective iterator when the base type is " +

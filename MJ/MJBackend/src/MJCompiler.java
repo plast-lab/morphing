@@ -35,7 +35,7 @@ class MJCompiler extends Frontend {
 							// compiled file
 							// to make sure this expanded class doesn't already
 							// exist
-							if (parTypeDecl.canbeExpanded())
+							if (parTypeDecl.grounded())
 								parTypeDecl.generateClassfile();
 						}
 					}

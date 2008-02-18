@@ -210,6 +210,9 @@ aspect BytecodeAttributes {
             typeDecl.getModifiers().addModifier(a);
           }
         }
+	else if (attribute_name.equals("NeedsExpansion")) {
+	    typeDecl.expansionAttribute = true;
+	}
         else {
           super.processAttribute(attribute_name, attribute_length);
         }
