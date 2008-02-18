@@ -770,7 +770,21 @@ aspect LookupParTypeDecl {
   eq WildcardExtendsType.usesTypeVariable() = getAccess().type().usesTypeVariable();
   eq WildcardSuperType.usesTypeVariable() = getAccess().type().usesTypeVariable();
 
-  syn lazy HashMap ParTypeDecl.localMethodsSignatureMap() {
+  syn lazy HashMap ParClassDecl.localMethodsSignatureMap() {
+    HashMap map = new HashMap(getNumBodyDecl());
+    for(Iterator iter = genericDecl().localMethodsIterator(); iter.hasNext(); ) {
+      MethodDecl decl = (MethodDecl)iter.next();
+      if(decl.usesTypeVariable()) {
+        BodyDecl b = decl.p(this);
+        b.is$Final = true;
+        addBodyDecl(b);
+        decl = (MethodDecl)b;
+      }
+      map.put(decl.signature(), decl);
+    }
+    return map;
+  }
+  syn lazy HashMap ParInterfaceDecl.localMethodsSignatureMap() {
     HashMap map = new HashMap(getNumBodyDecl());
     for(Iterator iter = genericDecl().localMethodsIterator(); iter.hasNext(); ) {
       MethodDecl decl = (MethodDecl)iter.next();
