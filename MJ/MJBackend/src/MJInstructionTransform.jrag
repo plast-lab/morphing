@@ -7,6 +7,9 @@ aspect MJInstructionTransform {
 	java.util.List tryCatchBlocks = new java.util.ArrayList();
 	java.util.List localVariables = new java.util.ArrayList();
 	
+	int maxStack = 0;
+	int maxLocals = 0;
+
 	BodyDecl md;
 	ParClassDecl parClass;
 	Map substitutions;
@@ -19,6 +22,12 @@ aspect MJInstructionTransform {
 	    this.md = md;
 	    this.parClass = parClass;
 	    this.substitutions = substitutions;
+	}
+
+	void changeMaxStack(int opcode) {
+	    int change =  BytecodeDebug.stackChange((byte)opcode);
+	    if ( change > 0 )
+		maxStack += change;
 	}
 
 	protected TypeDecl retrieveOwnerType(String owner) {
@@ -67,7 +76,7 @@ aspect MJInstructionTransform {
 			return md;
 		}
 	    } else {
-		Collection c = ownerType.memberMethods(retrieveName(name));
+		Collection c = ownerType.unrestrictedMemberMethods(retrieveName(name));
 		for ( Iterator mIt = c.iterator(); mIt.hasNext(); ) {
 		    MethodDecl md = (MethodDecl) mIt.next();
 		    if ( md.descName().equals(newDesc))
@@ -85,17 +94,20 @@ aspect MJInstructionTransform {
 	    return name;
 	}
 
-	protected String retrieveFieldDesc(String desc) {
+	protected TypeDecl retrieveTypeFromDesc(String desc) {
 	    Signatures s = new Signatures(desc);
 	    Access ta = s.typeSignature();
-	    TypeDecl type = md.retrieveType(ta);
-	    Access newTa = type.substitute(substitutions);
+	    TypeDecl t = md.retrieveType(ta);
+	    return t.substitute(substitutions).type();
+	}
 
-	    if ( newTa.type().isUnknown()) {
+	protected String retrieveFieldDesc(String desc) {
+	    TypeDecl t = retrieveTypeFromDesc(desc);
+	    if ( t.isUnknown()) {
 		System.err.println("unknown type: " + desc);
 		return desc;
 	    }
-	    return newTa.type().typeDescriptor();
+	    return t.typeDescriptor();
 	}
 
 	protected String retrieveMethodDesc(String desc) {
@@ -106,8 +118,10 @@ aspect MJInstructionTransform {
 	    buf.append("(");
 	    for ( Iterator ptIt = ms.parameterTypes().iterator(); ptIt.hasNext(); ) {
 		TypeAccess ta = (TypeAccess) ptIt.next();
-		Access newTa = md.retrieveType(ta).substitute(parClass);
-		buf.append(newTa.type().typeDescriptor());
+		List argList = md.retrieveType(ta).expandAccessList(substitutions);
+		//		Access newTa = md.retrieveType(ta).substitute(parClass);
+		for ( int i=0; i<argList.getNumChild(); i++)
+		    buf.append(((Access) argList.getChild(i)).type().typeDescriptor());
 	    }
 	    buf.append(")");
 
@@ -127,6 +141,8 @@ aspect MJInstructionTransform {
 		}*/
 	    return buf.toString();
 	}
+
+
 	public void visitFieldInsn(int opcode, String owner, String name, String desc) {
 	    instructions.add(new FieldInsnNode(opcode, 
 					       retrieveOwner(owner), 
@@ -146,14 +162,17 @@ aspect MJInstructionTransform {
 		instructions.add(new InsnNode(((MethodDecl) md).type().returnOpcode()));
 	    } else
 		instructions.add(new InsnNode(opcode));
+	    changeMaxStack(opcode);
 	}
 
 	public void visitIntInsn(int opcode, int operand) {
 	    instructions.add(new IntInsnNode(opcode, operand));
+	    changeMaxStack(opcode);
 	}
 
 	public void visitJumpInsn(int opcode, Label label) {
 	    instructions.add(new JumpInsnNode(opcode, new LabelNode(label)));
+	    changeMaxStack(opcode);
 	}
 
 	public void visitLabel(Label label) {
@@ -213,13 +232,14 @@ aspect MJInstructionTransform {
 
 	public void visitTypeInsn(int opcode, String type) {
 	    // parse type to see whether it needs to be replaced with
-	    // expanded type name.
-	    
+	    // expanded type name.	    
 	    instructions.add(new TypeInsnNode(opcode, type));
+	    changeMaxStack(opcode);
 	}
 
 	public void visitVarInsn(int opcode, int var) {
-	    instructions.add(new VarInsnNode(opcode, var));
+	    instructions.add(new VarInsnNode(opcode,var));
+	    changeMaxStack(opcode);
 	}
 
 	public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {

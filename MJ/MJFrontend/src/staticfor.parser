@@ -38,8 +38,8 @@ List nested_patterns =
   ;
 
 TypeVariable type_parameter_1 = 
-    IDENTIFIER.v MULT GT {: return new VectorTypeVariable(new Modifiers(), v, new List(), new List()); :}
-  | IDENTIFIER.v MULT type_bound_1.l {: return new VectorTypeVariable(new Modifiers(), v, new List(), l); :}
+    IDENTIFIER.v MULT GT {: return new VectorTypeVariable(new Modifiers(), v, new List(), new List(), new List()); :}
+  | IDENTIFIER.v MULT type_bound_1.l {: return new VectorTypeVariable(new Modifiers(), v, new List(), l, new List()); :}
   ;
 
 List pattern_name_parameters =
@@ -52,17 +52,29 @@ PatternNameVariable pattern_name_parameter =
   ;
     
 Pattern pattern = 
-     type.t IDENTIFIER.id LPAREN formal_types.l RPAREN COLON baseset.b
-     {: return new Pattern(t, id, l, new List(), new List(), b); :}
-  |  type.t IDENTIFIER.id LPAREN RPAREN COLON baseset.b
-     {: return new Pattern(t, id, new List(), new List(), new List(), b); :}
+     modifiers.m type.t IDENTIFIER.id LPAREN formal_types.l RPAREN COLON baseset.b
+     {: return new Pattern(m, t, id, l, new List(), new List(), b); :}
+  |  modifiers.m type.t IDENTIFIER.id LPAREN RPAREN COLON baseset.b
+     {: return new Pattern(m, t, id, new List(), new List(), new List(), b); :}
   ;
 
 NestedPattern nested_pattern =
-     NO type.t IDENTIFIER.id LPAREN formal_types.l RPAREN  COLON baseset.b
-     {: return new NestedPattern(t, id, l, new List(), new List(), b, false); :}
-  |  SOME type.t IDENTIFIER.id LPAREN RPAREN COLON baseset.b
-     {: return new NestedPattern(t, id, new List(), new List(), new List(), b, true); :}
+     NO modifiers.m type.t IDENTIFIER.id LPAREN formal_types.l RPAREN  COLON baseset.b
+     {: return new NestedPattern(m, t, id, l, new List(), new List(), b, false); :}
+  |  SOME modifiers.m type.t IDENTIFIER.id LPAREN RPAREN COLON baseset.b
+     {: return new NestedPattern(m, t, id, new List(), new List(), new List(), b, true); :}
+  ;
+
+/*
+Modifiers modifiers =
+     AT NOMOD   {: Modifiers ms = new Modifiers(); ms.addModifier(new NoModifier("NOMOD")); return ms; :}
+  ;
+*/
+
+Modifier modifier = 
+     NOT modifier.m {: return new NegativeModifier(m.getID()); :}
+// I DON"T UNDERSTAND WHY THIS DOESN"T PARSE
+//  |  NOMOD   {: return new NoModifier("NOMOD"); :}
   ;
 
 List formal_types = 

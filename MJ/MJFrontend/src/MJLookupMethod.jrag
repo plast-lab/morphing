@@ -145,7 +145,8 @@ aspect MJLookupMethod {
     public IteratorDecl ParIteratorDecl.original;
 
     public Pattern Pattern.substitute(ParTypeDecl parTypeDecl) {
-	return new Pattern(getTypeAccess().type().substitute(parTypeDecl),
+	return new Pattern((Modifiers) getModifiers().fullCopy(),
+			   getTypeAccess().type().substitute(parTypeDecl),
 			   getID(),
 			   getParameterList().substitute(parTypeDecl),
 			   new List(),
@@ -153,7 +154,8 @@ aspect MJLookupMethod {
 			   getBaseSet().substitute(parTypeDecl));
     }
     public NestedPattern NestedPattern.substitute(ParTypeDecl parTypeDecl) {
-	return new NestedPattern(getTypeAccess().type().substitute(parTypeDecl),
+	return new NestedPattern((Modifiers) getModifiers().fullCopy(),
+				 getTypeAccess().type().substitute(parTypeDecl),
 				 getID(),
 				 getParameterList().substitute(parTypeDecl),
 				 new List(),
@@ -201,11 +203,30 @@ aspect MJLookupMethod {
 	return methods;
     }
 	
-    syn lazy HashMap TypeDecl.allStaticMethodsMap() = methodsSignatureMap();
+    syn lazy HashMap TypeDecl.unrestrictedMethodsSignatureMap() 
+	= localMethodsSignatureMap();
+    
+    eq ClassDecl.unrestrictedMethodsSignatureMap() {
+	HashMap map = new HashMap(localMethodsSignatureMap());
 
-    eq ClassDecl.allStaticMethodsMap() {
-	HashMap allMethods = super.allStaticMethodsMap();
-	
+	// first collect all non-reflectively declared methods.
+	if ( hasSuperclass()) {
+	    for(Iterator iter = superclass().methodsIterator(); iter.hasNext(); ) {
+		MethodDecl m = (MethodDecl)iter.next();
+		if(!localMethodsSignatureMap().containsKey(m.signature()))
+		    putSimpleSetElement(map, m.signature(), m);
+	    }
+	}
+	for(Iterator outerIter = interfacesIterator(); outerIter.hasNext(); ) {
+	    TypeDecl typeDecl = (TypeDecl)outerIter.next();
+	    for(Iterator iter = typeDecl.methodsIterator(); iter.hasNext(); ) {
+		MethodDecl m = (MethodDecl)iter.next();
+		if(!localMethodsSignatureMap().containsKey(m.signature()))
+		    //		    if(allMethodsAbstract((SimpleSet)map.get(m.signature())))
+		    putSimpleSetElement(map, m.signature(), m);
+	    }
+	}
+
 	// get all the reflective methods, expanded.
 	Collection refMethods = reflectiveMethods();
 	for (Iterator refIt = refMethods.iterator(); refIt.hasNext(); ) {
@@ -213,47 +234,151 @@ aspect MJLookupMethod {
 	    List expandedMethods = m.expandedMethods();
 	    for ( int i=0; i<expandedMethods.getNumChild(); i++) {
 		MethodDecl md = (MethodDecl) expandedMethods.getChild(i);
-		if ( !allMethods.containsKey(md.signature()))
-		    putSimpleSetElement(allMethods, md.signature(), md);
+		if ( !map.containsKey(md.signature()))
+		    putSimpleSetElement(map, md.signature(), md);
 	    }
 	}
-	return allMethods;
+	return map;
     }
 
+    eq InterfaceDecl.unrestrictedMethodsSignatureMap() {
+	HashMap map = new HashMap(localMethodsSignatureMap());
+	for(Iterator outerIter = superinterfacesIterator(); outerIter.hasNext(); ) {
+	    TypeDecl typeDecl = (TypeDecl)outerIter.next();
+	    for(Iterator iter = typeDecl.methodsIterator(); iter.hasNext(); ) {
+		MethodDecl m = (MethodDecl)iter.next();
+		if(!localMethodsSignatureMap().containsKey(m.signature()))
+		    putSimpleSetElement(map, m.signature(), m);
+	    }
+	}
+	for(Iterator iter = typeObject().methodsIterator(); iter.hasNext(); ) {
+	    MethodDecl m = (MethodDecl)iter.next();
+	    if(!map.containsKey(m.signature()))
+		putSimpleSetElement(map, m.signature(), m);
+	}	
+	// get all the reflective methods, expanded.
+	Collection refMethods = reflectiveMethods();
+	for (Iterator refIt = refMethods.iterator(); refIt.hasNext(); ) {
+	    StaticForMethodDecl m = (StaticForMethodDecl) refIt.next();
+	    List expandedMethods = m.expandedMethods();
+	    for ( int i=0; i<expandedMethods.getNumChild(); i++) {
+		MethodDecl md = (MethodDecl) expandedMethods.getChild(i);
+		if ( !map.containsKey(md.signature()))
+		    putSimpleSetElement(map, md.signature(), md);
+	    }
+	}
+	return map;
+    }
+
+    syn Collection TypeDecl.unrestrictedMemberMethods(String name) {
+	// retrieves from all nonreflectively declared methods.
+	// do not apply the same restrictions as memberMethods(name)
+	// such as access restriction.
+	Collection c = (Collection)unrestrictedMethodsNameMap().get(name);
+	if(c != null) return c;
+	return Collections.EMPTY_LIST;	
+    }
+    syn lazy HashMap TypeDecl.unrestrictedMethodsNameMap () {
+	HashMap map = new HashMap();
+	for(Iterator iter =unrestrictedMethodsIterator(); iter.hasNext(); ) {
+	    MethodDecl m = (MethodDecl)iter.next();
+	    ArrayList list = (ArrayList)map.get(m.name());
+	    if(list == null) {
+		list = new ArrayList(4);
+		map.put(m.name(), list);
+	    }
+	    list.add(m);
+	}
+	return map;
+    }
+
+    // iterate over all member methods in this type
+    public Iterator TypeDecl.unrestrictedMethodsIterator() {
+	return new Iterator() {
+		private Iterator outer = unrestrictedMethodsSignatureMap().values().iterator();
+		private Iterator inner = null;
+		public boolean hasNext() {
+		    if((inner == null || !inner.hasNext()) && outer.hasNext())
+			inner = ((SimpleSet)outer.next()).iterator();
+		    return inner != null ? inner.hasNext() : false;
+		}
+		public Object next() {
+		    return inner.next();
+		}
+		public void remove() { throw new UnsupportedOperationException(); }
+	    };
+    }
+    
     public ExpandedMethodDecl StaticForMethodDecl.substitute(Map substitution) {
 	return new ExpandedMethodDecl((Modifiers) getModifiers().fullCopy(),
 				      getTypeAccess().type().substitute(substitution),
 				      isNameVariable(getID()) ?
 				      (String) substitution.get(getNameVariable(getID())) : getID(),
-				      getParameterList().substitute(substitution),
+				      getParameterList().expandParameterList(substitution),
 				      new List(),
-				      getExceptionList().substitute(substitution),
+				      getExceptionList().expandAccessList(substitution),
 				      new Opt());
     }
 
     public NestedPattern NestedPattern.substitute(Map substitutions) {
-	return new NestedPattern(getTypeAccess().type().substitute(substitutions),
+	return new NestedPattern((Modifiers) getModifiers().fullCopy(),
+				 getTypeAccess().type().substitute(substitutions),
 				 isNameVariable(getID()) ? 
 				 (String) substitutions.get(getNameVariable(getID())) : getID(),
-				 getParameterList().substitute(substitutions),
+				 getParameterList().expandParameterList(substitutions),
 				 new List(),
-				 getExceptionList().substitute(substitutions),
+				 getExceptionList().expandAccessList(substitutions),
 				 getBaseSet().substitute(substitutions),
 				 getIsPositive());	
     }
+
+    public Access ParTypeDecl.substitute(Map submap) {
+	java.util.ArrayList list = new java.util.ArrayList();
+	for ( int i=0; i<getNumArgument(); i++) 
+	    list.add(getArgument(i).type().substitute(submap).type());
+	return ((GenericTypeDecl) genericDecl()).lookupParTypeDecl(list).createBoundAccess();
+    }
+    
+    public Access RawClassDecl.substitute(Map submap) { return createBoundAccess(); }
+    public Access RawInterfaceDecl.substitute(Map submap) { return createBoundAccess(); }
 
     public BaseSet BaseSet.substitute(Map substitutions) {
 	return new BaseSet(getTypeAccess().type().substitute(substitutions), getRefElmt());
     }
 
-    public List List.substitute(Map submap) {
+    public List List.expandParameterList(Map submap ) {
 	List list = new List();
 	for ( int i=0; i<getNumChild(); i++) {
-	    ASTNode node = getChild(i);
-	    if ( node instanceof Access)
-		list.add(((Access) node).type().substitute(submap));
-	    else
-		throw new Error("Can only substitute lists of access nodes but node number " + i + " is of type " + node.getClass().getName());
+	    ParameterDeclaration node = (ParameterDeclaration) getChild(i);
+	    TypeDecl argType = node.getTypeAccess().type();
+	    if ( argType.isVectorTypeVariable()) {
+		List argTypes = argType.expandAccessList(submap);
+		for ( int j=0; j<argTypes.getNumChild(); j++) {
+		    ParameterDeclaration newNode = 
+			new ParameterDeclaration((Modifiers) node.getModifiers().fullCopy(),
+						 (Access) argTypes.getChild(j),
+						 node.getID() + "j",
+						 (List) node.getEmptyBracketList().fullCopy());
+		    list.add(newNode);
+		}
+	    } else {
+		ParameterDeclaration newNode = 
+		    new ParameterDeclaration((Modifiers) node.getModifiers().fullCopy(),
+					     node.getTypeAccess().type().substitute(submap),
+					     node.getID(),
+					     (List) node.getEmptyBracketList().fullCopy());
+		list.add(newNode);
+	    }
+	}
+	return list;
+    }
+    public List List.expandAccessList(Map submap) {
+	List list = new List();
+	for ( int i=0; i<getNumChild(); i++) {
+	    Access node = (Access) getChild(i);
+	    List subs = node.type().expandAccessList(submap);
+	    for ( int j=0; j<subs.getNumChild(); j++)
+		list.add(subs.getChild(j));
 	}
 	return list;
     }
@@ -263,14 +388,25 @@ aspect MJLookupMethod {
     }
     public Access TypeVariable.substitute(Map submap) {
 	if ( submap.containsKey(this))
-	    return ((TypeDecl) submap.get(this)).createBoundAccess();
+	    return ((TypeDecl) submap.get(this)).substitute(submap);
 	return createBoundAccess();
     }
-    public Access ParTypeDecl.substitute(Map submap) {
-	java.util.ArrayList list = new java.util.ArrayList();
-	for ( int i=0; i<getNumArgument(); i++) 
-	    list.add(getArgument(i).type().substitute(submap).type());
-	return ((GenericTypeDecl) genericDecl()).lookupParTypeDecl(list).createBoundAccess();
+    public Access VectorTypeVariable.substitute(Map submap) {
+	throw new Error("Vector type variable can only be substituted " +
+			"to a list of types.");
+    }
+
+    syn lazy List TypeDecl.expandAccessList(Map submap ) {
+	return new List().add(substitute(submap));
+    }
+    eq VectorTypeVariable.expandAccessList(Map submap) {
+	List subed = new List();
+	for ( int i=0; i<getNumMatchedVectorTypeVariable(); i++) {
+	    MatchedVectorTypeVariable t = getMatchedVectorTypeVariable(i);
+	    if ( submap.containsKey(t) && submap.get(t) != null )
+		subed.add(((TypeDecl) submap.get(t)).substitute(submap));
+	}
+	return subed;
     }
 
     syn lazy List MethodDecl.expandedMethods () = new List().add(this);
@@ -306,18 +442,11 @@ aspect MJLookupMethod {
     public Map BodyDecl.expansionSubstitutions = null;
 
     public StaticForMethodDecl ExpandedMethodDecl.original = null;
-    
 
     // A map from elements in the reflective range to the mappings 
     // resulting from the pattern variables to the concrete values in
     // the element.
-    syn Map IteratorDecl.reflectiveElmts() {
-	throw new Error("Cannot get reflective elemets for a " +
-			    "reflective iterator when the base type is " +
-			    "not grounded");
-    }
-
-    eq ParIteratorDecl.reflectiveElmts() {
+    syn lazy Map IteratorDecl.reflectiveElmts() {
 	// in order to call this, base type must be fully grounded.
 	if ( !getPattern().getBaseSet().getTypeAccess().type().grounded())
 	    // this should never happen.
@@ -328,7 +457,7 @@ aspect MJLookupMethod {
 	Map refElmtsMap = new HashMap();
 
 	if ( getPattern().getBaseSet().iterateMethods()) {
-	    Map methods = getPattern().getBaseSet().type().allStaticMethodsMap();
+	    Map methods = getPattern().getBaseSet().type().unrestrictedMethodsSignatureMap();
 	    // find all methods that fall into the range of this
 	    // iterator decl.
 	    for ( Iterator mIt = methods.values().iterator(); 

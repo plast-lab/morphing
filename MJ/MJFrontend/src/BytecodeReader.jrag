@@ -648,7 +648,7 @@ aspect BytecodeReader {
 		  if ( next("+")) isPositive = true;
 
 		  Pattern p = parsePattern();
-		  nestedPatterns.add(new NestedPattern(p.getTypeAccess(), p.getID(), p.getParameterList(), p.getEmptyBracketList(), p.getExceptionList(), p.getBaseSet(), isPositive));
+		  nestedPatterns.add(new NestedPattern(p.getModifiers(), p.getTypeAccess(), p.getID(), p.getParameterList(), p.getEmptyBracketList(), p.getExceptionList(), p.getBaseSet(), isPositive));
 	      }
 	  }
 
@@ -660,14 +660,23 @@ aspect BytecodeReader {
 	      }
 	      eat(")");
 	      Access returnType = parseReturnType();
-	      eat("[");
-	      String methodName = identifier();
-	      eat("]");
-
 	      List exceptionList = new List();
 	      while(next("^")) {
 		  exceptionList.add(throwsSignature());
 	      }
+
+	      // parse method name.
+	      eat("[");
+	      String methodName = identifier();
+	      eat("]");
+
+	      // parse modifiers.
+	      Modifiers mods = new Modifiers();
+	      eat("(");
+	      while (!next(")")) {
+		  mods.addModifier(modifiersSignature());
+	      }
+	      eat(")");
 
 	      Access baseType = typeSignature();
 	      RefElmt refElmt = null;
@@ -679,7 +688,7 @@ aspect BytecodeReader {
 		  refElmt = new RefElmt("fields");
 	      }
 		  
-	      return new Pattern(returnType, methodName, 
+	      return new Pattern(mods,returnType, methodName, 
 				 parameterTypes, new List(), exceptionList,
 				 new BaseSet(baseType, refElmt));
 	  }
@@ -748,7 +757,7 @@ aspect BytecodeReader {
 	      if(bounds.getNumChild() == 0)
 		  bounds.add(new TypeAccess("java.lang", "Object"));
 	      if ( isVector )
-		  return new VectorTypeVariable(new Modifiers(new List()), id, new List(), bounds);
+		  return new VectorTypeVariable(new Modifiers(new List()), id, new List(), bounds, new List());
 	      else return new TypeVariable(new Modifiers(new List()), id, new List(), bounds);
 	  }
 	  
@@ -848,6 +857,22 @@ aspect BytecodeReader {
       return fieldTypeSignature();
     }
 
+      // TODO: not handling matching of annotations correctly.
+      Modifier modifiersSignature() {
+	  if ( next("NOMOD")) {
+	      eat("NOMOD;");
+	      return new NoModifier("NOMOD");
+	  }
+	  if ( next("-")) {
+	      eat("-");
+	      Modifier m = new NegativeModifier(identifier());
+	      eat(";");
+	      return m;
+	  }
+	  Modifier m = new Modifier(identifier());
+	  eat(";");
+	  return m;
+      }
 
     Access fieldTypeSignature() {
       if(next("L"))
@@ -904,27 +929,26 @@ aspect BytecodeReader {
 	  if ( buf.length() > 2 && buf.substring(0, 2).equals("$$")) {
 	      buf.delete(0,2);
 
-	      // look for $$L
-	      int lindex = buf.indexOf("$$L");
+	      // look for $$L$$
+	      int lindex = buf.indexOf("$$L$$");
 	      a = new TypeAccess(packageName,buf.substring(0,lindex));
 	      buf.delete(0, lindex);
 
-	      // look for the next corresponding $$R.
-	      int rindex = buf.indexOf("$$R");
+	      // look for the next corresponding $$R$$.
+	      int rindex = buf.indexOf("$$R$$");
 	      lindex = 0;
-	      int tmpIndex = 0;
-	      while ( ((tmpIndex = buf.indexOf("$$L", lindex+3)) != -1)  &&
+	      int tmpIndex = lindex;
+	      while ( ((tmpIndex = buf.indexOf("$$L$$", tmpIndex+5)) != -1)  &&
 		      tmpIndex < rindex ) {
-		  lindex  = tmpIndex;
-		  rindex = buf.indexOf("$$R", rindex+3);
+		  rindex = buf.indexOf("$$R$$", rindex+5);
 	      }
 
 	      StringBuffer paramsBuf = 
-		  new StringBuffer(buf.substring(lindex+3, rindex));
+		  new StringBuffer(buf.substring(lindex+5, rindex));
 	      // split the params.
 	      List params = splitTypeParams(paramsBuf);
 	      
-	      buf.delete(0, rindex+3);
+	      buf.delete(0, rindex+5);
 	      a = new ParTypeAccess(a, params);
 	  } else {
 	      int dindex = buf.indexOf("$");
@@ -946,20 +970,20 @@ aspect BytecodeReader {
 	  // first find possible package name.
 	  StringBuffer packageName = new StringBuffer();
 	  int slashIndex = 0;
-	  while ( (slashIndex = buf.indexOf("$$S")) > 0 &&
+	  while ( (slashIndex = buf.indexOf("$$S$$")) > 0 &&
 		  buf.indexOf("$$") == slashIndex ) {
 	      // has package name.
 	      if ( packageName.length() > 0 ) packageName.append(".");
 	      packageName.append(buf.substring(0, slashIndex));
-	      buf.delete(0, slashIndex+3);
+	      buf.delete(0, slashIndex+5);
 	  }
 	  
 	  List params = new List();
 	  while ( buf.length() > 0 ) {
 	      Access a = eatTypeName(packageName.toString(), buf);
 	      params.addChild(a);
-	      // eat $$C
-	      buf.delete(0, 3);
+	      // eat $$C$$
+	      buf.delete(0, 5);
 	  }
 
 	  return params;
@@ -984,6 +1008,7 @@ aspect BytecodeReader {
     Access typeVariableSignature() {
       eat("T");
       String id = identifier();
+      if ( next("*")) eat("*");
       eat(";");
       return new TypeAccess(id);
     }

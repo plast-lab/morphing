@@ -1,0 +1,15 @@
+aspect MJModifiers {
+    eq Pattern.getModifiers().mayBePublic() = true;
+    eq Pattern.getModifiers().mayBePrivate() = true;
+    eq Pattern.getModifiers().mayBeProtected() = true;
+    eq Pattern.getModifiers().mayBeStatic() = true;
+    eq Pattern.getModifiers().mayBeFinal() = true;
+
+    eq Pattern.getModifiers().mayBeAbstract() = getBaseSet().iterateMethods();
+    eq Pattern.getModifiers().mayBeSynchronized() = getBaseSet().iterateMethods();
+    eq Pattern.getModifiers().mayBeNative() = getBaseSet().iterateMethods();
+    eq Pattern.getModifiers().mayBeStrictfp() = getBaseSet().iterateMethods();
+
+    eq Pattern.getModifiers().mayBeTransient() = getBaseSet().iterateFields();
+    eq Pattern.getModifiers().mayBeVolatile() = getBaseSet().iterateFields();
+}

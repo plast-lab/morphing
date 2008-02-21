@@ -31,6 +31,46 @@ aspect MJExpansion {
 	throw new Error("transformMemberNode not implemented by " +
 			getClass().getName());
     }
+
+    protected java.util.List BodyDecl.transformLocalVariableNode(LocalVariableNode n) {
+	java.util.List list = new java.util.ArrayList();
+	// localVariables may need to be expanded to multiple variables,
+	// depending on what type they are declared with.
+	// We need to do this before visiting the whole node.
+	if ( n.name.equals("this")) {
+	    list.add(n);
+	    return list;
+	}
+
+	Signatures s = new Signatures(n.desc);
+	Access ta = s.typeSignature();
+	TypeDecl type = retrieveType(ta);
+	if ( !type.isVectorTypeVariable()) {
+	    list.add(n);
+	    return list;
+	}
+
+	// Just expand the local variable node into howmany ever there 
+	// needs to be, change the types. But leave the rest to
+	// the regular visitor.
+	List newLocalTypes = type.expandAccessList(expansionSubstitutions);
+	for ( int i=0; i<newLocalTypes.getNumChild(); i++) {
+	    LocalVariableNode newNode = NodeCopier.copyLocalVariableNode(n);
+	    Access newTa = (Access) newLocalTypes.getChild(i);
+	    if ( newTa.type().isUnknown()) {
+		System.err.println("unknown type: " + n.desc);
+	    } else {
+		newNode.desc = newTa.type().typeDescriptor();
+		newNode.name = n.name+i;
+		// must change index, too.
+		newNode.index=n.index+i;
+	    }
+	    // add new node.
+	    list.add(newNode);
+	}
+	return list;
+    }
+
     protected MemberNode ConstructorDeclSubstituted.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
 	ParTypeDecl ht = (ParTypeDecl) hostType();
 	GenericTypeDecl gtd = (GenericTypeDecl) ht.genericDecl();
@@ -42,7 +82,7 @@ aspect MJExpansion {
 			      ht.getArgument(i).type());
 	}
 	
-	MethodNode newNode = TypeDecl.copyMethodNode((MethodNode)mn);
+	MethodNode newNode = NodeCopier.copyMethodNode((MethodNode)mn);
 
 	// modify descriptor;
 	newNode.desc = descName();
@@ -64,8 +104,32 @@ aspect MJExpansion {
 	return newNode;	
     }
 
+    protected HashMap MethodDecl.findReplacementLocalVariables(MethodNode mn) {
+	// offset keeps how much we have to increase the subsequent 
+	// local variable indices, in case the preceding index got increased
+	// because of expansion.
+	int offset = 0;
+
+	HashMap nodesMap = new HashMap();
+	for ( ListIterator lvIt = mn.localVariables.listIterator(); 
+	      lvIt.hasNext(); ) {
+	    LocalVariableNode lvNode = (LocalVariableNode) lvIt.next();
+	    int originalIndex = lvNode.index;
+	    lvNode.index += offset;
+
+	    java.util.List newLVNodes = transformLocalVariableNode(lvNode);
+	    offset += newLVNodes.size()-1;
+	    
+	    // reset the index on the original node.
+	    lvNode.index = originalIndex;
+
+	    nodesMap.put(lvNode, newLVNodes);
+	}
+	return nodesMap;
+    }
+
     protected MemberNode MethodDecl.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
-	MethodNode newNode = TypeDecl.copyMethodNode((MethodNode)mn);
+	MethodNode newNode = NodeCopier.copyMethodNode((MethodNode)mn);
 	
 	// see if we need to change name.
 	newNode.name = getID();
@@ -78,14 +142,63 @@ aspect MJExpansion {
 	
 	// TODO: modify exceptions.
 	
-	// TODO:change instructions.
+	// localVariables may need to be expanded to multiple variables,
+	// depending on what type they are declared with.
+	// We need to do this before visiting the whole node.
+	// every original local variable has a mapping in nodesMap.
+	HashMap nodesMap = findReplacementLocalVariables(newNode);
+
+	// remove all original local variables and replace with new ones.
+	newNode.localVariables.clear();
+
+	for ( Iterator nIt = nodesMap.keySet().iterator(); nIt.hasNext(); ) {
+	    LocalVariableNode origNode = (LocalVariableNode) nIt.next();
+	    java.util.List newLVNodes 
+		= (java.util.List) nodesMap.get(origNode);
+	    
+	    // add the replaced local variables.
+	    for ( Iterator newIt = newLVNodes.iterator(); newIt.hasNext(); ) {
+		newNode.localVariables.add(newIt.next());
+	    }
+
+	    // find the aload instructions for the original variable, and 
+	    // replace with the appropriate number of aload's depending on 
+	    // what argument types expend to.
+	    ArrayList insnList = new ArrayList();
+	    for(ListIterator iit = newNode.instructions.iterator(); 
+		iit.hasNext(); ) {
+		AbstractInsnNode inode = (AbstractInsnNode) iit.next();
+		if (inode instanceof VarInsnNode &&
+		    ((VarInsnNode) inode).var == origNode.index) 
+		    insnList.add(inode);
+	    }
+	    for(Iterator insnIt=insnList.iterator(); insnIt.hasNext(); ) {
+		// This is a var insn node for the variable we are
+		// dealing with.  Expand it into a list of instructions
+		// with the var replaced with the expanded local
+		// variables.
+		VarInsnNode inode = (VarInsnNode) insnIt.next();
+		for ( int i=newLVNodes.size()-1; i>=0; i--) {
+		    LocalVariableNode newLV = (LocalVariableNode) newLVNodes.get(i);
+		    newNode.instructions.insert(inode,new VarInsnNode(transformOpcode(inode.getOpcode(), newLV), newLV.index)); 
+		}
+		// remove the original instruction.
+		newNode.instructions.remove(inode);
+	    }
+	}
+	
+	// transform instructions.
 	InsnTransformVisitor insnVisitor = new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), parClass, this, expansionSubstitutions);
-	
+
 	newNode.accept(insnVisitor);
-	
 	newNode.instructions = insnVisitor.instructions;
 	newNode.localVariables = insnVisitor.localVariables;
 	newNode.tryCatchBlocks = insnVisitor.tryCatchBlocks;
+	newNode.maxStack = insnVisitor.maxStack;
+	newNode.maxLocals = newNode.localVariables.size();
+
+	// reset new max_local.
+	//	newNode.maxLocals = newNode.localVariables.size();
 	
 	// remove IteratorDecl attribute.
 	if ( newNode.attrs != null ) {
@@ -97,10 +210,57 @@ aspect MJExpansion {
 	return newNode;
     }
 
+    protected int BodyDecl.transformOpcode(int opcode, LocalVariableNode lv) {
+	// retrieve type of local variable node
+	Signatures s = new Signatures(lv.desc);
+	Access ta = s.typeSignature();
+	TypeDecl t = retrieveType(ta);
+	TypeDecl newType = t.substitute(expansionSubstitutions).type();
+
+	if ( opcode >= Opcodes.ILOAD && opcode <= Opcodes.ALOAD) {
+	    // this is a load opcode.
+	    if ( newType.isDouble()) return Opcodes.DLOAD;
+	    if (newType.isFloat()) return Opcodes.FLOAD;
+	    if (newType.isLong()) return Opcodes.LLOAD;
+	    if (newType.isPrimitive()) return Opcodes.ILOAD;
+	    return Opcodes.ALOAD;
+	}
+	if ( opcode >= Opcodes.ISTORE && opcode <= Opcodes.ASTORE) {
+	    if ( newType.isDouble()) return Opcodes.DSTORE;
+	    if (newType.isFloat()) return Opcodes.FSTORE;
+	    if (newType.isLong()) return Opcodes.LSTORE;
+	    if (newType.isPrimitive()) return Opcodes.ISTORE;
+	    return Opcodes.ASTORE;		
+	}
+	if( opcode >= Opcodes.IALOAD && opcode <= Opcodes.SALOAD) {
+	    if ( newType.isByte() || newType.isBoolean()) 
+		return Opcodes.BALOAD;
+	    if ( newType.isChar()) return Opcodes.CALOAD;
+	    if ( newType.isDouble()) return Opcodes.DALOAD;
+	    if ( newType.isFloat()) return Opcodes.FALOAD;
+	    if ( newType.isInt()) return Opcodes.IALOAD;
+	    if ( newType.isLong()) return Opcodes.FALOAD;
+	    if ( newType.isShort()) return Opcodes.SALOAD;
+	    return Opcodes.AALOAD;
+	}
+	if(opcode >= Opcodes.IASTORE && opcode <= Opcodes.SASTORE) {
+	    if ( newType.isByte() || newType.isBoolean()) 
+		return Opcodes.BASTORE;
+	    if ( newType.isChar()) return Opcodes.CASTORE;
+	    if ( newType.isDouble()) return Opcodes.DASTORE;
+	    if ( newType.isFloat()) return Opcodes.FASTORE;
+	    if ( newType.isInt()) return Opcodes.IASTORE;
+	    if ( newType.isLong()) return Opcodes.FASTORE;
+	    if ( newType.isShort()) return Opcodes.SASTORE;
+	    return Opcodes.AASTORE;
+	}		
+	return opcode;
+    }
+
     protected MemberNode FieldDeclaration.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
 	// TODO: take care of reflectively declared fields.
 	
-	FieldNode newNode = TypeDecl.copyFieldNode((FieldNode) mn);
+	FieldNode newNode = NodeCopier.copyFieldNode((FieldNode) mn);
 
 	// change desc.
 	newNode.desc = type().typeDescriptor();
@@ -221,35 +381,6 @@ aspect MJExpansion {
 	return null;
     }
     
-    public static FieldNode TypeDecl.copyFieldNode(FieldNode fn) {
-	return new FieldNode(fn.access,
-			     fn.name,
-			     fn.desc,
-			     fn.signature,
-			     fn.value);
-    }
-
-    public static MethodNode TypeDecl.copyMethodNode(MethodNode mn) {
-	MethodNode newNode = new MethodNode();
-	newNode.access = mn.access;
-	newNode.name = mn.name;
-	newNode.desc = mn.desc;
-	newNode.signature = mn.signature;
-	newNode.exceptions = mn.exceptions;
-	newNode.visibleAnnotations = mn.visibleAnnotations;
-	newNode.invisibleAnnotations = mn.invisibleAnnotations;
-	newNode.attrs = mn.attrs;
-	newNode.annotationDefault = mn.annotationDefault;
-	newNode.visibleParameterAnnotations = mn.visibleParameterAnnotations;
-	newNode.invisibleParameterAnnotations = mn.invisibleParameterAnnotations;
-	newNode.instructions = mn.instructions;
-	newNode.tryCatchBlocks = mn.tryCatchBlocks;
-	newNode.localVariables = mn.localVariables;
-	newNode.maxStack = mn.maxStack;
-	newNode.maxLocals = mn.maxLocals;
-	return newNode;
-    }
-    
     public String TypeDecl.iteratorDeclAttribute(MemberNode mn) {
 	if ( mn.attrs != null ) {
 	    for ( Iterator attrIt = mn.attrs.iterator(); attrIt.hasNext(); ) {
@@ -279,8 +410,8 @@ aspect MJExpansion {
     eq ParTypeDecl.expandedConstantPoolName () {
     	String cpName = genericDecl().constantPoolName();
 	int lastSlash = 	cpName.lastIndexOf('/');
-	
-	StringBuffer buf = new StringBuffer(cpName.substring(0,lastSlash+1) + 
+
+	StringBuffer buf = new StringBuffer(cpName.substring(0, lastSlash+1) +
 					    expandedName());
 	return buf.toString();
     }
@@ -312,15 +443,15 @@ aspect MJExpansion {
     eq ParTypeDecl.expandedName() {
 	StringBuffer buf = new StringBuffer("$$");
 	buf.append(name());
-	// $$L for <
-	buf.append("$$L");
+	// $$L$$ for <
+	buf.append("$$L$$");
 	for ( int i=0; i<getNumArgument(); i++ ) {
 	    TypeDecl argType = getArgument(i).type();
 	    buf.append(TypeDecl.convertToExpandedName(argType.expandedConstantPoolName()));
-	    buf.append("$$C");
+	    buf.append("$$C$$");
 	}	
-	// $$R for >
-	buf.append("$$R");
+	// $$R$$ for >
+	buf.append("$$R$$");
 	return buf.toString();
     }
     eq RawClassDecl.expandedName() {
@@ -331,9 +462,9 @@ aspect MJExpansion {
 	throw new Error("Interfaces with reflective declarations cannot be " +
 			"raw types.");
     }
-    // $$S for /
+    // $$S$$ for /
     protected static String TypeDecl.convertToExpandedName ( String n ) {
-	return n.replace("/", "$$S");
+	return n.replace("/", "$$S$$");
     }
 
     // TODO: not finished.
@@ -359,43 +490,6 @@ aspect MJExpansion {
 	while ( tnBuf.length() > 0 )
 	  a = a.qualifiesAccess(Signatures.eatTypeName("", tnBuf));
 	t = retrieveType(a);
-	
-	/*
-	// if it begins with $$, then it is an expanded constant pool name.
-	if ( typeName.startsWith("$$")) {
-	    // look for the next $$L...$$R
-	    int lindex = typeName.indexOf("$$L");
-	    int rindex = typeName.lastIndexOf("$$R");
-
-	    // lookup the generic type.
-	    String genericName = typeName.substring(2, lindex);
-	    TypeAccess ga = new TypeAccess(packageName.toString(), genericName);
-	    GenericTypeDecl genericType = (GenericTypeDecl) ((ParTypeDecl) retrieveType(ga)).genericDecl();
-
-	    String paramsString = typeName.substring(lindex+3, rindex-3);
-	    // split up params.
-	    String[] params = paramsString.split("\\$\\$C");
-	    java.util.ArrayList paramList = new java.util.ArrayList();
-	    for ( int j=0; j<params.length; j++) {
-		// split params up by $$S
-		String[] names = params[j].split("\\$\\$S");
-		StringBuffer pPackageName = new StringBuffer();
-		String pName = names[names.length-1];
-		for ( int k=0; k<names.length-1; k++) {
-		    if ( k > 0 ) pPackageName.append(".");
-		    pPackageName.append(names[k]);
-		}
-		TypeAccess paramAccess = new TypeAccess(pPackageName.toString(), pName);
-		paramList.add(retrieveType(paramAccess));
-	    }
-
-	    // lookup the parameterized type.
-	    t = genericType.lookupParTypeDecl(paramList);
-	} else {
-	    TypeAccess ta = new TypeAccess(packageName.toString(), typeName);
-	    t = retrieveType(ta);
-	}
-	*/
 
 	return t;
     }
