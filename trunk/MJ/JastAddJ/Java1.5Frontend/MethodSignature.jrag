@@ -4,7 +4,7 @@ aspect MethodSignature15 {
     // select potentially applicable methods
     for(Iterator iter = lookupMethod(name()).iterator(); iter.hasNext(); ) {
       MethodDecl decl = (MethodDecl)iter.next();
-      if(potentiallyApplicable(decl)) {
+      if(potentiallyApplicable(decl) && accessible(decl)) {
         if(decl instanceof GenericMethodDecl) {
           decl = ((GenericMethodDecl)decl).lookupParMethodDecl(typeArguments(decl));
         }
@@ -117,6 +117,35 @@ aspect MethodSignature15 {
     return maxSpecific;
   }
 
+  eq ParMethodDecl.moreSpecificThan(MethodDecl m) =
+    genericMethodDecl().moreSpecificThan(m instanceof ParMethodDecl ? ((ParMethodDecl)m).genericMethodDecl() : m );
+
+  refine LookupMethod eq MethodDecl.moreSpecificThan(MethodDecl m) {
+    if(!isVariableArity() && !m.isVariableArity())
+      return LookupMethod.MethodDecl.moreSpecificThan(m);
+    int num = Math.max(getNumParameter(), m.getNumParameter());
+    for(int i = 0; i < num; i++) {
+      TypeDecl t1 = i < getNumParameter() - 1 ? getParameter(i).type() : getParameter(getNumParameter()-1).type().componentType();
+      TypeDecl t2 = i < m.getNumParameter() - 1 ? m.getParameter(i).type() : m.getParameter(m.getNumParameter()-1).type().componentType();
+      if(!t1.instanceOf(t2))
+        return false;
+    }
+    return true;
+  }
+
+  refine LookupConstructor eq ConstructorDecl.moreSpecificThan(ConstructorDecl m) {
+    if(!isVariableArity() && !m.isVariableArity())
+      return LookupConstructor.ConstructorDecl.moreSpecificThan(m);
+    int num = Math.max(getNumParameter(), m.getNumParameter());
+    for(int i = 0; i < num; i++) {
+      TypeDecl t1 = i < getNumParameter() - 1 ? getParameter(i).type() : getParameter(getNumParameter()-1).type().componentType();
+      TypeDecl t2 = i < m.getNumParameter() - 1 ? m.getParameter(i).type() : m.getParameter(m.getNumParameter()-1).type().componentType();
+      if(!t1.instanceOf(t2))
+        return false;
+    }
+    return true;
+  }
+
   syn boolean MethodAccess.applicableBySubtyping(MethodDecl m) {
     if(m.getNumParameter() != getNumArg())
       return false;
@@ -209,8 +238,12 @@ aspect MethodSignature15 {
       return false;
     if(m instanceof GenericMethodDecl) {
       GenericMethodDecl gm = (GenericMethodDecl)m;
-      if(gm.getNumTypeParameter() != typeArguments(m).size())
+      ArrayList list = typeArguments(m);
+      if(gm.getNumTypeParameter() != list.size())
         return false;
+      for(int i = 0; i < gm.getNumTypeParameter(); i++)
+        if(!((TypeDecl)list.get(i)).subtype(gm.getTypeParameter(i)))
+          return false;
     }
     return true;
   }
@@ -220,10 +253,20 @@ aspect MethodSignature15 {
   syn lazy ArrayList MethodAccess.typeArguments(MethodDecl m) {
     ArrayList typeArguments = new ArrayList();
     if(m instanceof GenericMethodDecl) {
-      Collection arguments = computeConstraints((GenericMethodDecl)m);
-      for(Iterator iter = arguments.iterator(); iter.hasNext(); ) {
+      GenericMethodDecl g = (GenericMethodDecl)m;
+      Collection arguments = computeConstraints(g);
+      int i = 0;
+      for(Iterator iter = arguments.iterator(); iter.hasNext(); i++) {
         TypeDecl typeDecl = (TypeDecl)iter.next();
-        if(typeDecl == null) typeDecl = typeObject();
+        if(typeDecl == null) {
+          TypeVariable v = g.getTypeParameter(i);
+          if(v.getNumTypeBound() == 0)
+            typeDecl = typeObject();
+          else if(v.getNumTypeBound() == 1)
+            typeDecl = v.getTypeBound(0).type();
+          else
+            typeDecl = v.lubType();
+        }
         typeArguments.add(typeDecl);
       }
     }
@@ -244,6 +287,8 @@ aspect MethodSignature15 {
     return true;
   }
   syn int ConstructorDecl.arity() = getNumParameter();
+  syn int ConstructorAccess.arity() = getNumArg();
+  syn int ClassInstanceExpr.arity() = getNumArg();
 
   // 15.12.3
   // refine old type checking to be valid when using variable arity parameters

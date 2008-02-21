@@ -100,7 +100,7 @@ aspect NameCheck {
   public void ConstructorAccess.nameCheck() {
     super.nameCheck();
     if(decls().isEmpty())
-      error("no constructor named " + name());
+      error("no constructor named " + this);
     if(decls().size() > 1 && validArgs()) {
       error("several most specific constructors for " + this);
       for(Iterator iter = decls().iterator(); iter.hasNext(); ) {
@@ -163,7 +163,7 @@ aspect NameCheck {
   }
 
   public void VarAccess.nameCheck() {
-    if(decls().isEmpty() && (!isQualified() || !qualifier().type().isUnknown()))
+    if(decls().isEmpty() && (!isQualified() || !qualifier().type().isUnknown() || qualifier().isPackageAccess()))
       error("no field named " + name());
     if(decls().size() > 1) {
       StringBuffer s = new StringBuffer();

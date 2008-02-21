@@ -66,6 +66,11 @@ aspect BytecodeDescriptor {
         else {
           f.setInit(attributes.constantValue().expr());
         }
+
+      if(attributes.annotations != null)
+        for(Iterator iter = attributes.annotations.iterator(); iter.hasNext(); )
+          f.getModifiersNoTransform().addModifier((Modifier)iter.next());
+
       return f;
     }
 
@@ -161,37 +166,56 @@ aspect BytecodeDescriptor {
         }
       }
       if((flags & Flags.ACC_VARARGS) != 0) {
-        int lastIndex = parameterList.getNumChild() - 1;
+        int lastIndex = parameterList.getNumChildNoTransform() - 1;
         ParameterDeclaration p = (ParameterDeclaration)parameterList.getChildNoTransform(lastIndex);
         parameterList.setChild(
             new VariableArityParameterDeclaration(
               p.getModifiersNoTransform(),
               ((ArrayTypeAccess)p.getTypeAccessNoTransform()).getAccessNoTransform(),
-              p.getID(),
-              p.getEmptyBracketListNoTransform()
-              ),
-            lastIndex
-            );
+              p.getID()
+            ),
+          lastIndex
+        );
       }
       List exceptionList = (s != null && s.hasExceptionList()) ? s.exceptionList() : attributes.exceptionList();
+  
+      if(attributes.parameterAnnotations != null) {
+        for(int i = 0; i < attributes.parameterAnnotations.length; i++) {
+          ParameterDeclaration p = (ParameterDeclaration)parameterList.getChildNoTransform(i);
+          for(Iterator iter = attributes.parameterAnnotations[i].iterator(); iter.hasNext(); ) {
+            Modifier m = (Modifier)iter.next();
+            p.getModifiersNoTransform().addModifier(m);
+          }
+        }
+      }
 
+      BodyDecl b;
       if(isConstructor()) {
-        return new ConstructorDecl(p.modifiers(flags), name, parameterList, 
+        b = new ConstructorDecl(p.modifiers(flags), name, parameterList, 
             exceptionList, new Opt(), new Block());
       }
       else if(attributes.elementValue() != null) {
-        return new AnnotationMethodDecl(p.modifiers(flags), returnType, name, 
-            parameterList, new List(), exceptionList, 
+        b = new AnnotationMethodDecl(p.modifiers(flags), returnType, name, 
+            parameterList, exceptionList, 
             new Opt(new Block()), new Opt(attributes.elementValue()));
       }
       else if(s != null && s.hasFormalTypeParameters()) {
-        return new GenericMethodDecl(p.modifiers(flags), returnType, name, parameterList, 
-            new List(), exceptionList, new Opt(new Block()), s.typeParameters(), new List());
+        b = new GenericMethodDecl(p.modifiers(flags), returnType, name, parameterList, 
+            exceptionList, new Opt(new Block()), s.typeParameters());
       }
       else {
-        return new MethodDecl(p.modifiers(flags), returnType, name, parameterList, 
-            new List(), exceptionList, new Opt(new Block()));
+        b = new MethodDecl(p.modifiers(flags), returnType, name, parameterList, 
+            exceptionList, new Opt(new Block()));
       }
+      if(attributes.annotations != null) {
+        for(Iterator iter = attributes.annotations.iterator(); iter.hasNext(); ) {
+          if(b instanceof MethodDecl) 
+            ((MethodDecl)b).getModifiers().addModifier((Modifier)iter.next());
+          else if(b instanceof ConstructorDecl)
+            ((ConstructorDecl)b).getModifiers().addModifier((Modifier)iter.next());
+        }
+      }
+      return b;
     }
 
     private boolean isConstructor() {
@@ -242,10 +266,7 @@ aspect BytecodeDescriptor {
         case 'L':
           return this.p.fromClassName(s.substring(1, s.length() - 1));
         case '[':
-          int i = 1;
-          while(s.charAt(i) == '[')
-            i++;
-          return new ArrayTypeAccess(type(s.substring(i)), i);
+          return new ArrayTypeAccess(type(s.substring(1)));
         case 'V':
           return new PrimitiveTypeAccess("void");
         default:
@@ -279,35 +300,35 @@ aspect BytecodeDescriptor {
       switch (c) {
         case 'B':
           l.add(new ParameterDeclaration(new Modifiers(), 
-                new PrimitiveTypeAccess("byte"), "p" + l.getNumChild()));
+                new PrimitiveTypeAccess("byte"), "p" + l.getNumChildNoTransform()));
           return s.substring(1);
         case 'C':
           l.add(new ParameterDeclaration(new Modifiers(), 
-                new PrimitiveTypeAccess("char"), "p" + l.getNumChild()));
+                new PrimitiveTypeAccess("char"), "p" + l.getNumChildNoTransform()));
           return s.substring(1);
         case 'D':
           l.add(new ParameterDeclaration(new Modifiers(), 
-                new PrimitiveTypeAccess("double"), "p" + l.getNumChild()));
+                new PrimitiveTypeAccess("double"), "p" + l.getNumChildNoTransform()));
           return s.substring(1);
         case 'F':
           l.add(new ParameterDeclaration(new Modifiers(), 
-                new PrimitiveTypeAccess("float"), "p" + l.getNumChild()));
+                new PrimitiveTypeAccess("float"), "p" + l.getNumChildNoTransform()));
           return s.substring(1);
         case 'I':
           l.add(new ParameterDeclaration(new Modifiers(), 
-                new PrimitiveTypeAccess("int"), "p" + l.getNumChild()));
+                new PrimitiveTypeAccess("int"), "p" + l.getNumChildNoTransform()));
           return s.substring(1);
         case 'J':
           l.add(new ParameterDeclaration(new Modifiers(), 
-                new PrimitiveTypeAccess("long"), "p" + l.getNumChild()));
+                new PrimitiveTypeAccess("long"), "p" + l.getNumChildNoTransform()));
           return s.substring(1);
         case 'S':
           l.add(new ParameterDeclaration(new Modifiers(), 
-                new PrimitiveTypeAccess("short"), "p" + l.getNumChild()));
+                new PrimitiveTypeAccess("short"), "p" + l.getNumChildNoTransform()));
           return s.substring(1);
         case 'Z':
           l.add(new ParameterDeclaration(new Modifiers(), 
-                new PrimitiveTypeAccess("boolean"), "p" + l.getNumChild()));
+                new PrimitiveTypeAccess("boolean"), "p" + l.getNumChildNoTransform()));
           return s.substring(1);
         case 'L':
           int pos = s.indexOf(';');
@@ -315,14 +336,17 @@ aspect BytecodeDescriptor {
           String s2 = s.substring(pos+1, s.length());
           l.add(new ParameterDeclaration(new Modifiers(),
                 this.p.fromClassName(s1),
-                "p" + l.getNumChild()));
+                "p" + l.getNumChildNoTransform()));
           return s2;
         case '[':
           int i = 1;
           while(s.charAt(i) == '[') i++;
-          ArrayTypeAccess typeAccess = new ArrayTypeAccess(null, i);
-          l.add(new ParameterDeclaration(new Modifiers(), typeAccess, "p" + l.getNumChild()));
-          return arrayTypeList(s.substring(i), typeAccess);
+          ArrayTypeAccess bottom = new ArrayTypeAccess(new ParseName("")); // dummy name is replaced later
+          ArrayTypeAccess top = bottom;
+          for(int j = 0; j < i - 1; j++)
+            top = new ArrayTypeAccess(top);
+          l.add(new ParameterDeclaration(new Modifiers(), top, "p" + l.getNumChild()));
+          return arrayTypeList(s.substring(i), bottom);
         default:
           this.p.println("Error: unknown Type \"" + c + "\" in TypeDescriptor");
           throw new Error("Error: unknown Type in TypeDescriptor: " + s);

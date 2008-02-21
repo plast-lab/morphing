@@ -12,7 +12,6 @@ aspect VariableArityParameters {
   eq ConstructorDecl.getParameter(int i).variableArityValid() = i == getNumParameter() - 1;
   eq MethodDecl.getParameter(int i).variableArityValid() = i == getNumParameter() - 1;
   eq CatchClause.getParameter().variableArityValid() = false;
-  eq EnhancedForStmt.getParameter().variableArityValid() = false;
 
   inh boolean VariableArityParameterDeclaration.variableArityValid();
 
@@ -35,6 +34,21 @@ aspect VariableArityParameters {
       return false;
     return getArg(getNumArg()-1).type().methodInvocationConversionTo(decl().lastParameter().type());
   }
+  syn boolean ConstructorAccess.invokesVariableArityAsArray() {
+    if(!decl().isVariableArity())
+      return false;
+    if(arity() != decl().arity())
+      return false;
+    return getArg(getNumArg()-1).type().methodInvocationConversionTo(decl().lastParameter().type());
+  }
+  syn boolean ClassInstanceExpr.invokesVariableArityAsArray() {
+    if(!decl().isVariableArity())
+      return false;
+    if(arity() != decl().arity())
+      return false;
+    return getArg(getNumArg()-1).type().methodInvocationConversionTo(decl().lastParameter().type());
+  }
+
 
   syn ParameterDeclaration ConstructorDecl.lastParameter() = 
     getParameter(getNumParameter() - 1);
@@ -73,5 +87,11 @@ If several applicable methods have been identified during one of the three
 phases of applicability testing, then the most specific one is chosen, as
 specified in section §15.12.2.5. See the following subsections for details.
 */
+
+  public void VariableArityParameterDeclaration.toString(StringBuffer s) {
+    getModifiers().toString(s);
+    getTypeAccess().toString(s);
+    s.append(" ... " + name());
+  }
 
 }
