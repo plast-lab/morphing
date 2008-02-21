@@ -147,10 +147,6 @@ aspect MJExpansionProperties {
     }
     
     eq TypeAccess.needsExpansion() = type().needsExpansion() && !type().grounded();
-
-    public List GenericTypeDecl.getParTypeDeclList();
-
-
     syn lazy boolean StaticForMethodDecl.expandable() = getIteratorDecl().expandable();
     syn lazy boolean IteratorDecl.expandable() {
 	if ( !getPattern().getBaseSet().type().grounded())

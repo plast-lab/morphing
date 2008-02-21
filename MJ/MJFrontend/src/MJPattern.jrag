@@ -161,7 +161,6 @@ aspect MJPattern {
 				  (Access) getTypeAccess().fullCopy(),
 				  getID(), 
 				  (List) params.fullCopy(),
-				  (List) getEmptyBracketList().fullCopy(), 
 				  (List) getExceptionList().fullCopy(),
 				  new Opt(), 
 				  //(IteratorDecl) enclosingRefIterator().fullCopy()
@@ -209,7 +208,7 @@ aspect MJPattern {
     // a bound Object for all type variables.
     rewrite PatternTypeVariable {
 	when ( getNumTypeBound() == 0  ) to PatternTypeVariable {
-	    addTypeBound(new NonVoidType(new Modifiers(), "NonVoid", new List()).createBoundAccess());
+	    addTypeBound(typeNonVoid().createBoundAccess());
 	    return this;
 	}
     }

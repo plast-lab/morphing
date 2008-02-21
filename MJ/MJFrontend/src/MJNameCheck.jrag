@@ -16,7 +16,6 @@ aspect MJNameCheck {
 	Pattern p = new Pattern(new Modifiers(),
 				R.createQualifiedAccess(),"m",
 				new List().add(A.createQualifiedAccess()),
-				new List(),
 				new List().add(E.createQualifiedAccess()),
 				new BaseSet(createQualifiedAccess(), 
 					    new RefElmt("methods")));
@@ -30,7 +29,6 @@ aspect MJNameCheck {
 				    R.createQualifiedAccess(),
 				    "m", 
 				    new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
-				    new List(),
 				    new List().add(E.createQualifiedAccess()),
 				    new Opt(),
 				    id, new List());

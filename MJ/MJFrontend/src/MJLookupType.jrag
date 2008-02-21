@@ -21,4 +21,12 @@ aspect MJLookupType {
     syn SimpleSet StaticForFieldDeclaration.localLookupType(String name) = getIteratorDecl().localLookupType(name);
     eq StaticForFieldDeclaration.getChild().lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);
 
+    
+    syn lazy TypeDecl Program.typeNonVoid() {
+	TypeDecl t = new NonVoidType(new Modifiers(), "NonVoid", new List());
+	addCompilationUnit(new CompilationUnit("java.lang", new List(), new List().add(t)));
+	return t;
+    }
+    eq Program.getChild().typeNonVoid() = typeNonVoid();
+    inh lazy TypeDecl TypeDecl.typeNonVoid();
 }

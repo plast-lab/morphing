@@ -25,10 +25,13 @@ class MJCompiler extends Frontend {
 				CompilationUnit unit = (CompilationUnit) iter.next();
 				for (int i = 0; i < unit.getNumTypeDecl(); i++) {
 					TypeDecl td = unit.getTypeDecl(i);
-					if (td.isGenericType() 
-							&& td.needsExpansion()) {
-						List list = ((GenericTypeDecl) unit.getTypeDecl(i))
-								.getParTypeDeclList();
+					if (td.isGenericType() && td.needsExpansion()) {
+						List list = null;
+						if ( td instanceof GenericClassDecl )
+							list = ((GenericClassDecl) td).getParTypeDeclList();
+						else if ( td instanceof GenericInterfaceDecl )
+							list = ((GenericInterfaceDecl) td).getParTypeDeclList();
+						
 						for (int j = 0; j < list.getNumChild(); j++) {
 							TypeDecl parTypeDecl = (TypeDecl) list.getChild(i);
 							// TODO: need to check for timestamp of maybe
@@ -59,7 +62,7 @@ class MJCompiler extends Frontend {
 
 	protected void processNoErrors(CompilationUnit unit) {
 		// expansionTypes.addAll(unit.collectExpansionTypes());
-		unit.java2Transformation();
+		unit.transformation();
 		unit.generateClassfile();
 	}
 

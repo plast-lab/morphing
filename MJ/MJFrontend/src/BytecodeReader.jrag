@@ -223,8 +223,8 @@ aspect BytecodeReader {
       print("\n");
     }
 
-      public CompilationUnit parse(TypeDecl outerTypeDecl, CONSTANT_Class_Info outerClassInfo, Program classPath, boolean isInner) 
-	  throws FileNotFoundException, IOException {
+	  public CompilationUnit parse(TypeDecl outerTypeDecl, CONSTANT_Class_Info outerClassInfo, Program classPath, boolean isInner) 
+        throws FileNotFoundException, IOException {
           isInnerClass = isInner;
           return parse(outerTypeDecl, outerClassInfo, classPath);
     }
@@ -599,7 +599,7 @@ aspect BytecodeReader {
       public Access superclassSignature() { return superclassSignature; }
       protected Access superclassSignature;
 
-      public boolean hasSuperinterfaceSignature() { return superinterfaceSignature.getNumChild() != 0; }
+      public boolean hasSuperinterfaceSignature() { return superinterfaceSignature.getNumChildNoTransform() != 0; }
       public List superinterfaceSignature() { return superinterfaceSignature; }
       protected List superinterfaceSignature = new List(); 
 
@@ -612,7 +612,7 @@ aspect BytecodeReader {
       }
     }
 
-
+      // Added for MJFrontend -- ssh
       public static class IteratorDeclSignature extends Signatures {
 	  protected List patternTypeParameters;
 	  protected List patternNameParameters;
@@ -648,7 +648,7 @@ aspect BytecodeReader {
 		  if ( next("+")) isPositive = true;
 
 		  Pattern p = parsePattern();
-		  nestedPatterns.add(new NestedPattern(p.getModifiers(), p.getTypeAccess(), p.getID(), p.getParameterList(), p.getEmptyBracketList(), p.getExceptionList(), p.getBaseSet(), isPositive));
+		  nestedPatterns.add(new NestedPattern(p.getModifiers(), p.getTypeAccess(), p.getID(), p.getParameterList(), p.getExceptionList(), p.getBaseSet(), isPositive));
 	      }
 	  }
 
@@ -689,7 +689,7 @@ aspect BytecodeReader {
 	      }
 		  
 	      return new Pattern(mods,returnType, methodName, 
-				 parameterTypes, new List(), exceptionList,
+				 parameterTypes, exceptionList,
 				 new BaseSet(baseType, refElmt));
 	  }
 
@@ -762,8 +762,9 @@ aspect BytecodeReader {
 	  }
 	  
       }
-      
-      public static class MethodSignature extends Signatures {
+      // -----------------------------
+
+    public static class MethodSignature extends Signatures {
       public MethodSignature(String s) {
         super(s);
         methodTypeSignature();
@@ -808,7 +809,7 @@ aspect BytecodeReader {
       protected Collection parameterTypes = new ArrayList();
 
       public List exceptionList() { return exceptionList; }
-      public boolean hasExceptionList() { return exceptionList.getNumChild() != 0; }
+      public boolean hasExceptionList() { return exceptionList.getNumChildNoTransform() != 0; }
       protected List exceptionList = new List();
 
       protected Access returnType = null;
@@ -836,7 +837,7 @@ aspect BytecodeReader {
       while(next(":")) {
         bounds.add(interfaceBound());
       }
-      if(bounds.getNumChild() == 0)
+      if(bounds.getNumChildNoTransform() == 0)
         bounds.add(new TypeAccess("java.lang", "Object"));
       return new TypeVariable(new Modifiers(new List()), id, new List(), bounds);
     }
@@ -857,6 +858,8 @@ aspect BytecodeReader {
       return fieldTypeSignature();
     }
 
+
+      // Added for MJFrontend -- ssh
       // TODO: not handling matching of annotations correctly.
       Modifier modifiersSignature() {
 	  if ( next("NOMOD")) {
@@ -873,6 +876,7 @@ aspect BytecodeReader {
 	  eat(";");
 	  return m;
       }
+      // -------------------------------------
 
     Access fieldTypeSignature() {
       if(next("L"))
@@ -901,18 +905,18 @@ aspect BytecodeReader {
         packageName.append(typeName);
         typeName = identifier();
       }
-
-      /*
+      /* Commented out for MJFrontend.
       String[] names = typeName.split("\\$");
       Access a = new TypeAccess(packageName.toString(), names[0]);
       for(int i = 1; i < names.length; i++)
         a = a.qualifiesAccess(new TypeAccess(names[i]));
       */
-
+      // --  Added for MJFrontend -- ssh
       StringBuffer tnBuf = new StringBuffer(typeName);
       Access a = eatTypeName(packageName.toString(), tnBuf);
       while ( tnBuf.length() > 0 )
 	  a = a.qualifiesAccess(eatTypeName("", tnBuf));
+      // ---------------------------------
 
       if(next("<")) { // type arguments of top level type
         a = new ParTypeAccess(a, typeArguments());
@@ -923,6 +927,7 @@ aspect BytecodeReader {
       eat(";");
       return a;
     }
+
 
       public static Access eatTypeName(String packageName, StringBuffer buf) {
 	  Access a = null;
@@ -992,23 +997,22 @@ aspect BytecodeReader {
     Access classTypeSignatureSuffix() {
       eat(".");
       String id = identifier();
-
-      /*
       String[] names = id.split("\\$");
       Access a = new TypeAccess(names[0]);
       for(int i = 1; i < names.length; i++)
         a = a.qualifiesAccess(new TypeAccess(names[i]));
       if(next("<")) {
         a = new ParTypeAccess(a, typeArguments());
-	}*/
-      Access a = eatTypeName("", new StringBuffer(id));
+      }
       return a;
     }
 
     Access typeVariableSignature() {
       eat("T");
       String id = identifier();
+      // Added for MJFrontend -- ssh
       if ( next("*")) eat("*");
+      // ---------------------------
       eat(";");
       return new TypeAccess(id);
     }
@@ -1043,7 +1047,7 @@ aspect BytecodeReader {
 
     Access arrayTypeSignature() {
       eat("[");
-      return new ArrayTypeAccess(typeSignature(), 1);
+      return new ArrayTypeAccess(typeSignature());
     }
 
     Access typeSignature() {
