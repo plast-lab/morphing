@@ -18,7 +18,7 @@ StaticForFieldDeclaration : FieldDeclaration ::=  IteratorDecl;
 IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern*;
 ParIteratorDecl : IteratorDecl;
 
-Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* EmptyBracket* Exception:Access* BaseSet; 
+Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* Exception:Access* BaseSet; 
 
 NestedPattern : Pattern ::= <IsPositive:boolean>;
 

@@ -303,7 +303,7 @@ aspect MJTypeCheckCore {
 
 	GenericTypeDecl decl = (GenericTypeDecl)genericDecl();
 	for ( int i=0; i<getNumTypeArgument(); i++) {
-	    TypeVariable tv = decl.original().getTypeParameter(i);
+	    TypeVariable tv = ((GenericTypeDecl) decl.original()).getTypeParameter(i);
 	    if (tv.isConstrainedTypeVariable()) {
 		if ( tv.mustbeClass() && 
 		     !getTypeArgument(i).type().isClassDecl())

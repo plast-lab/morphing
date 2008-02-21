@@ -62,7 +62,7 @@ aspect MJLookupMethod {
 	}
 	return map;
     }
-    
+    /*
     refine Generics eq ParClassDecl.localMethodsSignatureMap() {    
 	HashMap map = Generics.ParClassDecl.localMethodsSignatureMap();	
 	// add the ones from grounded reflective declarations.
@@ -95,7 +95,25 @@ aspect MJLookupMethod {
 	}
 	return map;
     }
-    
+    */
+
+    refine Generics eq ParTypeDecl.localMethodsSignatureMap() {    
+	HashMap map = Generics.ParTypeDecl.localMethodsSignatureMap();
+	// add the ones from grounded reflective declarations.
+	Collection refMethods = reflectiveMethods();
+	for ( Iterator refIt = refMethods.iterator(); refIt.hasNext(); ) {
+	    ParStaticForMethodDecl md = (ParStaticForMethodDecl) refIt.next();
+	    if ( md.expandable() ) {
+		List expandedMethods = md.expandedMethods();
+		for ( int i=0; i<expandedMethods.getNumChild(); i++ ) {
+		    MethodDecl decl = (MethodDecl) expandedMethods.getChild(i);
+		    map.put(decl.signature(), decl);
+		}
+	    }
+	}
+	return map;
+    }
+
     protected StaticForMethodDecl StaticForMethodDecl.original;
     syn StaticForMethodDecl StaticForMethodDecl.original() = original != null ? original : this;
 
@@ -117,7 +135,6 @@ aspect MJLookupMethod {
 				       getTypeAccess().type().substituteReturnType(parTypeDecl),
 				       getID(),
 				       getParameterList().substitute(parTypeDecl),
-				       new List(),
 				       getExceptionList().substitute(parTypeDecl),
 				       new Opt(),
 				       getIteratorDecl().substitute(parTypeDecl),
@@ -149,7 +166,6 @@ aspect MJLookupMethod {
 			   getTypeAccess().type().substitute(parTypeDecl),
 			   getID(),
 			   getParameterList().substitute(parTypeDecl),
-			   new List(),
 			   getExceptionList().substitute(parTypeDecl),
 			   getBaseSet().substitute(parTypeDecl));
     }
@@ -158,7 +174,6 @@ aspect MJLookupMethod {
 				 getTypeAccess().type().substitute(parTypeDecl),
 				 getID(),
 				 getParameterList().substitute(parTypeDecl),
-				 new List(),
 				 getExceptionList().substitute(parTypeDecl),
 				 getBaseSet().substitute(parTypeDecl),
 				 getIsPositive());
@@ -315,7 +330,6 @@ aspect MJLookupMethod {
 				      isNameVariable(getID()) ?
 				      (String) substitution.get(getNameVariable(getID())) : getID(),
 				      getParameterList().expandParameterList(substitution),
-				      new List(),
 				      getExceptionList().expandAccessList(substitution),
 				      new Opt());
     }
@@ -326,7 +340,6 @@ aspect MJLookupMethod {
 				 isNameVariable(getID()) ? 
 				 (String) substitutions.get(getNameVariable(getID())) : getID(),
 				 getParameterList().expandParameterList(substitutions),
-				 new List(),
 				 getExceptionList().expandAccessList(substitutions),
 				 getBaseSet().substitute(substitutions),
 				 getIsPositive());	
@@ -357,16 +370,14 @@ aspect MJLookupMethod {
 		    ParameterDeclaration newNode = 
 			new ParameterDeclaration((Modifiers) node.getModifiers().fullCopy(),
 						 (Access) argTypes.getChild(j),
-						 node.getID() + "j",
-						 (List) node.getEmptyBracketList().fullCopy());
+						 node.getID() + "j");
 		    list.add(newNode);
 		}
 	    } else {
 		ParameterDeclaration newNode = 
 		    new ParameterDeclaration((Modifiers) node.getModifiers().fullCopy(),
 					     node.getTypeAccess().type().substitute(submap),
-					     node.getID(),
-					     (List) node.getEmptyBracketList().fullCopy());
+					     node.getID());
 		list.add(newNode);
 	    }
 	}
