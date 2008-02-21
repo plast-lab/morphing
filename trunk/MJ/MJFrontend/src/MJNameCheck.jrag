@@ -7,11 +7,14 @@ aspect MJNameCheck {
 	 **/
 	AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), "R", new List(), new List());
 	VectorTypeVariable A = new VectorTypeVariable(new Modifiers(), "A",
-						      new List(), new List());
+						      new List(), new List(),
+						      new List());
 	VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), "E",
-						      new List(), new List());
+						      new List(), new List(),
+						      new List());
 	PatternNameVariable m = new PatternNameVariable("m");
-	Pattern p = new Pattern(R.createQualifiedAccess(),"m",
+	Pattern p = new Pattern(new Modifiers(),
+				R.createQualifiedAccess(),"m",
 				new List().add(A.createQualifiedAccess()),
 				new List(),
 				new List().add(E.createQualifiedAccess()),

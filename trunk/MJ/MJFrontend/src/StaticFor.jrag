@@ -52,48 +52,6 @@ aspect StaticFor {
     }
 
     // TODO: MemberClassDecl, MemberInterfaceDecl, StaticInitializer
-    
-
-    public void PatternNameVariable.toString(StringBuffer s) {
-	s.append(getID());
-    }
-    public void Pattern.toString(StringBuffer s) {
-	getTypeAccess().toString(s);
-	s.append(" " + getID() + "(");
-
-	if(getNumParameter() > 0) {
-	    getParameter(0).toString(s);
-	    for(int i = 1; i < getNumParameter(); i++) {
-		s.append(", ");
-		getParameter(i).toString(s);
-	    }
-	}
-	s.append(")");	    
-	for(int i = 0; i < getNumEmptyBracket(); i++) {
-	    s.append("[]");
-	}
-	if(getNumException() > 0) {
-	    s.append(" throws ");
-	    getException(0).toString(s);
-	    for(int i = 1; i < getNumException(); i++) {
-		s.append(", ");
-		getException(i).toString(s);
-	    }
-	}
-
-	s.append(" : ");
-	getBaseSet().toString(s);
-    }
-
-    public void BaseSet.toString(StringBuffer s) {
-	getTypeAccess().toString(s);
-	s.append(".");
-	getRefElmt().toString(s);
-    }
-
-    public void RefElmt.toString(StringBuffer s) {
-	s.append(getElmtName());
-    }
 
     syn TypeDecl BaseSet.baseType() = getTypeAccess().type();
 }

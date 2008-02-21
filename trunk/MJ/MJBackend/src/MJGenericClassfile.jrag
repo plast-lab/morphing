@@ -97,8 +97,6 @@ aspect MJGenerateClassfile {
 	}
     }
 
-    eq PatternTypeVariable.constantPoolName() = classTypeSignature();
-
     refine StaticImportsCodegen protected TypeDecl MethodAccess.methodQualifierType() {
 	TypeDecl typeDecl = null;
 
@@ -141,7 +139,7 @@ aspect MJGenerateClassfile {
 	return true;
     }
     eq TypeVariable.shouldErase() = enclosingType().shouldErase();
-
+    /*
     refine CodeGeneration public void MethodDecl.emitInvokeMethod(CodeGeneration gen, TypeDecl hostType) {
 	if(hostType.isInterfaceDecl()) {
 	    int size = type().variableSize() - 1;
@@ -177,7 +175,7 @@ aspect MJGenerateClassfile {
 	    }
 	}
     }
-
+    */
 
     refine GenericsCodegen public void ConstructorDeclSubstituted.emitInvokeConstructor(CodeGeneration gen) {
 	if ( hostType().shouldErase())
@@ -240,10 +238,19 @@ aspect MJAttributes {
 	return buf.toString();
     }
     syn String Pattern.signature() {
-	StringBuffer buf = new StringBuffer(patternMethodDecl().methodTypeSignature());
+	PatternMethodDecl md = patternMethodDecl();
+	StringBuffer buf = new StringBuffer(md.methodTypeSignature());
+	// append method name.
 	buf.append("[");
 	buf.append(getID());
 	buf.append("]");
+
+	// append modifiers.
+	buf.append("(");
+	buf.append(md.getModifiers().signature());
+	buf.append(")");
+
+	// append base set signature.
 	buf.append(getBaseSet().signature());
 	return buf.toString();
     }
@@ -264,6 +271,16 @@ aspect MJAttributes {
     syn String RefElmt.signature() {
 	return getElmtName() + ";";
     }
+
+    syn String Modifiers.signature() {
+	StringBuffer buf = new StringBuffer();
+	for ( int i=0; i<getNumModifier(); i++) 
+	    buf.append(getModifier(i).signature());
+	return buf.toString();
+    }
+    syn String Modifier.signature() = getID() + ";";
+    eq NegativeModifier.signature() = "-" + super.signature();
+    eq NoModifier.signature() = "NOMOD";
 }
 
 aspect FixJastadd {
@@ -294,5 +311,6 @@ aspect FixJastadd {
     	return erasure().typeDescriptor();  
     }
     eq PatternTypeVariable.typeDescriptor() = classTypeSignature();
-
+    eq PatternTypeVariable.constantPoolName() = classTypeSignature();
+    eq VectorTypeVariable.classTypeSignature() = "T" + name() + "*;";
 }

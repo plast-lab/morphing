@@ -1,0 +1,70 @@
+aspect MJPrettyPrint {
+    public void StaticForMethodDecl.toString(StringBuffer buf) {
+	getIteratorDecl().toString(buf);
+    }
+
+    public void IteratorDecl.toString(StringBuffer buf) {
+	if ( getNumPatternTypeParameter() > 0 ) {
+	    buf.append("<");
+	    for ( int i=0; i<getNumPatternTypeParameter(); i++) {
+		if ( i > 0) buf.append(",");
+		getPatternTypeParameter(i).toString(buf);
+	    }
+	    buf.append(">");
+	}
+	if ( getNumPatternNameParameter() > 0) {
+	    buf.append("[");
+	    for ( int i=0; i<getNumPatternNameParameter(); i++) {
+		if ( i>0) buf.append(",");
+		getPatternNameParameter(i).toString(buf);
+	    }
+	    buf.append("]");
+	}
+	buf.append("for");
+	getPattern().toString(buf);
+	for ( int i=0; i<getNumNestedPattern(); i++) {
+	    getNestedPattern(i).toString(buf);
+	}
+    }
+    public void PatternNameVariable.toString(StringBuffer buf) {
+	buf.append(getID());
+    }
+    public void Pattern.toString(StringBuffer buf) {
+	getTypeAccess().toString(buf);
+	buf.append(" ");
+	buf.append(getID());
+	buf.append("(");
+	for ( int i=0; i<getNumParameter(); i++) {
+	    if ( i > 0 ) buf.append(", ");
+	    getParameter(i).toString(buf);
+	}
+	buf.append(")");
+	if ( getNumException() > 0 ) {
+	    buf.append("throws ");
+	    for ( int i=0; i<getNumException(); i++) {
+		if ( i > 0 ) buf.append(",");
+		getException(i).toString(buf);
+	    }
+	}
+	buf.append(":");
+	getBaseSet().toString(buf);
+	buf.append(";");
+    }
+    public void NestedPattern.toString(StringBuffer buf) {
+	if ( getIsPositive()) buf.append("some ");
+	else buf.append("no ");
+
+	super.toString(buf);
+    }
+
+    public void BaseSet.toString(StringBuffer buf) {
+	getTypeAccess().toString(buf);
+	buf.append(".");
+	buf.append(getRefElmt().getElmtName());
+    }
+
+    public void NegativeModifier.toString(StringBuffer buf) {
+	buf.append("!");
+	buf.append(getID());
+    }
+}

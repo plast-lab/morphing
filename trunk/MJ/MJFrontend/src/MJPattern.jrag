@@ -48,7 +48,53 @@ aspect MJPattern {
     }
     inh Collection Pattern.patternNameVariables();
     eq IteratorDecl.getPattern().patternNameVariables() = patternNameVariables();
-    eq IteratorDecl.getNestedPattern(int i).patternNameVariables() = patternNameVariables();
+    // The only name variables that are still variables for nested pattern
+    // are the ones not bounded by the primary pattern.
+    eq IteratorDecl.getNestedPattern(int i).patternNameVariables()=unboundedNameVariables();
+
+    syn lazy Collection IteratorDecl.unboundedNameVariables() {
+	Pattern p = getPattern();
+
+	Collection nvs = patternNameVariables();
+	Collection unbounded = new ArrayList(nvs);
+
+	PatternNameVariable nv  = getNameVariable(p.getID());
+	unbounded.remove(nv);
+
+	return unbounded;
+    }
+    eq IteratorDecl.getPattern().unboundedNameVariables() = unboundedNameVariables();
+    eq IteratorDecl.getNestedPattern(int i).unboundedNameVariables() = unboundedNameVariables();
+    inh Collection Pattern.unboundedNameVariables();
+
+    syn lazy Collection IteratorDecl.unboundedTypeVariables() {
+	Pattern p = getPattern();
+	Collection typeVars = patternTypeVariables();
+	Collection unbounded = new ArrayList(typeVars);
+
+	p.getTypeAccess().type().removeBoundedTypeVariables(unbounded);
+	for ( int i=0; i<p.getNumParameter(); i++) {
+	    p.getParameter(i).type().removeBoundedTypeVariables(unbounded);
+	}
+	for ( int i=0; i<p.getNumException(); i++) {
+	    p.getException(i).type().removeBoundedTypeVariables(unbounded);
+	}
+	return unbounded;
+    }
+    eq IteratorDecl.getPattern().unboundedTypeVariables() = unboundedTypeVariables();
+    eq IteratorDecl.getNestedPattern(int i).unboundedTypeVariables() = unboundedTypeVariables();
+
+    inh Collection Pattern.unboundedTypeVariables();
+
+    public void TypeDecl.removeBoundedTypeVariables(Collection c ) {
+	c.remove(this);
+    }
+    public void ParTypeDecl.removeBoundedTypeVariables(Collection c) {
+	for ( int i=0; i<getNumArgument(); i++) {
+	    getArgument(i).type().removeBoundedTypeVariables(c);
+	}
+    }
+
 
     syn lazy Collection Stmt.patternNameVariables() = hostBodyDecl().patternNameVariables();
     syn lazy Collection Expr.patternNameVariables() = enclosingStmt().patternNameVariables();
@@ -64,7 +110,7 @@ aspect MJPattern {
     }
     inh Collection Pattern.patternTypeVariables();
     eq IteratorDecl.getPattern().patternTypeVariables() = patternTypeVariables();
-    eq IteratorDecl.getNestedPattern(int i).patternTypeVariables() = patternTypeVariables();
+    eq IteratorDecl.getNestedPattern(int i).patternTypeVariables() = unboundedTypeVariables();
 
     syn lazy Collection Stmt.patternTypeVariables() = hostBodyDecl().patternTypeVariables();
     syn lazy Collection Expr.patternTypeVariables() = enclosingStmt().patternNameVariables();
@@ -99,6 +145,7 @@ aspect MJPattern {
     syn lazy PatternNameVariable Expr.getNameVariable(String name) = enclosingStmt().getNameVariable(name);
     syn lazy PatternNameVariable Stmt.getNameVariable(String name) = hostBodyDecl().getNameVariable(name);
     syn lazy PatternNameVariable Pattern.getNameVariable(String name) = hostBodyDecl().getNameVariable(name);
+    syn lazy PatternNameVariable IteratorDecl.getNameVariable(String name) = hostBodyDecl().getNameVariable(name);
 
     // returns a "fake" MethodDecl determined by the pattern of the iterator.
     syn lazy PatternMethodDecl Pattern.patternMethodDecl() {
@@ -106,11 +153,11 @@ aspect MJPattern {
 	// turn types into a list of ParameterDeclarations.
 	List params = new List();
 	for ( int i=0; i<paramTypes.getNumChild(); i++) {
-	    params.add(new ParameterDeclaration((Access)paramTypes.getChild(i), "p" + i));
+	    params.add(new ParameterDeclaration((Access)paramTypes.getChild(i).fullCopy(), "p" + i));
 	}
 
 	PatternMethodDecl pd = 
-	    new PatternMethodDecl(new Modifiers(), 
+	    new PatternMethodDecl((Modifiers) getModifiers().fullCopy(),
 				  (Access) getTypeAccess().fullCopy(),
 				  getID(), 
 				  (List) params.fullCopy(),

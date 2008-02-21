@@ -297,10 +297,6 @@ aspect BytecodeAttributes {
         if(BytecodeParser.VERBOSE)
           p.println("    end");
       }
-
-
-
-
     }
 
   }

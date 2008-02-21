@@ -1,7 +1,8 @@
 PatternTypeVariable : TypeVariable;
-VectorTypeVariable : PatternTypeVariable;
 AllMatchingTypeVariable : PatternTypeVariable;
 NonVoidType : TypeDecl;
+VectorTypeVariable : PatternTypeVariable ::= MatchedVectorTypeVariable*;
+MatchedVectorTypeVariable : PatternTypeVariable;
 
 PatternNameVariable ::= <ID:String>;
 
@@ -17,7 +18,7 @@ StaticForFieldDeclaration : FieldDeclaration ::=  IteratorDecl;
 IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern*;
 ParIteratorDecl : IteratorDecl;
 
-Pattern ::= TypeAccess:Access <ID:String> Parameter:TypeAccess* EmptyBracket* Exception:Access* BaseSet; 
+Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* EmptyBracket* Exception:Access* BaseSet; 
 
 NestedPattern : Pattern ::= <IsPositive:boolean>;
 
@@ -27,3 +28,5 @@ RefElmt ::= <ElmtName:String>;
 
 PatternMethodDecl : StaticForMethodDecl ;
 
+NegativeModifier : Modifier;
+NoModifier : Modifier;
