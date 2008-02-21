@@ -129,11 +129,15 @@ aspect GenericsSubtype {
   eq ParInterfaceDecl.supertypeRawInterfaceDecl(RawInterfaceDecl type) =
     type.genericDecl().subtype(genericDecl());
 
+  syn boolean TypeDecl.matchingTypeArgument(TypeDecl type) circular [true] = this == type || type instanceof TypeVariable;
+  eq AbstractWildcardType.matchingTypeArgument(TypeDecl type) = type.subtype(this);
+  eq TypeVariable.matchingTypeArgument(TypeDecl type) = true;
+
   eq ParClassDecl.supertypeParClassDecl(ParClassDecl type) {
-    if(type.genericDecl().subtype(genericDecl()) &&
+    if(type.genericDecl() == genericDecl() &&
        type.getNumArgument() == getNumArgument()) {
       for(int i = 0; i < getNumArgument(); i++)
-        if(!type.getArgument(i).type().subtype(getArgument(i).type()))
+        if(!getArgument(i).type().matchingTypeArgument(type.getArgument(i).type()))
           return false;
       return true;
     }
@@ -142,20 +146,20 @@ aspect GenericsSubtype {
   eq ParClassDecl.supertypeParInterfaceDecl(ParInterfaceDecl type) = false;
 
   eq ParInterfaceDecl.supertypeParClassDecl(ParClassDecl type) {
-    if(type.genericDecl().subtype(genericDecl()) &&
+    if(type.genericDecl() == genericDecl() &&
        type.getNumArgument() == getNumArgument()) {
       for(int i = 0; i < getNumArgument(); i++)
-        if(!type.getArgument(i).type().subtype(getArgument(i).type()))
+        if(!getArgument(i).type().matchingTypeArgument(type.getArgument(i).type()))
           return false;
       return true;
     }
     return supertypeClassDecl(type);
   }
   eq ParInterfaceDecl.supertypeParInterfaceDecl(ParInterfaceDecl type) {
-    if(type.genericDecl().subtype(genericDecl()) &&
+    if(type.genericDecl() == genericDecl() &&
        type.getNumArgument() == getNumArgument()) {
       for(int i = 0; i < getNumArgument(); i++)
-        if(!type.getArgument(i).type().subtype(getArgument(i).type()))
+        if(!getArgument(i).type().matchingTypeArgument(type.getArgument(i).type()))
           return false;
       return true;
     }
@@ -188,6 +192,20 @@ aspect GenericsSubtype {
         return true;
     return false;
   }
+  eq TypeVariable.supertypeTypeVariable(TypeVariable type) {
+    if(type == this)
+      return true;
+    for(int i = 0; i < type.getNumTypeBound(); i++) {
+      boolean found = false;
+      for(int j = 0; !found && j < getNumTypeBound(); j++) {
+        if(type.getTypeBound(i).type().subtype(getTypeBound(j).type()))
+          found = true;
+      }
+      if(!found)
+        return false;
+    }
+    return true;
+  }
 
   eq TypeVariable.supertypeClassDecl(ClassDecl type) {
     for(int i = 0; i < getNumTypeBound(); i++)
@@ -201,6 +219,44 @@ aspect GenericsSubtype {
         return false;
     return true;
   }
+
+  eq LUBType.subtype(TypeDecl type) = type.supertypeLUBType(this);
+  syn boolean TypeDecl.supertypeLUBType(LUBType type) {
+    for(int i = 0; i < type.getNumTypeBound(); i++)
+      if(!type.getTypeBound(i).type().subtype(this))
+        return false;
+    return true;
+  }
+  eq GLBType.supertypeLUBType(LUBType type){
+    ArrayList bounds = new ArrayList(getNumTypeBound());
+    for (int i = 0; i < getNumTypeBound(); i++) {
+      bounds.add(getTypeBound(i));
+    }
+    return type == lookupLUBType(bounds);
+  }
+
+  eq LUBType.supertypeClassDecl(ClassDecl type) = type.subtype(lub());
+  eq LUBType.supertypeInterfaceDecl(InterfaceDecl type) = type.subtype(lub());
+
+
+  eq GLBType.subtype(TypeDecl type) = type.supertypeGLBType(this);
+  syn boolean TypeDecl.supertypeGLBType(GLBType type) {
+    // T1 && .. && Tn <: this, if exists  0 < i <= n Ti <: this 
+    for(int i = 0; i < type.getNumTypeBound(); i++)
+      if(type.getTypeBound(i).type().subtype(this))
+        return true;
+    return false;
+  }
+
+  eq GLBType.supertypeGLBType(GLBType type) = this == type;
+  eq LUBType.supertypeGLBType(GLBType type){
+    ArrayList bounds = new ArrayList(getNumTypeBound());
+    for (int i = 0; i < getNumTypeBound(); i++) {
+      bounds.add(getTypeBound(i));
+    }
+    return type == lookupGLBType(bounds);
+  }
+
 
   // refine rules to use a circular subtype attribute
   

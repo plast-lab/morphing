@@ -1,4 +1,22 @@
 aspect GenericMethods {
+  public void ParMethodAccess.typeCheck() {
+    super.typeCheck();
+    if(!decl().hostType().isUnknown()) {
+      if(!(decl() instanceof ParMethodDecl))
+        error("can not have type parameters on a non generic method");
+      else {
+        ParMethodDecl m = (ParMethodDecl)decl();
+        if(m.numTypeParameter() != getNumTypeArgument())
+          error("generic method " + m.signature() + " requires " + m.numTypeParameter() + " type arguments");
+        else {
+        }
+      }
+    }
+  }
+
+  syn lazy final List GenericMethodDecl.getParMethodDeclList() = new List();
+  syn lazy final List GenericConstructorDecl.getParConstructorDeclList() = new List();
+
 
   inh lazy GenericMethodDecl ParMethodDecl.genericMethodDecl();
   eq GenericMethodDecl.getParMethodDecl(int i).genericMethodDecl() = this;
@@ -128,9 +146,6 @@ aspect GenericMethodsPrettyPrint {
       }
     }
     s.append(")");
-    for(int i = 0; i < getNumEmptyBracket(); i++) {
-      s.append("[]");
-    }
     if(getNumException() > 0) {
       s.append(" throws ");
       getException(0).toString(s);

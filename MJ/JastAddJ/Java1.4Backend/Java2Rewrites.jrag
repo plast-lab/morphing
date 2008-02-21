@@ -42,7 +42,7 @@ aspect Java2Rewrites {
       "$assertionsDisabled",
       new Opt(
           new LogNotExpr(
-            createQualifiedAccess().qualifiesAccess(
+            topLevelType().createQualifiedAccess().qualifiesAccess(
               new ClassAccess().qualifiesAccess(
                 new MethodAccess(
                   "desiredAssertionStatus",
@@ -57,8 +57,31 @@ aspect Java2Rewrites {
     // explicit read to trigger possible rewrites
     createAssertionsDisabled = (FieldDeclaration)getBodyDeclList().getChild(0);
     // transform the generated initalization, e.g., the ClassAccess construct
-    createAssertionsDisabled.java2Transformation();
+    createAssertionsDisabled.transformation();
     return createAssertionsDisabled;
+  }
+
+  public FieldDeclaration InterfaceDecl.createStaticClassField(String name) {
+    return methodHolder().createStaticClassField(name);
+  }
+  public MethodDecl InterfaceDecl.createStaticClassMethod() {
+    return methodHolder().createStaticClassMethod();
+  }
+  // create anonymous class to delegate to
+  private TypeDecl InterfaceDecl.methodHolder = null;
+  public TypeDecl InterfaceDecl.methodHolder() {
+    if(methodHolder != null)
+      return methodHolder;
+    String name = "$" + nextAnonymousIndex();
+    ClassDecl c = addMemberClass(new ClassDecl(
+      new Modifiers(new List()),
+      name,
+      new Opt(),
+      new List(),
+      new List()
+    ));
+    methodHolder = c;
+    return c;
   }
 
   // lazily build a static field for each typename used in a .class expression
@@ -83,6 +106,8 @@ aspect Java2Rewrites {
     return addMemberField(f);
   }
 
+
+
   // lazily build a static class$ method in this type declaration
   private MethodDecl TypeDecl.createStaticClassMethod = null;
   public MethodDecl TypeDecl.createStaticClassMethod() {
@@ -106,7 +131,6 @@ aspect Java2Rewrites {
           "name"
         )
       ),
-      new List(),
       new List(),
       new Opt(
         new Block(

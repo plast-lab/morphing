@@ -5,8 +5,8 @@ aspect EnhancedForToBytecode {
   syn lazy int EnhancedForStmt.end_label() = hostType().constantPool().newLabel();
 
   syn lazy int EnhancedForStmt.extraLocalIndex() = localNum();
-  eq EnhancedForStmt.getParameter().localNum() = localNum() + (getExpr().type().isArrayDecl() ? 2 : 1);
-  eq EnhancedForStmt.getStmt().localNum() = getParameter().localNum() + getParameter().type().size();
+  eq EnhancedForStmt.getVariableDeclaration().localNum() = localNum() + (getExpr().type().isArrayDecl() ? 2 : 1);
+  eq EnhancedForStmt.getStmt().localNum() = getVariableDeclaration().localNum() + getVariableDeclaration().type().size();
 
    // EnhancedForStmt can be both break and continue target
   eq EnhancedForStmt.break_label() = end_label();
@@ -16,7 +16,7 @@ aspect EnhancedForToBytecode {
     if(getExpr().type().isArrayDecl()) {
       getExpr().createBCode(gen);
       gen.emitStoreReference(extraLocalIndex());
-      IntType.push(gen, 0);
+      IntegerLiteral.push(gen, 0);
       gen.emit(Bytecode.ISTORE).add(extraLocalIndex()+1);
       gen.addLabel(cond_label());
       gen.emit(Bytecode.ILOAD).add(extraLocalIndex()+1);
@@ -25,8 +25,9 @@ aspect EnhancedForToBytecode {
       gen.emitCompare(Bytecode.IF_ICMPGE, end_label());
       gen.emitLoadReference(extraLocalIndex());
       gen.emit(Bytecode.ILOAD).add(extraLocalIndex()+1);
-      gen.emit(getParameter().type().arrayLoad());
-      gen.emitStoreReference(getParameter().localNum());
+      gen.emit(getExpr().type().componentType().arrayLoad());
+      getExpr().type().componentType().emitCastTo(gen, getVariableDeclaration().type());
+      getVariableDeclaration().type().emitStoreLocal(gen, getVariableDeclaration().localNum());
       getStmt().createBCode(gen);
       gen.addLabel(update_label());
       gen.emit(Bytecode.IINC).add(extraLocalIndex()+1).add(1);
@@ -43,8 +44,8 @@ aspect EnhancedForToBytecode {
       gen.emitCompare(Bytecode.IFEQ, end_label());
       gen.emitLoadReference(extraLocalIndex());
       nextMethod().emitInvokeMethod(gen, lookupType("java.util", "Iterator"));
-      gen.emitCheckCast(getParameter().type());
-      gen.emitStoreReference(getParameter().localNum());
+      gen.emitCheckCast(getVariableDeclaration().type());
+      gen.emitStoreReference(getVariableDeclaration().localNum());
       getStmt().createBCode(gen);
       gen.addLabel(update_label());	
       gen.emitGoto(cond_label());

@@ -14,6 +14,7 @@ aspect Variables {
 
     public boolean isBlank();
     public boolean isStatic();
+    public boolean isSynthetic();
 
     public TypeDecl hostType();
 
@@ -38,7 +39,7 @@ aspect Variables {
   
   syn String VariableDeclaration.name() = getID();
 
-  syn lazy Constant VariableDeclaration.constant() = getInit().constant();
+  syn lazy Constant VariableDeclaration.constant() = type().cast(getInit().constant());
 
   FieldDeclaration implements Variable;
   // 4.5.3
@@ -52,7 +53,7 @@ aspect Variables {
   syn boolean FieldDeclaration.isBlank() = !hasInit();
   
   syn String FieldDeclaration.name() = getID();
-  syn lazy Constant FieldDeclaration.constant() = getInit().constant();
+  syn lazy Constant FieldDeclaration.constant() = type().cast(getInit().constant());
 
   ParameterDeclaration implements Variable;
   // 4.5.3
@@ -155,26 +156,28 @@ aspect VariableDeclarationTransformation {
   public VariableDeclaration VariableDecl.createVariableDeclarationFrom(Modifiers modifiers, Access type) {
     VariableDeclaration decl = new VariableDeclaration(
       modifiers,
-      getNumEmptyBracket() == 0 ? type : 
-        new ArrayTypeAccess(type, getNumEmptyBracket()),
+      type.addArrayDims(getDimsList()),
       getID(),
       getInitOpt()
     );
     decl.setStart(start); // copy location information
     decl.setEnd(end); // copy location information
+    decl.IDstart = IDstart;
+    decl.IDend = IDend;
     return decl;
   }
 
   public FieldDeclaration VariableDecl.createFieldDeclarationFrom(Modifiers modifiers, Access type) {
     FieldDeclaration decl = new FieldDeclaration(
       modifiers,
-      getNumEmptyBracket() == 0 ? type : 
-        new ArrayTypeAccess(type, getNumEmptyBracket()),
+      type.addArrayDims(getDimsList()),
       getID(),
       getInitOpt()
     );
     decl.setStart(start); // copy location information
     decl.setEnd(end); // copy location information
+    decl.IDstart = IDstart;
+    decl.IDend = IDend;
     return decl;
   }
 }

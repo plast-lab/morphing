@@ -30,14 +30,14 @@
 
 <!-- compile sources -->
 <target name="build" depends="gen">
-	<javac debug="true" nowarn="true" srcdir="." includes="**/*.java" excludes="test/**" 
+	<javac debug="false" nowarn="true" srcdir="." includes="**/*.java" excludes="test/**" 
          classpath=".:${tools}/beaver-rt.jar:${tools}/junit.jar"/>
 </target>
 
 <!-- generate compiler source files and compile sources -->
 <target name="gen" depends="scanner,parser">
   <!-- create AST node types and weave aspect modules -->
-  <jastadd package="${package}" rewrite="true" beaver="true" novisitcheck="true" noCacheCycle="true" outdir="${basedir}">
+  <jastadd package="${package}" rewrite="true" beaver="true" novisitcheck="true" noCacheCycle="true" outdir="${basedir}" debug="false">
 		<fileset dir="${Java1.4Frontend}">
 			<include name="**/*.ast"/>
 			<include name="**/*.jrag"/>
@@ -77,6 +77,11 @@
       <filelist dir="${Java1.4Frontend}/scanner">
         <file name="preamble.flex"/>
         <file name="macros.flex"/>
+      </filelist>
+      <filelist dir="${Java1.5Frontend}">
+        <file name="java15macros.flex"/>
+      </filelist>
+      <filelist dir="${Java1.4Frontend}/scanner">
         <file name="rules_preamble.flex"/>
         <file name="WhiteSpace.flex"/>
         <file name="Comments.flex"/>
@@ -87,14 +92,19 @@
       </filelist>
       <filelist dir="${Java1.4Frontend}/scanner">
         <file name="Literals.flex"/>
+      </filelist>
+      <filelist dir="${Java1.5Frontend}">
+        <file name="java15literals.flex"/>
+      </filelist>
+      <filelist dir="${Java1.4Frontend}/scanner">
         <file name="Separators.flex"/>
         <file name="Operators.flex"/>
       </filelist>
       <filelist dir="${Java1.5Frontend}">
         <file name="java15operators.flex"/>
+        <file name="java15identifiers.flex"/>
       </filelist>
       <filelist dir="${Java1.4Frontend}/scanner">
-        <file name="Identifiers.flex"/>
         <file name="postamble.flex"/>
       </filelist>
     </concat>

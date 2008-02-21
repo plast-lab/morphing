@@ -6,10 +6,6 @@ aspect NodeConstructors {
     this(new Modifiers(new List()), type.createQualifiedAccess(), name);
   }
 
-  public ParameterDeclaration.ParameterDeclaration(Modifiers m, Access a, String i) {
-    this(m, a, i, new List());
-  }
-
   public PackageAccess.PackageAccess(String name, int start, int end) {
     this(name);
     this.start = start;
@@ -68,6 +64,10 @@ aspect NodeConstructors {
 
   public VariableDeclaration.VariableDeclaration(Access type, String name, Expr init) {
     this(new Modifiers(new List()), type, name, new Opt(init));
+  }
+
+  public VariableDeclaration.VariableDeclaration(Access type, String name) {
+    this(new Modifiers(new List()), type, name, new Opt());
   }
 
   public ClassInstanceExpr.ClassInstanceExpr(Access type, List args) {

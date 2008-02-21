@@ -33,7 +33,7 @@ aspect Annotations {
     super.checkModifiers();
     if(decl() instanceof AnnotationDecl) {
       AnnotationDecl T = (AnnotationDecl)decl();
-      Annotation m = T.annotation("java.lang.annotation", "Target");
+      Annotation m = T.annotation(lookupType("java.lang.annotation", "Target"));
       if(m != null && m.getNumElementValuePair() == 1 && m.getElementValuePair(0).getName().equals("value")) {
         ElementValue v = m.getElementValuePair(0).getElementValue();
         //System.out.println("ElementValue: \n" + v.dumpTree());
@@ -43,6 +43,8 @@ aspect Annotations {
       }
     }
   }
+  inh TypeDecl Annotation.lookupType(String packageName, String typeName);
+  inh TypeDecl Modifiers.lookupType(String packageName, String typeName);
   syn boolean ElementValue.validTarget(Annotation a) = false;
   eq ElementConstantValue.validTarget(Annotation a) {
     Variable v = getExpr().varDecl();
@@ -81,6 +83,7 @@ aspect Annotations {
   eq VariableDeclaration.getModifiers().mayUseAnnotationTarget(String name) =
     name.equals("LOCAL_VARIABLE");
   eq Program.getChild().mayUseAnnotationTarget(String name) = false;
+  eq ElementAnnotationValue.getAnnotation().mayUseAnnotationTarget(String name) = true;
 
   /* The direct superinterface of an annotation type is always
   annotation.Annotation.*/
@@ -199,36 +202,28 @@ aspect Annotations {
   only causes annotations to be inherited from superclasses; annotations on
   implemented interfaces have no effect.*/
 
-  syn Annotation Modifiers.annotation(String packageName, String annotationName) {
-    String qualifiedName = packageName.equals("") ? annotationName : (packageName + "." + annotationName);
-    return searchAnnotation(qualifiedName);
-  }
-
-  public Annotation ASTNode.searchAnnotation(String name) {
-    for(int i = 0; i < getNumChild(); i++) {
-      Annotation a = getChild(i).searchAnnotation(name);
-      if(a != null)
-        return a;
+  syn Annotation Modifiers.annotation(TypeDecl typeDecl) {
+    for(int i = 0; i < getNumModifier(); i++) {
+      if(getModifier(i) instanceof Annotation) {
+        Annotation a = (Annotation)getModifier(i);
+        if(a.type() == typeDecl)
+          return a;
+      }
     }
     return null;
   }
-  public Annotation Annotation.searchAnnotation(String name) {
-    return type().fullName().equals(name) ? this : super.searchAnnotation(name);
-  }
 
-  syn Annotation TypeDecl.annotation(String packageName, String annotationName) =
-    getModifiers().annotation(packageName, annotationName);
+  syn Annotation TypeDecl.annotation(TypeDecl typeDecl) =
+    getModifiers().annotation(typeDecl);
 
-  eq ClassDecl.annotation(String packageName, String annotationName) {
-    Annotation a = super.annotation(packageName, annotationName);
+  eq ClassDecl.annotation(TypeDecl typeDecl) {
+    Annotation a = super.annotation(typeDecl);
     if(a != null) return a;
     if(hasSuperclass()) {
       // If the queried annotation is itself annotation with @Inherited then
       // delegate the query to the superclass
-      // TODO: split annotationName and search inner classes
-      TypeDecl kind = lookupType(packageName, annotationName);
-      if(kind.annotation("java.lang.annotation", "Inherited") != null)
-        return superclass().annotation(packageName, annotationName);
+      if(typeDecl.annotation(lookupType("java.lang.annotation", "Inherited")) != null)
+        return superclass().annotation(typeDecl);
     }
     return null;
   }
@@ -283,7 +278,7 @@ aspect Annotations {
   eq FieldDeclaration.hasAnnotationSuppressWarnings(String s) = getModifiers().hasAnnotationSuppressWarnings(s);
 
   syn boolean Modifiers.hasAnnotationSuppressWarnings(String s) {
-    Annotation a = annotation("java.lang", "SuppressWarnings");
+    Annotation a = annotation(lookupType("java.lang", "SuppressWarnings"));
     if(a != null && a.getNumElementValuePair() == 1 && a.getElementValuePair(0).getName().equals("value"))
       return a.getElementValuePair(0).getElementValue().hasValue(s);
     return false;
@@ -312,7 +307,7 @@ aspect Annotations {
       warning with the annotation @SuppressWarnings("deprecation") 
   Use of the annotation @Deprecated on a local variable declaration or on a
   parameter declaration has no effect.*/
-  syn boolean Modifiers.hasDeprecatedAnnotation() = annotation("java.lang", "Deprecated") != null;
+  syn boolean Modifiers.hasDeprecatedAnnotation() = annotation(lookupType("java.lang", "Deprecated")) != null;
 
   syn boolean TypeDecl.isDeprecated() = getModifiers().hasDeprecatedAnnotation();
   syn boolean MemberTypeDecl.isDeprecated() = typeDecl().isDeprecated();
@@ -418,7 +413,7 @@ aspect Annotations {
   inh Annotation Annotation.lookupAnnotation(TypeDecl typeDecl);
   inh Annotation ElementAnnotationValue.lookupAnnotation(TypeDecl typeDecl);
   eq Modifiers.getModifier(int index).lookupAnnotation(TypeDecl typeDecl) {
-    return annotation(typeDecl.packageName(), typeDecl.fullName().substring(typeDecl.packageName().length() + 1, typeDecl.fullName().length()));
+    return annotation(typeDecl);
   }
   eq ElementAnnotationValue.getAnnotation().lookupAnnotation(TypeDecl typeDecl) =
     getAnnotation().type() == typeDecl ? getAnnotation() : lookupAnnotation(typeDecl);
@@ -554,4 +549,58 @@ aspect Annotations {
 
   // provide error message for method calls in 
   eq ElementConstantValue.getExpr().methodHost() = enclosingAnnotationDecl().typeName();
+
+
+  public void AnnotationDecl.toString(StringBuffer s) {
+    getModifiers().toString(s);
+    s.append("@interface " + name());
+    s.append(" {\n");
+    indent++;
+    for(int i=0; i < getNumBodyDecl(); i++) {
+      getBodyDecl(i).toString(s);
+    }
+    indent--;
+    s.append(indent() + "}\n");
+  }
+  public void AnnotationMethodDecl.toString(StringBuffer s) {
+    s.append(indent());
+    getModifiers().toString(s);
+    getTypeAccess().toString(s);
+    s.append(" " + name() + "()");
+    if(hasDefaultValue()) {
+      s.append(" default ");
+      getDefaultValue().toString(s);
+    }
+    s.append(";\n");
+  }
+  public void Annotation.toString(StringBuffer s) {
+    s.append("@");
+    getAccess().toString(s);
+    s.append("(");
+    for(int i = 0; i < getNumElementValuePair(); i++) {
+      if(i != 0)
+        s.append(", ");
+      getElementValuePair(i).toString(s);
+    }
+    s.append(")");
+  }
+  public void ElementValuePair.toString(StringBuffer s) {
+    s.append(getName() + " = ");
+    getElementValue().toString(s);
+  }
+  public void ElementConstantValue.toString(StringBuffer s) {
+    getExpr().toString(s);
+  }
+  public void ElementAnnotationValue.toString(StringBuffer s) {
+    getAnnotation().toString(s);
+  }
+  public void ElementArrayValue.toString(StringBuffer s) {
+    s.append("{");
+    for(int i = 0; i < getNumElementValue(); i++) {
+      getElementValue(i).toString(s);
+      s.append(", ");
+    }
+    s.append("}");
+  }
+
 } 

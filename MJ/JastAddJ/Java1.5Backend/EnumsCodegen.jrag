@@ -5,7 +5,7 @@ aspect EnumsCodegen {
   eq EnumConstant.flags() = super.flags() | Modifiers.ACC_ENUM;
 
   // transform enum switch statements into integer indexed switch statements
-  public void SwitchStmt.java2Transformation() {
+  public void SwitchStmt.transformation() {
     if(getExpr().type().isEnumDecl()) {
       TypeDecl type = getExpr().type();
       hostType().createEnumArray(type);
@@ -13,19 +13,19 @@ aspect EnumsCodegen {
       setExpr(
         hostType().createEnumMethod(type).createBoundAccess(new List()).qualifiesAccess(
         new ArrayAccess(
-          getExpr().qualifiesAccess(new MethodAccess("ordinal", new List()))
+          ((Expr)getExpr().fullCopy()).qualifiesAccess(new MethodAccess("ordinal", new List()))
         ))
       );
     }
-    super.java2Transformation();
+    super.transformation();
   }
 
-  public void ConstCase.java2Transformation() {
+  public void ConstCase.transformation() {
     if(getValue() instanceof VarAccess && getValue().varDecl() instanceof EnumConstant) {
       int i = hostType().createEnumIndex((EnumConstant)getValue().varDecl());
       setValue(new IntegerLiteral(new Integer(i).toString()));
     }
-    super.java2Transformation();
+    super.transformation();
   }
 
 
@@ -35,7 +35,6 @@ aspect EnumsCodegen {
       new Modifiers(new List().add(new Modifier("static")).add(new Modifier("final")).add(new Modifier("private"))),
       typeInt().arrayType().createQualifiedAccess(),
       "$SwitchMap$" + enumDecl.fullName().replace('.', '$'),
-      new List(),
       new List(),
       new List(),
       new Opt(
@@ -49,15 +48,11 @@ aspect EnumsCodegen {
               AssignExpr.asStmt(
                 createEnumArray(enumDecl).createBoundFieldAccess(),
                 new ArrayCreationExpr(
-                  typeInt().createQualifiedAccess(),
-                  new List().add(
-                    new Dims(
-                      new Opt(
-                        enumDecl.createQualifiedAccess().qualifiesAccess(
+                  new ArrayTypeWithSizeAccess(
+                    typeInt().createQualifiedAccess(),
+                    enumDecl.createQualifiedAccess().qualifiesAccess(
                         new MethodAccess("values", new List())).qualifiesAccess(
                         new VarAccess("length"))
-                      )
-                    )
                   ),
                   new Opt()
                 )

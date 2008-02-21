@@ -68,11 +68,11 @@ aspect TypeHierarchyCheck {
     }
     if(!isQualified() && s.isInnerType()) {
       if(!c.isInnerType()) {
-        //error("" + s.typeName() + " isStatic: " + s.isStatic() + ", enclosingType: " + s.enclosingType().typeName());
-
         error("no enclosing instance for " + s.typeName() + " when accessed in " + this);
       }
     }
+    if(s.isInnerType() && hostType().instanceOf(s.enclosingType()))
+      error("cannot reference this before supertype constructor has been called");
   }
 
   public void SuperAccess.nameCheck() {
@@ -196,7 +196,7 @@ aspect TypeHierarchyCheck {
           if(m.isStatic() && !decl.isStatic())
             target.error("a static method may not hide an instance method");
           // 8.4.6.3
-          if(m.type() != decl.type())
+          if(!m.mayOverrideReturn(decl))
             target.error("can not hide a method with a different return type");
           // 8.4.4
           for(int i = 0; i < m.getNumException(); i++) {
@@ -254,18 +254,21 @@ aspect TypeHierarchyCheck {
     for(Iterator iter = interfacesMethodsIterator(); iter.hasNext(); ) {
       MethodDecl m = (MethodDecl)iter.next();
       if(localMethodsSignature(m.signature()).isEmpty()) {
-        for(Iterator i2 = superclass().methodsSignature(m.signature()).iterator(); i2.hasNext(); ) {
+        SimpleSet s = superclass().methodsSignature(m.signature());
+        for(Iterator i2 = s.iterator(); i2.hasNext(); ) {
           MethodDecl n = (MethodDecl)i2.next();
           if(n.accessibleFrom(this)) {
             interfaceMethodCompatibleWithInherited(m, n);
           }
         }
-        for(Iterator i2 = interfacesMethodsSignature(m.signature()).iterator(); i2.hasNext(); ) {
-          MethodDecl n = (MethodDecl)i2.next();
-          if(!n.mayOverrideReturn(m) && !m.mayOverrideReturn(n))
-            error("Xthe return type of method " + m.signature() + " in " + m.hostType().typeName() + 
+        if(s.isEmpty()) {
+          for(Iterator i2 = interfacesMethodsSignature(m.signature()).iterator(); i2.hasNext(); ) {
+            MethodDecl n = (MethodDecl)i2.next();
+            if(!n.mayOverrideReturn(m) && !m.mayOverrideReturn(n))
+              error("Xthe return type of method " + m.signature() + " in " + m.hostType().typeName() + 
                   " does not match the return type of method " + n.signature() + " in " + 
                   n.hostType().typeName() + " and may thus not be overriden");
+          }
         }
       }
     }
@@ -276,7 +279,7 @@ aspect TypeHierarchyCheck {
       error("Xa static method may not hide an instance method");
     if(!n.isAbstract() && !n.isPublic())
       error("Xoverriding access modifier error for " + m.signature() + " in " + m.hostType().typeName() + " and " + n.hostType().typeName());
-    if(!n.mayOverrideReturn(m))
+    if(!n.mayOverrideReturn(m) && !m.mayOverrideReturn(m))
       error("Xthe return type of method " + m.signature() + " in " + m.hostType().typeName() + 
             " does not match the return type of method " + n.signature() + " in " + 
             n.hostType().typeName() + " and may thus not be overriden");
@@ -315,7 +318,7 @@ aspect TypeHierarchyCheck {
         MethodDecl m = (MethodDecl)i2.next();
         while(i2.hasNext()) {
           MethodDecl n = (MethodDecl)i2.next();
-          if(m.type() != n.type())
+          if(!n.mayOverrideReturn(m) && !m.mayOverrideReturn(n))
             error("multiply inherited methods with the same signature must have the same return type");
         }
       }
