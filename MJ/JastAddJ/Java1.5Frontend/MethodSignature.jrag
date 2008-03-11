@@ -317,7 +317,6 @@ aspect MethodSignature15 {
     }
     s.append(")");
     return s.toString();
-
   }
 
 }
