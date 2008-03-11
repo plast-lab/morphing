@@ -6,8 +6,7 @@ InputCharacter = [^\r\n]
 WhiteSpace = [ ] | \t | \f | {LineTerminator}
 
 // 3.7 Comments
-Comment = {TraditionalComment}
-        | {EndOfLineComment}
+Comment = {TraditionalComment} | {EndOfLineComment}
 
 TraditionalComment = "/*" [^*] ~"*/" | "/*" "*"+ "/" | "/*" "*"+ [^/*] ~"*/"
 EndOfLineComment = "//" {InputCharacter}* {LineTerminator}?
@@ -25,9 +24,8 @@ Digit = 0 | {NonZeroDigit}
 NonZeroDigit = [1-9]
 
 // 3.10.2 Floating-Point Literals
-FloatingPointLiteral = {Digits} \. {Digits}? {ExponentPart}?
-                     | \. {Digits} {ExponentPart}?
-                     | {Digits} {ExponentPart}
+FloatingPointLiteral = {Digits} \. {Digits}? {ExponentPart}? | \. {Digits} {ExponentPart}? | {Digits} {ExponentPart}
+                     
 ExponentPart = [eE] [+-]? [0-9]+
 
 // 3.10.4 Character Literals
@@ -37,9 +35,8 @@ SingleCharacter = [^\r\n\'\\]
 StringCharacter = [^\r\n\"\\]
 
 // 3.10.6 Escape Sequences for Character and String Literals
-OctalEscape = \\ {OctalDigit} 
-            | \\ {OctalDigit} {OctalDigit}
-            | \\  {ZeroToThree} {OctalDigit} {OctalDigit}
+OctalEscape = \\ {OctalDigit} | \\ {OctalDigit} {OctalDigit} | \\  {ZeroToThree} {OctalDigit} {OctalDigit}
+            
 OctalDigit = [0-7]
 ZeroToThree = [0-3]
 
