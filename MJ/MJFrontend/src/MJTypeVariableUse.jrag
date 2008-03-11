@@ -1,0 +1,76 @@
+aspect MJTypeVariableUse {
+
+    // which variables are bounded by either type variable declaration in the
+    // generic class, generic method, or the primary pattern.
+    syn lazy boolean Expr.bound(TypeVariable tv) =
+	boundByPattern(tv) || boundByMethod(tv) || boundByClass(tv);
+
+    inh boolean Expr.boundByPattern(TypeVariable tv);
+    inh boolean Expr.boundByMethod(TypeVariable tv);
+    inh boolean Expr.boundByClass(TypeVariable tv);
+
+    eq StaticForMethodDecl.getTypeAccess().boundByPattern(TypeVariable tv) = getIteratorDecl().boundByPattern(tv);
+    eq StaticForMethodDecl.getParameter(int i).boundByPattern(TypeVariable tv) = getIteratorDecl().boundByPattern(tv);
+    eq StaticForMethodDecl.getException(int i).boundByPattern(TypeVariable tv) = getIteratorDecl().boundByPattern(tv);
+    eq StaticForMethodDecl.getBlock().boundByPattern(TypeVariable tv) = getIteratorDecl().boundByPattern(tv);
+
+    eq StaticForStatement.getChild(int i).boundByPattern(TypeVariable tv) {
+	if ( refIterator().boundByPattern(tv)) return true;
+	if ( enclosingRefIterator() != null )
+	    return enclosingRefIterator().boundByPattern(tv);
+	return false;
+    }
+
+    syn lazy boolean IteratorDecl.boundByPattern(TypeVariable tv) {
+	if (getPattern().boundByPattern(tv)) return true;
+	if ( enclosingRefIterator() != null )
+	    return enclosingRefIterator().boundByPattern(tv);
+	return false;
+    }
+
+    syn lazy boolean Pattern.boundByPattern(TypeVariable tv) {
+	if ( getTypeAccess().type().refersTo(tv)) return true;
+	for ( int i=0; i<getNumParameter(); i++) 
+	    if (getParameter(i).type().refersTo(tv)) 
+		return true;
+	for ( int i=0; i<getNumException(); i++)
+	    if (getException(i).type().refersTo(tv))
+		return true;
+	return false;
+    }
+    eq Pattern.getTypeAccess().boundByPattern(TypeVariable tv) = boundByPattern(tv);
+    eq Pattern.getParameter(int i).boundByPattern(TypeVariable tv) = boundByPattern(tv);
+    eq Pattern.getException(int i).boundByPattern(TypeVariable tv) = boundByPattern(tv);
+    eq NestedPattern.boundByPattern(TypeVariable tv) = enclosingRefIterator().boundByPattern(tv);
+
+    eq Program.getChild(int i).boundByPattern(TypeVariable tv) = false;
+
+    eq GenericMethodDecl.getBlock().boundByMethod(TypeVariable tv) {
+	for (int i=0; i<getNumTypeParameter(); i++)
+	    if ( getTypeParameter(i) == tv) return true;
+	return false;
+    }
+    eq Program.getChild(int i).boundByMethod(TypeVariable tv) = false;
+
+    eq GenericTypeDecl.getChild(int i).boundByClass(TypeVariable tv) {
+	for ( int j=0; j<getNumTypeParameter(); j++)
+	    if ( getTypeParameter(j) == tv )
+		return true;
+	return false;
+    }
+    eq Program.getChild(int i).boundByClass(TypeVariable tv) = false;
+
+    // check whether a type refers to a particular type variable.
+    syn lazy boolean TypeDecl.refersTo(TypeVariable tv) = this == tv;
+    eq ParTypeDecl.refersTo(TypeVariable tv) {
+	for ( int i=0; i<getNumArgument(); i++)
+	    if ( getArgument(i).type().refersTo(tv)) 
+		return true;
+	return false;
+    }
+
+    // check that there's no nested primary patterns.
+
+    
+
+}

@@ -74,6 +74,11 @@
       <filelist dir="${Java1.4Frontend}/scanner">
         <file name="preamble.flex"/>
         <file name="macros.flex"/>
+      </filelist>
+      <filelist dir="${Java1.5Frontend}">
+        <file name="java15macros.flex"/>
+      </filelist>
+      <filelist dir="${Java1.4Frontend}/scanner">
         <file name="rules_preamble.flex"/>
         <file name="WhiteSpace.flex"/>
         <file name="Comments.flex"/>
@@ -82,20 +87,25 @@
       <filelist dir="${Java1.5Frontend}">
         <file name="java15keywords.flex"/>
       </filelist>
+      <filelist dir=".">
+        <file name="MJkeywords.flex"/>
+      </filelist>
       <filelist dir="${Java1.4Frontend}/scanner">
         <file name="Literals.flex"/>
+      </filelist>
+      <filelist dir="${Java1.5Frontend}">
+        <file name="java15literals.flex"/>
+      </filelist>
+      <filelist dir="${Java1.4Frontend}/scanner">
         <file name="Separators.flex"/>
         <file name="Operators.flex"/>
       </filelist>
       <filelist dir="${Java1.5Frontend}">
         <file name="java15operators.flex"/>
+        <file name="java15identifiers.flex"/>
       </filelist>
       <filelist dir="${Java1.4Frontend}/scanner">
-        <file name="Identifiers.flex"/>
         <file name="postamble.flex"/>
-      </filelist>
-      <filelist dir=".">
-        <file name="MJkeywords.flex"/>
       </filelist>
     </concat>
 	  <!-- generate the scanner -->

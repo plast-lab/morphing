@@ -1,4 +1,79 @@
 aspect MJNameCheck {
+    syn Collection<StaticForMethodDecl> TypeDecl.allMethods() {
+	throw new Error("Cannot call method allMethods on TypeDecl.");
+    }
+
+    /* we represent all methods in a type variable I as a list of statically
+     * declared methods:
+     *
+     * <R extends Object,A*,E*>[m] for (R m(A) throws E : I.methods; true ) R m (A) throws E { ... }
+     * <A*,E*>[m] for(int m(A) throws E : I.methods; true) ...
+     * <A*,E*>[m] for(float m(A) throws E : I.methods; true) ...
+     * ... all primitives
+     * <A*,E*>[m] for(void m(A) throws E : I.methods; true) ...
+     *
+     * In order to make sure all of these are implemented, we subtract
+     * the methods in collection filtered from those declared by I,
+     * where (P1, oN1) - (P2, o'N2) = (P1, o''N) iff
+     * - P1 subsumed by P2 under mapping M
+     * - If oN1 == true, o'' = -(o'), N = M(N2)
+     *      o == o', N1 subsumed by N2, o''N = true
+     */
+    eq TypeVariable.allMethods() {
+	Collection<StaticForMethodDecl> methods = new HashSet<StaticForMethodDecl>();
+
+	methods.add(makeStaticForMethodWithReturnType(new PatternTypeVariable(new Modifiers(), "R", new List(), new List().add(typeObject().createQualifiedAccess()))));
+	methods.add(makeStaticForMethodWithReturnType(typeVoid()));
+	methods.add(makeStaticForMethodWithReturnType(typeBoolean()));
+	methods.add(makeStaticForMethodWithReturnType(typeInt()));
+	methods.add(makeStaticForMethodWithReturnType(typeByte()));
+	methods.add(makeStaticForMethodWithReturnType(typeShort()));
+    	methods.add(makeStaticForMethodWithReturnType(typeLong()));
+    	methods.add(makeStaticForMethodWithReturnType(typeChar()));
+    	methods.add(makeStaticForMethodWithReturnType(typeFloat()));
+    	methods.add(makeStaticForMethodWithReturnType(typeDouble()));
+	return methods;
+    }
+
+    public StaticForMethodDecl TypeVariable.makeStaticForMethodWithReturnType(TypeDecl returnType) {
+	VectorTypeVariable A = new VectorTypeVariable(new Modifiers(), "A",
+						      new List(), 
+						      new List().add(typeNonVoid().createBoundAccess()),
+						      new List());
+	VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), "E",
+						      new List(), 
+						      new List().add(typeThrowable().createBoundAccess()),
+						      new List());
+	PatternNameVariable m = new PatternNameVariable("m");
+
+	Pattern p = new Pattern(new Modifiers(), 
+				returnType.createQualifiedAccess(),"m",
+				new List().add(A.createQualifiedAccess()),
+				new List().add(E.createQualifiedAccess()),
+				new BaseSet(createQualifiedAccess(), 
+					    new RefElmt("methods")),
+				new Opt());
+	List patternTypeVariables = new List().add(A).add(E);
+	if ( returnType instanceof PatternTypeVariable )
+	    patternTypeVariables.add(returnType);
+
+	IteratorDecl id = new IteratorDecl(patternTypeVariables,
+					   new List().add(m), p, new List());
+	StaticForMethodDecl sfd = 
+	    new StaticForMethodDecl(new Modifiers(),
+				    returnType.createQualifiedAccess(),
+				    "m", 
+				    new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
+				    new List().add(E.createQualifiedAccess()),
+				    new Opt(),
+				    id, new List());
+	sfd.is$Final = true;
+	addBodyDecl(sfd);
+	sfd.bypassErrorChecking = true;
+
+	return sfd;
+    }
+
 
     syn lazy MethodDecl TypeDecl.everyMethod () {
 	/**
@@ -7,10 +82,12 @@ aspect MJNameCheck {
 	 **/
 	AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), "R", new List(), new List());
 	VectorTypeVariable A = new VectorTypeVariable(new Modifiers(), "A",
-						      new List(), new List(),
+						      new List(), 
+						      new List().add(typeNonVoid().createBoundAccess()),
 						      new List());
 	VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), "E",
-						      new List(), new List(),
+						      new List(),
+						      new List().add(typeThrowable().createBoundAccess()),
 						      new List());
 	PatternNameVariable m = new PatternNameVariable("m");
 	Pattern p = new Pattern(new Modifiers(),
@@ -18,7 +95,8 @@ aspect MJNameCheck {
 				new List().add(A.createQualifiedAccess()),
 				new List().add(E.createQualifiedAccess()),
 				new BaseSet(createQualifiedAccess(), 
-					    new RefElmt("methods")));
+					    new RefElmt("methods")),
+				new Opt());
 				
 	IteratorDecl id = new IteratorDecl(new List().add(R).add(A).add(E),
 					   new List().add(m),
@@ -51,6 +129,10 @@ aspect MJNameCheck {
 	// conflicts are very inefficient (repeated iterator loops).  Maybe
 	// we can improve this later. --SSH
 
+	// We need to check that the method does not conflict with
+	// any of the reflective methods, nor does it conflict with
+	// statically declared methods.
+
 	if ( isReflectiveDecl()) {
 	    // reflectively declared method. check that it is disjoint
 	    // from all other methods in the class.
@@ -62,7 +144,9 @@ aspect MJNameCheck {
 		MethodDecl md = (MethodDecl) mIt.next();
 
 		if ( !this.isUniqueFrom(md) && this != md )
-		    error("method with signature " + signature() + " is multiply declared in type " + hostType().typeName());
+		    error("method with signature " + infoSignature() + 
+			  " conflicts with method " + md.infoSignature() +
+			  " in type " + hostType().typeName() + ".");
 	    }
 	    
 	    // if the superclass is a type variable, then special treatment
@@ -73,7 +157,9 @@ aspect MJNameCheck {
 		 ((ClassDecl) hostType()).superclass().isTypeVariable()) {
 		MethodDecl md = ((ClassDecl) hostType()).superclass().everyMethod();
 		if (!isUniqueFrom(md) && this != md )
-		    error("method with signature " + signature() + " is multiply declared in type " + hostType().typeName());
+		    error("method with signature " + infoSignature() + 
+			  " conflicts with method " + md.infoSignature() +
+			  " in type " + hostType().typeName() + ".");
 	    }
 	} else {
 	    // static method. But still needs to make sure it does
@@ -82,13 +168,16 @@ aspect MJNameCheck {
 	    if(!hostType().methodsSignature(signature()).contains(this))
 		error("method with signature " + signature() + " is multiply declared in type " + hostType().typeName());
 	    else {
-		// check that it's disjoint from all other reflective declarations.
+		// check that it's disjoint from all other reflective 
+		// declarations.
 		Collection methods = hostType().reflectiveMethods();
 		for ( Iterator mIt = methods.iterator(); mIt.hasNext(); ) {
 		    MethodDecl md = (MethodDecl) mIt.next();
 		    
 		    if ( !this.isUniqueFrom(md) && this != md ) 
-			error("method with signature " + signature() + " is multiply declared in type " + hostType().typeName());
+			error("method with signature " + infoSignature() + 
+			      " conflicts with method " + md.infoSignature() +
+			      " in type " + hostType().typeName() + ".");
 		}
 	    }
 	}

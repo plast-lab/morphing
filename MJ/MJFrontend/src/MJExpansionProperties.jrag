@@ -149,12 +149,13 @@ aspect MJExpansionProperties {
     eq TypeAccess.needsExpansion() = type().needsExpansion() && !type().grounded();
     syn lazy boolean StaticForMethodDecl.expandable() = getIteratorDecl().expandable();
     syn lazy boolean IteratorDecl.expandable() {
-	if ( !getPattern().getBaseSet().type().grounded())
-	    return false;
-	for ( int i=0; i<getNumNestedPattern(); i++) {
-	    if ( !((NestedPattern) getNestedPattern(i)).getBaseSet().type().grounded()) return false;
-	}
+	if ( !getPattern().expandable()) return false;
+	for ( int i=0; i<getNumNestedPattern(); i++)
+	    if ( !getNestedPattern(i).expandable()) return false;
 	return true;
     }
-
+    syn lazy boolean Pattern.expandable() = getBaseSet().type().grounded();
+    eq TrueNestedPattern.expandable() = true;
+    
 }
+
