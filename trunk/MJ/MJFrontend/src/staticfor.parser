@@ -7,18 +7,65 @@ BodyDecl staticfor_declaration =
   {: return new StaticForDecl(i, l); :}
   ;
 
+List staticfor_stmts =
+    block_statement.s {: return new List().add(s); :}
+  | LBRACE OR block_statements.s OR RBRACE {: return s; :}
+  ;
+
+Stmt block_statement =
+    staticfor_stmt_header.i staticfor_stmts.s {: return new StaticForStmt(i, s); :}
+	
+  ;
+
+List pattern_type_parameter_list_2 = 
+    LT IDENTIFIER.id GT {: return new List().add(new PatternTypeVariable(new Modifiers(), id, new List(), new List())); :}
+  | LT IDENTIFIER.id type_bound.l GT {: return new List().add(new PatternTypeVariable(new Modifiers(), id, new List(), l)); :}
+
+  | LT IDENTIFIER.id MULT GT {: return new List().add(new VectorTypeVariable(new Modifiers(), id, new List(), new List(), new List())); :}
+  | LT IDENTIFIER.id MULT type_bound.l GT {: return new List().add(new VectorTypeVariable(new Modifiers(), id, new List(), l, new List())); :}
+
+  | LT IDENTIFIER.id COMMA type_parameter_list.tl GT 
+    {: return tl.add(new PatternTypeVariable(new Modifiers(), id, new List(), new List())); :}
+  | LT IDENTIFIER.id type_bound.l COMMA type_parameter_list.tl GT 
+    {: return tl.add(new PatternTypeVariable(new Modifiers(), id, new List(), l)); :}
+  | LT IDENTIFIER.id MULT COMMA type_parameter_list.tl GT 
+    {: return tl.add(new VectorTypeVariable(new Modifiers(), id, new List(), new List(), new List())); :}
+  | LT IDENTIFIER.id MULT type_bound.l COMMA type_parameter_list.tl GT 
+    {: return tl.add(new VectorTypeVariable(new Modifiers(), id, new List(), l, new List())); :}
+  ;
+ 
 List staticfor_body =
     class_body_declaration.c {: return new List().add(c); :}
   | LBRACE OR class_body_declarations.l OR RBRACE {: return l; :}
   ;
 
+IteratorDecl staticfor_stmt_header = 
+    pattern_type_parameter_list_2.l? pattern_name_parameter_list.n? FOR LPAREN pattern.p nested_patterns.np? RPAREN 
+    {: 
+	if ( np.getNumChild() == 0 ) {
+	  TrueNestedPattern tnp = new TrueNestedPattern();
+  	  tnp.bypassErrorChecking = true;
+          np.add(tnp);
+        }
+	return new IteratorDecl(l, n, p, np);
+    :}
+    ;
+
 IteratorDecl staticfor_header = 
-    LT pattern_type_parameter_list_1.l LBRACK pattern_name_parameters.n RBRACK FOR LPAREN pattern.p RPAREN 
-    {: return new IteratorDecl(l, n, p, new List()); :} 
-  | LT pattern_type_parameter_list_1.l LBRACK pattern_name_parameters.n RBRACK FOR LPAREN pattern.p nested_patterns.np RPAREN 
-    {: return new IteratorDecl(l, n, p, np);  :} 
+    pattern_type_parameter_list.l? pattern_name_parameter_list.n? FOR LPAREN pattern.p nested_patterns.np? RPAREN 
+    {: 
+	if ( np.getNumChild() == 0 ) {
+	  TrueNestedPattern tnp = new TrueNestedPattern();
+  	  tnp.bypassErrorChecking = true;
+          np.add(tnp);
+        }
+	return new IteratorDecl(l, n, p, np);
+    :}
   ;  
 
+List pattern_type_parameter_list =
+    LT pattern_type_parameter_list_1.l {: return l; :}
+  ;
 List pattern_type_parameter_list_1 =
     type_parameter_list_1.l
     {: 
@@ -32,14 +79,18 @@ List pattern_type_parameter_list_1 =
     :}
   ;
 
-List nested_patterns =
-    SEMI nested_pattern.p {: return new List().add(p); :}
-  | nested_patterns.l nested_pattern.p {: return l.add(p); :}
+List pattern_name_parameter_list =
+    LBRACK pattern_name_parameters.n RBRACK {: return n; :}
   ;
 
 TypeVariable type_parameter_1 = 
     IDENTIFIER.v MULT GT {: return new VectorTypeVariable(new Modifiers(), v, new List(), new List(), new List()); :}
   | IDENTIFIER.v MULT type_bound_1.l {: return new VectorTypeVariable(new Modifiers(), v, new List(), l, new List()); :}
+  ;
+
+TypeVariable type_parameter = 
+    IDENTIFIER.v MULT {: return new VectorTypeVariable(new Modifiers(), v, new List(), new List(), new List()); :}
+  | IDENTIFIER.v MULT type_bound.l {: return new VectorTypeVariable(new Modifiers(), v, new List(), l, new List()); :}
   ;
 
 List pattern_name_parameters =
@@ -52,49 +103,27 @@ PatternNameVariable pattern_name_parameter =
   ;
     
 Pattern pattern = 
-     modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN COLON baseset.b
-     {: return new Pattern(new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, new List(), b); :}
-  |  modifiers.m? type.t IDENTIFIER.id LPAREN formal_types.l? RPAREN COLON baseset.b
-     {: return new Pattern(new Modifiers(m), t, id, l, new List(), b); :}
-/*
-  |              VOID IDENTIFIER.id LPAREN formal_types.l RPAREN COLON baseset.b
-     {: return new Pattern(new Modifiers(), new PrimitiveTypeAccess("void"), id, l, new List(), b); :}
-  |              type.t IDENTIFIER.id LPAREN formal_types.l RPAREN COLON baseset.b
-     {: return new Pattern(new Modifiers(), t, id, l, new List(), b); :}
-  |  modifiers.m VOID IDENTIFIER.id LPAREN RPAREN COLON baseset.b
-     {: return new Pattern(m, new PrimitiveTypeAccess("void"), id, new List(), new List(), b); :}
-  |  modifiers.m type.t IDENTIFIER.id LPAREN RPAREN COLON baseset.b
-     {: return new Pattern(m, t, id, new List(), new List(), b); :}
-  |              VOID IDENTIFIER.id LPAREN RPAREN COLON baseset.b
-     {: return new Pattern(new Modifiers(), new PrimitiveTypeAccess("void"), id, new List(), new List(), b); :}
-  |              type.t IDENTIFIER.id LPAREN RPAREN COLON baseset.b
-     {: return new Pattern(new Modifiers(), t, id, new List(), new List(), b); :}
-*/
+     modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b 
+     {: return new Pattern(new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, b, new Opt()); :}
+  |  modifiers.m? type.t IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b 
+     {: return new Pattern(new Modifiers(m), t, id, l, tl, b, new Opt()); :}
+  ;
+
+List nested_patterns =
+    SEMICOLON nested_pattern.p {: return new List().add(p); :}
+  | nested_patterns.l SEMICOLON nested_pattern.p {: return l.add(p); :}
   ;
 
 NestedPattern nested_pattern =
-     NO modifiers.m? type.t IDENTIFIER.id LPAREN formal_types.l? RPAREN  COLON baseset.b
-     {: return new NestedPattern(new Modifiers(m), t, id, l, new List(), b, false); :}
-  |  NO modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN  COLON baseset.b
-     {: return new NestedPattern(new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, new List(), b, false); :}
-/*
-  |  NO             type.t IDENTIFIER.id LPAREN formal_types.l RPAREN  COLON baseset.b
-     {: return new NestedPattern(new Modifiers(), t, id, l, new List(), b, false); :}
-  |  NO             VOID IDENTIFIER.id LPAREN formal_types.l RPAREN  COLON baseset.b
-     {: return new NestedPattern(new Modifiers(), new PrimitiveTypeAccess("void"), id, l, new List(), b, false); :}
-*/
-  |  SOME modifiers.m? type.t IDENTIFIER.id LPAREN formal_types.l? RPAREN COLON baseset.b
-     {: return new NestedPattern(new Modifiers(m), t, id, l, new List(), b, true); :}
-  |  SOME modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN COLON baseset.b
-     {: return new NestedPattern(new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, new List(), b, true); :}
-/*
-  |  SOME             type.t IDENTIFIER.id LPAREN RPAREN COLON baseset.b
-     {: return new NestedPattern(new Modifiers(), t, id, new List(), new List(), b, true); :}
-  |  SOME             VOID IDENTIFIER.id LPAREN RPAREN COLON baseset.b
-     {: return new NestedPattern(new Modifiers(), new PrimitiveTypeAccess("void"), id, new List(), new List(), b, true); :}
-*/
-  ;
-
+     NO modifiers.m? type.t IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+     {: return new NestedPattern(new Modifiers(m), t, id, l, tl, b, new Opt(), false); :}
+  |  NO modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+     {: return new NestedPattern(new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, b, new Opt(), false); :}
+  |  SOME modifiers.m? type.t IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+     {: return new NestedPattern(new Modifiers(m), t, id, l, tl, b, new Opt(), true); :}
+  |  SOME modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+     {: return new NestedPattern(new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, b, new Opt(), true); :}
+  ;	
 
 Modifier modifier = 
      NOT modifier.m {: return new NegativeModifier(m.getID()); :}
@@ -108,8 +137,8 @@ List formal_types =
   ; 
 
 BaseSet baseset =
-    type.t reflection_elmt.e 
-    {: return new BaseSet(t, e); :}
+    type.t reflection_elmt.e
+    {: return new BaseSet(t, new RefElmt("methods")); :}
   ;
 
 RefElmt reflection_elmt =

@@ -6,10 +6,10 @@ aspect MJUnification {
      *
      * This method modifies list1 and list2
      **/
-    public boolean TypeDecl.typeListUnifies(ArrayList list1, 
-					    ArrayList list2,
-					    Map uniMap, 
-					    Collection uniTypeVars) {
+    public static boolean TypeDecl.typeListUnifies(ArrayList list1, 
+						   ArrayList list2,
+						   Map uniMap, 
+						   Collection uniTypeVars) {
 	if ( list1.size() == 0 ) 
 	    return oneEmptyListUnifies(list1, list2, uniMap, uniTypeVars);
 	else if ( list2.size() == 0 )
@@ -44,9 +44,9 @@ aspect MJUnification {
 	return list1.size() == 0 && list2.size() == 0;
     }
 
-    public boolean TypeDecl.oneEmptyListUnifies(ArrayList emptyList,
-						ArrayList nonEmptyList,
-						Map uniMap, Collection uniTypeVars) {
+    public static boolean TypeDecl.oneEmptyListUnifies(ArrayList emptyList,
+						       ArrayList nonEmptyList,
+						       Map uniMap, Collection uniTypeVars) {
 	if ( nonEmptyList.size() == 0 ) return true;
 	if ( nonEmptyList.size() == 1 ) {
 	    TypeDecl t = (TypeDecl) nonEmptyList.get(0);
@@ -112,6 +112,7 @@ aspect MJUnification {
 		    MatchedVectorTypeVariable tv = createMatchedTypeVariable();
 		    // put into uniTypeVars
 		    uniTypeVars.add(tv);
+		    // compilationUnit().addTypeDecl(tv);
 
 		    TypeDecl t2 = (TypeDecl) typeList.get(0);
 		    if (!tv.unifiesWith(t2,uniMap,uniTypeVars)) {
@@ -173,9 +174,9 @@ aspect MJUnification {
     eq PatternTypeVariable.unifiesWith(TypeDecl t, Map uniMap, Collection uniTypeVars) {
 	if ( uniTypeVars.contains(this)) {
 	    if ( isMapped(uniMap)) {
-		if ( t.isVectorTypeVariable() ) {
-		    ArrayList mapped = ((VectorTypeVariable) t).retrieveMapped(uniMap);
-		    if ( unifiesWithTypeList(mapped, uniMap, uniTypeVars) >= 0
+		if ( isVectorTypeVariable() ) {
+		    ArrayList mapped = ((VectorTypeVariable) this).retrieveMapped(uniMap);
+		    if ( t.unifiesWithTypeList(mapped, uniMap, uniTypeVars) >= 0
 			 && mapped.size() == 0 ) {
 			return true;
 		    } 
@@ -183,7 +184,7 @@ aspect MJUnification {
 		} else
 		    // if t is already mapped to something, then this needs to
 		    // be able to be matched by what t's mapped to.
-		    return ((TypeDecl) uniMap.get(t)).unifiesWith(this,uniMap,uniTypeVars);
+		    return ((TypeDecl) uniMap.get(this)).unifiesWith(t,uniMap,uniTypeVars);
 	    }
 	    return t.unifiesWithUnmappedUnificationTypeVariable(this, uniMap, uniTypeVars);
 	}
@@ -205,12 +206,19 @@ aspect MJUnification {
     public boolean TypeDecl.unifiesWithUnmappedUnificationTypeVariable(PatternTypeVariable t, Map uniMap, Collection uniTypeVars) {
 	// For a type decl to be mapped by a unification type variable,
 	// one of t's bounds must be able to match this.
-	uniMap.put(t, this);
+	//uniMap.put(t, this);
+
+	HashMap tmpMap = new HashMap();
+	tmpMap.put(t, this);
+
 	for ( int i=0; i<t.getNumTypeBound(); i++) {
-	    if (t.getTypeBound(i).type().matches(this, uniMap, uniTypeVars))
+	    TypeDecl bound = t.getTypeBound(i).type().substitute(tmpMap).type();
+	    if ( bound.matches(this, uniMap, uniTypeVars)) {
+		uniMap.put(t, this);
 		return true;
+	    }
 	}
-	uniMap.remove(t);
+	//	uniMap.remove(t);
 	
 	return false;
     }
@@ -220,15 +228,19 @@ aspect MJUnification {
 	// unify with t.
 	// 
 	// to handle f-bounded polymorphism, we must map t to this.
-	uniMap.put(t, this);
+	//	uniMap.put(t, this);
+	HashMap tmpMap = new HashMap();
+	tmpMap.put(t, this);
 	for ( int i=0; i<getNumTypeBound(); i++) {
-	    if ( getTypeBound(i).type().unifiesWith(t, uniMap, uniTypeVars))
+	    TypeDecl bound = getTypeBound(i).type().substitute(tmpMap).type();
+	    if ( bound.unifiesWith(t, uniMap, uniTypeVars)) {
+		uniMap.put(t, this);
 		return true;
+	    }
 	}
-	uniMap.remove(t);
+	//	uniMap.remove(t);
 	return false;
     }
-
     public boolean PatternTypeVariable.unifiesWithUnmappedUnificationTypeVariable(PatternTypeVariable t, Map uniMap, Collection uniTypeVars) {
 	if ( uniTypeVars.contains(this))
 	    return super.unifiesWithUnmappedUnificationTypeVariable(t, uniMap, uniTypeVars);
@@ -237,20 +249,31 @@ aspect MJUnification {
 	// this should be able to match one of t's bounds, or
 	// t should be able to match one of this' bounds.
 	
-	// to handle f-bounded polymorphism, we must map t to this 
-	uniMap.put(t, this);
+	//uniMap.put(t, this);
+	HashMap tmpMap = new HashMap();
+	tmpMap.put(t, this);
 	for ( int i=0; i<getNumTypeBound(); i++) {
-	    if ( getTypeBound(i).type().unifiesWith(t, uniMap, uniTypeVars)) 
+	    // to handle f-bounded polymorphism, we substitute the bound
+	    // and replace this with t.
+	    TypeDecl bound = getTypeBound(i).type().substitute(tmpMap).type();
+	    if ( bound.unifiesWith(t, uniMap, uniTypeVars)) {
+		uniMap.put(t, this);
 		return true;
+	    }
 	}
-	uniMap.remove(t);
+	//	uniMap.remove(t);
 
-	uniMap.put(this, t);
+	//	uniMap.put(this, t);
+	tmpMap.clear();
+	tmpMap.put(this, t);
 	for ( int i=0; i<t.getNumTypeBound(); i++) {
-	    if (t.getTypeBound(i).type().unifiesWith(this,uniMap,uniTypeVars))
+	    TypeDecl bound = t.getTypeBound(i).type().substitute(tmpMap).type();
+	    if (bound.unifiesWith(this,uniMap,uniTypeVars)) {
+		uniMap.put(this, t);
 		return true;
+	    }
 	}
-	uniMap.remove(this);
+	//	uniMap.remove(this);
 
 	return false;
     }
@@ -320,7 +343,7 @@ aspect MJUnification {
 	!t.isVoid();
 
     
-    syn lazy boolean TypeDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars) = substitute(uniMap) == c.substitute(uniMap);
+    syn lazy boolean TypeDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars) = substitute(uniMap).type() == c.substitute(uniMap).type();
     eq ClassDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars) {
 	if ( super.matchedByClassDecl(c, uniMap,uniTypeVars)) return true;
 
@@ -353,7 +376,7 @@ aspect MJUnification {
 
 
     // The only type that can be matched by a ParTypeDecl is a ParTypeDecl
-    syn lazy boolean TypeDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) = substitute(uniMap) == t.substitute(uniMap);
+    syn lazy boolean TypeDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) = substitute(uniMap).type() == t.substitute(uniMap).type();
 
     eq ParClassDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) {
 	if ( genericDecl().equals(t.genericDecl()) ) {

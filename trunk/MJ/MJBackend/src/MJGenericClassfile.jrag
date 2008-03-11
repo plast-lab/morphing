@@ -122,7 +122,7 @@ aspect MJGenerateClassfile {
 	while ( hostType.isInnerType()) 
 	    hostType = hostType.hostType();
 	
-	if ( hostType().shouldErase())
+	if ( typeDecl.shouldErase())
 	    return typeDecl.erasure();
 
 	return typeDecl;
@@ -139,43 +139,6 @@ aspect MJGenerateClassfile {
 	return true;
     }
     eq TypeVariable.shouldErase() = enclosingType().shouldErase();
-    /*
-    refine CodeGeneration public void MethodDecl.emitInvokeMethod(CodeGeneration gen, TypeDecl hostType) {
-	if(hostType.isInterfaceDecl()) {
-	    int size = type().variableSize() - 1;
-	    for(int i = 0; i < getNumParameter(); i++)
-		size -= getParameter(i).type().variableSize();
-	    String classname = hostType().constantPoolName();
-		//hostType().needsExpansion() ? hostType.expandedConstantPoolName() : hostType.constantPoolName();
-	    String      desc = descName();
-	    String      name = name();
-	    int index = gen.constantPool().addInterfaceMethodref(classname, name, desc);
-	    int numArg = 1; // instance
-	    for(int i = 0; i < getNumParameter(); i++)
-		numArg += getParameter(i).type().variableSize();
-	    gen.emit(Bytecode.INVOKEINTERFACE, size).add2(index).add(numArg).add(0);
-	}
-	else {
-	    String classname = hostType().constantPoolName();
-		//hostType.shouldErase() ? hostType.constantPoolName() : hostType.expandedConstantPoolName();
-	    String      desc = descName();
-	    String      name = name();
-	    int index = gen.constantPool().addMethodref(classname, name, desc);
-	    if(isStatic()) {
-		int size = type().variableSize();
-		for(int i = 0; i < getNumParameter(); i++)
-		    size -= getParameter(i).type().variableSize();
-		gen.emit(Bytecode.INVOKESTATIC, size).add2(index);
-	    }
-	    else {
-		int size = type().variableSize() - 1;
-		for(int i = 0; i < getNumParameter(); i++)
-		    size -= getParameter(i).type().variableSize();
-		gen.emit(Bytecode.INVOKEVIRTUAL, size).add2(index);
-	    }
-	}
-    }
-    */
 
     refine GenericsCodegen public void ConstructorDeclSubstituted.emitInvokeConstructor(CodeGeneration gen) {
 	if ( hostType().shouldErase())
@@ -261,6 +224,7 @@ aspect MJAttributes {
 	buf.append(super.signature());
 	return buf.toString();
     }
+    syn String TrueNestedPattern.signature() { return ""; }
 
     syn String BaseSet.signature() {
 	StringBuffer buf = new StringBuffer(getTypeAccess().type().classTypeSignature());

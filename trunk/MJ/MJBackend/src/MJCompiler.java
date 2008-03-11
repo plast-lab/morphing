@@ -33,12 +33,12 @@ class MJCompiler extends Frontend {
 							list = ((GenericInterfaceDecl) td).getParTypeDeclList();
 						
 						for (int j = 0; j < list.getNumChild(); j++) {
-							TypeDecl parTypeDecl = (TypeDecl) list.getChild(i);
+							TypeDecl parTypeDecl = (TypeDecl) list.getChild(j);
 							// TODO: need to check for timestamp of maybe
 							// compiled file
 							// to make sure this expanded class doesn't already
 							// exist
-							if (parTypeDecl.grounded())
+							if (!parTypeDecl.isRawType() && parTypeDecl.grounded())
 								parTypeDecl.generateClassfile();
 						}
 					}

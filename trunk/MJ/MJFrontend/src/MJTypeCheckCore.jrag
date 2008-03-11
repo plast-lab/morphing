@@ -36,9 +36,9 @@ aspect MJTypeCheckCore {
 	// pattern conditions.
 	Collection patternConditions = new ArrayList();
 	if ( isReflectiveDecl())
-	    patternConditions.addAll(enclosingRefIterator().getPatternConditions());
+	    patternConditions.addAll(refIterator().getPatternConditions());
 	if ( m.isReflectiveDecl())
-	    patternConditions.addAll(m.enclosingRefIterator().getPatternConditions());
+	    patternConditions.addAll(m.refIterator().getPatternConditions());
 	if ( hasMutualExclusiveConditions(patternConditions, uniMap))
 	    return true;
 
@@ -91,7 +91,7 @@ aspect MJTypeCheckCore {
 	return (getIsPositive() && matched > 0) ||
 	    (!getIsPositive() && matched == 0 );
     }
-
+    eq TrueNestedPattern.satisfiedBy(Map uniMap) = true;
 
     public boolean MethodDecl.hasMutualExclusiveConditions(Collection patternConditions, Map uniMap) {
 	for ( Iterator outerIt = patternConditions.iterator(); outerIt.hasNext(); ) {
@@ -190,7 +190,7 @@ aspect MJTypeCheckCore {
 	for ( Iterator nameIt = uniNameVars.iterator(); nameIt.hasNext(); ) {
 	    PatternNameVariable pv = (PatternNameVariable) nameIt.next();
 	    if ( pv.getID().equals(name) && 
-		 enclosingRefIterator() == pv.enclosingRefIterator())
+		 refIterator() == pv.enclosingRefIterator())
 		return true;
 	}
 	return false;
@@ -200,7 +200,7 @@ aspect MJTypeCheckCore {
 	for ( Iterator nameIt = uniNameVars.iterator(); nameIt.hasNext(); ) {
 	    PatternNameVariable pv = (PatternNameVariable) nameIt.next();
 	    if ( pv.getID().equals(name) && 
-		 enclosingRefIterator() == pv.enclosingRefIterator())
+		 refIterator() == pv.enclosingRefIterator())
 		return pv;
 	}
 	return null;
@@ -271,6 +271,63 @@ aspect MJTypeCheckCore {
 	return true;
     }
 
+    syn lazy boolean NestedPattern.implies(NestedPattern p, Map uniMap ) {
+	if ( this == p ) return true;
+	if ( getIsPositive() ^ p.getIsPositive()) return false;
+	
+	if ( getIsPositive()) {
+	    // +THIS implies +p iff p subsumes THIS
+	    return p.subsumes(this, uniMap);
+	} else
+	    // -THIS implies -p iff THIS subsumes p
+	    return subsumes(p, uniMap);
+    }
+    eq TrueNestedPattern.implies(NestedPattern p, Map uniMap) = true;
+
+    syn lazy NestedPattern NestedPattern.difference(NestedPattern p, Map uniMap) {
+	if ( getIsPositive() && p.subsumes(this, uniMap) ||
+	     !getIsPositive() && this.subsumes(p, uniMap)) {
+	    TrueNestedPattern tnp = new TrueNestedPattern(); 
+	    tnp.bypassErrorChecking = true;
+	    return tnp;
+	}
+	return this;
+    }
+    eq TrueNestedPattern.difference(NestedPattern p, Map uniMap) {
+	if ( p instanceof TrueNestedPattern ) return this;
+
+	// flip the sign of p, apply mapping to rest.
+	NestedPattern np = p.substitute(uniMap);
+	np.setIsPositive(!p.getIsPositive());
+	return np;
+    }
+
+    syn lazy boolean Pattern.subsumes(Pattern p, Map uniMap) {
+	if ( this == p ) return true;
+
+	// this's base type must be a supertype of p's base type.
+	if ( !p.reflectiveBaseType().subtype(this.reflectiveBaseType()))
+	    return false;
+	
+	// signitures must unify using this' type and name variables.
+	PatternMethodDecl thisMd = patternMethodDecl();
+	PatternMethodDecl pMd = p.patternMethodDecl();
+
+	// name + arg types unify
+	if ( !thisMd.canUnifySignature(pMd, uniMap, patternTypeVariables(), patternNameVariables())) return false;
+
+	// return types unify
+	if ( !getTypeAccess().type().unifiesWith(pMd.type(), uniMap, patternTypeVariables()))
+	    return false;
+
+	// exceptions must unify.
+	if ( !TypeDecl.typeListUnifies(exceptionTypes(),p.exceptionTypes(),
+				       uniMap, patternTypeVariables()))
+	    return false;
+
+	return true;
+    }
+
     public ArrayList MethodDecl.parameterTypes () { 
 	ArrayList list = new ArrayList();
 	for ( int i=0; i<getNumParameter(); i++ )
@@ -301,17 +358,48 @@ aspect MJTypeCheckCore {
     refine Generics public void ParTypeAccess.typeCheck() {
 	Generics.ParTypeAccess.typeCheck();
 
-	GenericTypeDecl decl = (GenericTypeDecl)genericDecl();
-	for ( int i=0; i<getNumTypeArgument(); i++) {
-	    TypeVariable tv = ((GenericTypeDecl) decl.original()).getTypeParameter(i);
-	    if (tv.isConstrainedTypeVariable()) {
-		if ( tv.mustbeClass() && 
-		     !getTypeArgument(i).type().isClassDecl())
-		    error("type argument " + i + " is not a class.");
-		else if ( tv.mustbeInterface() &&
-			  !getTypeArgument(i).type().isInterfaceDecl())
-		    error("type argument " + i + " is not an interface.");
+	TypeDecl td = genericDecl();
+	if ( td instanceof GenericTypeDecl ) {
+	    GenericTypeDecl decl = (GenericTypeDecl) td;
+	    for ( int i=0; i<getNumTypeArgument(); i++) {
+		TypeVariable tv = ((GenericTypeDecl) decl.original()).getTypeParameter(i);
+		if (tv.isConstrainedTypeVariable()) {
+		    if ( tv.mustbeClass() &&
+			 (getTypeArgument(i).type().isTypeVariable() ? 
+			  !((TypeVariable) getTypeArgument(i).type()).mustbeClass() : 
+			  !getTypeArgument(i).type().isClassDecl()))
+			error("type argument " + i + " is not a class.");
+		    if ( tv.mustbeInterface() &&
+			 (getTypeArgument(i).type().isTypeVariable() ?
+			  !((TypeVariable) getTypeArgument(i).type()).mustbeInterface() : !getTypeArgument(i).type().isInterfaceDecl()))
+			error("type argument " + i + " is not an interface.");
+		}
 	    }
+
 	}
+    }
+
+    public void TypeAccess.typeCheck() {
+	TypeDecl t = type();
+	// Some types cannot be accessed as raw. But only report this
+	// as an error if this is not a child of an import statement.
+	if ( !fromImportDecl() && isRaw() && t instanceof ParTypeDecl && 
+	     ((ParTypeDecl) t).genericDecl().needsExpansion())
+	    error(((ParTypeDecl) t).genericDecl().fullName() + 
+		  " cannot be used as raw type.");
+
+	// type variables used in declaration must be bounded by the primary 
+	// pattern.
+	if ( t.isTypeVariable() && !bound((TypeVariable) t))
+	    error(t.fullName() + " is not bounded.");
+    }
+
+    syn lazy boolean TypeAccess.fromImportDecl() {
+	ASTNode parent = this.parent;
+	while ( parent != null ) {
+	    if ( parent instanceof ImportDecl ) return true;
+	    parent = parent.parent;
+	}
+	return false;
     }
 }

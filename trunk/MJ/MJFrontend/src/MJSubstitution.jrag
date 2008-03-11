@@ -1,0 +1,141 @@
+aspect MJSubstitution {
+    public IteratorDecl IteratorDecl.substitute(ParTypeDecl parTypeDecl) {
+	ParIteratorDecl pid =     new ParIteratorDecl();
+
+	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
+	    TypeVariable t = getPatternTypeParameter(i).fullCopy();
+	    pid.addPatternTypeParameter((PatternTypeVariable)t.substitute(parTypeDecl).type());
+	}
+	pid.setPatternNameParameterList(getPatternNameParameterList().fullCopy());
+
+	// create the mapping to be used for pattern and nested pattern
+	// substitution.
+	HashMap map = new HashMap();
+	for ( int i=0; i<getNumPatternTypeParameter(); i++)
+	    map.put(getPatternTypeParameter(i), pid.getPatternTypeParameter(i));
+
+	pid.setPattern(getPattern().substitute(map).substitute(parTypeDecl));
+	//	pid.setPattern(getPattern().substitute(parTypeDecl));
+
+	for ( int i=0; i<getNumNestedPattern(); i++)
+	    pid.addNestedPattern(getNestedPattern(i).substitute(map).substitute(parTypeDecl));
+	// pid.addNestedPattern(getNestedPattern(i).substitute(parTypeDecl));
+	
+	pid.original = this;
+	return pid;
+    }
+    
+    syn lazy TypeDecl PatternTypeVariable.substitute(ParTypeDecl parTypeDecl) {
+	PatternTypeVariable tv = (PatternTypeVariable) fullCopy();
+	// substitute the bounds.
+	for ( int i=0; i<getNumTypeBound(); i++) 
+	    tv.setTypeBound(getTypeBound(i).type().substitute(parTypeDecl), i);
+
+	return tv;
+    }
+
+    public IteratorDecl ParIteratorDecl.original;
+
+    public Pattern Pattern.substitute(ParTypeDecl parTypeDecl) {
+	return new Pattern((Modifiers) getModifiers().fullCopy(),
+			   getTypeAccess().type().substitute(parTypeDecl),
+			   getID(),
+			   getParameterList().substitute(parTypeDecl),
+			   getExceptionList().substitute(parTypeDecl),
+			   getBaseSet().substitute(parTypeDecl),
+			   new Opt());
+    }
+    public NestedPattern NestedPattern.substitute(ParTypeDecl parTypeDecl) {
+	return new NestedPattern((Modifiers) getModifiers().fullCopy(),
+				 getTypeAccess().type().substitute(parTypeDecl),
+				 getID(),
+				 getParameterList().substitute(parTypeDecl),
+				 getExceptionList().substitute(parTypeDecl),
+				 getBaseSet().substitute(parTypeDecl),
+				 new Opt(),
+				 getIsPositive());
+    }
+    public TrueNestedPattern TrueNestedPattern.substitute(ParTypeDecl parTypeDecl) {
+	TrueNestedPattern p = new TrueNestedPattern();
+	p.bypassErrorChecking = true;
+	return p;
+    }
+
+    public BaseSet BaseSet.substitute(ParTypeDecl parTypeDecl) {
+	return new BaseSet(getTypeAccess().type().substitute(parTypeDecl),
+			   (RefElmt) getRefElmt().fullCopy());
+    }
+
+    public ExpandedMethodDecl StaticForMethodDecl.substitute(Map substitution) {
+	return new ExpandedMethodDecl((Modifiers) getModifiers().fullCopy(),
+				      getTypeAccess().type().substitute(substitution),
+				      isNameVariable(getID()) ?
+				      (String) substitution.get(getNameVariable(getID())) : getID(),
+				      getParameterList().expandParameterList(substitution),
+				      getExceptionList().expandAccessList(substitution),
+				      new Opt());
+    }
+    public Pattern Pattern.substitute(Map substitutions) {
+	String name = getID();
+	if ( isNameVariable(name) && substitutions.get(getNameVariable(name)) != null ) name = (String) substitutions.get(getNameVariable(name));
+
+	return new Pattern((Modifiers) getModifiers().fullCopy(),
+			   getTypeAccess().type().substitute(substitutions),
+			   name,
+			   getParameterList().substituteAccessList(substitutions),
+			   getExceptionList().substituteAccessList(substitutions),
+			   getBaseSet().substitute(substitutions),
+			   new Opt());
+    }
+    public NestedPattern NestedPattern.substitute(Map substitutions) {
+	String name = getID();
+	if ( isNameVariable(name) && substitutions.get(getNameVariable(name)) != null ) name = (String) substitutions.get(getNameVariable(name));
+	return new NestedPattern((Modifiers) getModifiers().fullCopy(),
+				 getTypeAccess().type().substitute(substitutions),
+				 name,
+				 getParameterList().substituteAccessList(substitutions),
+				 getExceptionList().substituteAccessList(substitutions),
+				 getBaseSet().substitute(substitutions),
+				 new Opt(),
+				 getIsPositive());	
+    }
+    public TrueNestedPattern TrueNestedPattern.substitute(Map substitutions) {
+	TrueNestedPattern p = new TrueNestedPattern();
+	p.bypassErrorChecking = true;
+	return p;
+    }
+
+    public List List.substituteAccessList(Map substitutions) {
+	List list = new List();
+	for ( int i=0; i<getNumChild(); i++) {
+	    Access node = (Access) getChild(i);
+	    list.add(node.type().substitute(substitutions));
+	}
+	return list;
+    }
+
+    public Access ParTypeDecl.substitute(Map submap) {
+	java.util.ArrayList list = new java.util.ArrayList();
+	for ( int i=0; i<getNumArgument(); i++) 
+	    list.add(getArgument(i).type().substitute(submap).type());
+	return ((GenericTypeDecl) genericDecl()).lookupParTypeDecl(list).createBoundAccess();
+    }
+    
+    public Access RawClassDecl.substitute(Map submap) { return createBoundAccess(); }
+    public Access RawInterfaceDecl.substitute(Map submap) { return createBoundAccess(); }
+
+    public BaseSet BaseSet.substitute(Map substitutions) {
+	return new BaseSet(getTypeAccess().type().substitute(substitutions), getRefElmt());
+    }
+
+    public Access TypeDecl.substitute(Map submap) {
+	return createBoundAccess();
+    }
+    public Access TypeVariable.substitute(Map submap) {
+	if ( submap.containsKey(this))
+	    return ((TypeDecl) submap.get(this)).substitute(submap);
+	return createBoundAccess();
+    }
+
+
+}

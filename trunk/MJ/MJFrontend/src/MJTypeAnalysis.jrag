@@ -77,7 +77,96 @@ aspect MJTypeAnalysis {
 }
 
 aspect MJCircularity {
+    // Circurlarity in MJ: 
+    // - check supertype's bounds for circularity
+    // - check reflective base type.
+    refine TypeAnalysis eq ClassDecl.isCircular () {
+	if ( TypeAnalysis.ClassDecl.isCircular()) return true;
+	
+	// check reflective declarations.
+	for ( int i=0; i<getNumBodyDecl(); i++) {
+	    BodyDecl bd = getBodyDecl(i);
+	    if ( bd.isReflectiveDecl()) {
+		StaticForDeclaration sfd = (StaticForDeclaration) bd;
+		if ( (bd instanceof MethodDecl &&
+		      sfd.getIteratorDecl().getPattern().getBaseSet().iterateMethods()) ||
+		     (bd instanceof FieldDeclaration &&
+		      sfd.getIteratorDecl().getPattern().getBaseSet().iterateFields()))
+		    if ( sfd.getIteratorDecl().baseType().isCircular()) {
+			bd.circularlyDefined = true;
+			return true;			
+		    }    
+	    }
+	}
+	return false;
+    }
+
+    public boolean BodyDecl.circularlyDefined = false;
+
+    refine TypeAnalysis eq InterfaceDecl.isCircular () {
+	if ( TypeAnalysis.InterfaceDecl.isCircular()) return true;
+	
+	// check reflective declarations.
+	for ( int i=0; i<getNumBodyDecl(); i++) {
+	    BodyDecl bd = getBodyDecl(i);
+	    if ( bd.isReflectiveDecl()) {
+		if ( ((StaticForDeclaration) bd).getIteratorDecl().baseType().isCircular()) return true;
+	    }
+	}
+	return false;
+    }
+    eq ParTypeDecl.isCircular() = genericDecl().isCircular();
+
+    eq TypeVariable.isCircular() {
+	// check whether bounds are circular.
+	for ( int i=0; i<getNumTypeBound(); i++) {
+	    if ( getTypeBound(i).type().isCircular()) return true;
+	}
+	return false;
+    }
+
+    syn lazy boolean TypeDecl.isFbounded()  = false;
+    eq GenericTypeDecl.isFbounded() {
+	for ( int i=0; i<getNumTypeParameter(); i++) {
+	    TypeVariable v = getTypeParameter(i);
+	    for ( int j=0; j<v.getNumTypeBound(); j++ )
+		if ( v.getTypeBound(j).typeRaw() == this )
+		    return true;
+	}
+	return false;
+    }
+		
+    syn lazy TypeDecl Access.typeRaw() = type();
+    eq TypeAccess.typeRaw() {
+	SimpleSet decls = decls();
+	if(decls.size() == 1) {
+	    return (TypeDecl)decls.iterator().next();
+	}
+	return unknownType();
+    }
+
+    refine Generics eq TypeAccess.decl() {
+	TypeDecl decl = typeRaw();
+
+	if(decl instanceof GenericTypeDecl && isRaw()) {
+	    ArrayList args = new ArrayList();
+	    if ( decl.isFbounded()) {
+		for ( int i=0; i<((GenericTypeDecl) decl).getNumTypeParameter(); i++) {
+		    TypeVariable tv = ((GenericTypeDecl) decl).getTypeParameter(i);
+		    if ( tv.getTypeBound(0).typeRaw() == decl )
+			args.add(decl);
+		    else 
+			args.add(tv.getTypeBound(0).type());
+		}
+	    }
+	    return ((GenericTypeDecl)decl).lookupParTypeDecl(args);
+	}
+	return decl;
+    }
+
+
     // Each type has a chain of dependent types.
+    /*
     syn lazy boolean TypeDecl.circularlyDefined(Set currentChain) = currentChain.contains(this);
 
     eq ClassDecl.circularlyDefined(Set currentChain) {
@@ -113,6 +202,7 @@ aspect MJCircularity {
 	if (TypeAnalysis.InterfaceDecl.isCircular()) return true;
 	return circularlyDefined(new HashSet());
     }    
+    */
 
     // NonVoidType.
     eq NonVoidType.isSupertypeOfClassDecl(ClassDecl type) = true;
@@ -144,5 +234,7 @@ aspect MJCircularity {
 
     public boolean NonVoidType.isNestedType() { return false; }
     public void NonVoidType.java2Transformation() {}
+
+
 
 }

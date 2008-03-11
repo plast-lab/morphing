@@ -15,18 +15,22 @@ ExpandedMethodDecl : MethodDecl;
 
 StaticForFieldDeclaration : FieldDeclaration ::=  IteratorDecl;
 
+StaticForStmt : Stmt ::= IteratorDecl Stmt*;
+StaticForStatement : Stmt ::= IteratorDecl Stmt;
+
 IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern*;
 ParIteratorDecl : IteratorDecl;
 
-Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* Exception:Access* BaseSet; 
+Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* Exception:Access* BaseSet [PatternMethodDecl]; 
 
 NestedPattern : Pattern ::= <IsPositive:boolean>;
+TrueNestedPattern : NestedPattern;
 
 BaseSet ::= TypeAccess:Access RefElmt;
 
 RefElmt ::= <ElmtName:String>;
 
-PatternMethodDecl : StaticForMethodDecl ;
+PatternMethodDecl : MethodDecl;
 
 NegativeModifier : Modifier;
 NoModifier : Modifier;

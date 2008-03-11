@@ -1,6 +1,20 @@
 aspect MJPrettyPrint {
+
+    // these methods are used in error reporting.
+    public String MethodDecl.infoSignature() {
+	return signature();
+    }
+    public String StaticForMethodDecl.infoSignature() {
+	StringBuffer buf = new StringBuffer();
+	getIteratorDecl().toString(buf);
+	buf.append(type().name() + " " + super.signature());
+	return buf.toString();
+    }
+
+
     public void StaticForMethodDecl.toString(StringBuffer buf) {
 	getIteratorDecl().toString(buf);
+	super.toString(buf);
     }
 
     public void IteratorDecl.toString(StringBuffer buf) {
@@ -20,11 +34,12 @@ aspect MJPrettyPrint {
 	    }
 	    buf.append("]");
 	}
-	buf.append("for");
+	buf.append("for( ");
 	getPattern().toString(buf);
 	for ( int i=0; i<getNumNestedPattern(); i++) {
 	    getNestedPattern(i).toString(buf);
 	}
+	buf.append(")");
     }
     public void PatternNameVariable.toString(StringBuffer buf) {
 	buf.append(getID());
@@ -56,7 +71,6 @@ aspect MJPrettyPrint {
 
 	super.toString(buf);
     }
-
     public void BaseSet.toString(StringBuffer buf) {
 	getTypeAccess().toString(buf);
 	buf.append(".");
@@ -66,5 +80,39 @@ aspect MJPrettyPrint {
     public void NegativeModifier.toString(StringBuffer buf) {
 	buf.append("!");
 	buf.append(getID());
+    }
+
+    public void PrimitiveType.toString(StringBuffer buf) {
+	buf.append(name());
+    }
+
+    public void PatternTypeVariable.toString(StringBuffer buf) {
+	buf.append(name());
+	boundsToString(buf);
+    }
+
+    public void VectorTypeVariable.toString(StringBuffer buf) {
+	buf.append(name() + "*");
+	boundsToString(buf);
+    }
+
+    public void PatternTypeVariable.boundsToString(StringBuffer buf) {
+	if ( getNumTypeBound() > 0 &&
+	     !getTypeBound(0).type().isNonVoidType()) {
+	    buf.append(" extends ");
+	    int i;
+	    for ( i=0; i<getNumTypeBound(); i++) {
+		if ( getTypeBound(i).type().isNonVoidType())
+		    continue;
+		buf.append(getTypeBound(i).type().fullName());
+		i++;
+		break;
+	    }
+	    for ( ; i<getNumTypeBound(); i++) {
+		if ( getTypeBound(i).type().isNonVoidType()) continue;
+		buf.append(" & ");
+		buf.append(getTypeBound(i).type().fullName());
+	    }
+	}
     }
 }
