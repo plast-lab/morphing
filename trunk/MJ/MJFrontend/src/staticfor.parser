@@ -42,7 +42,7 @@ List staticfor_body =
 IteratorDecl staticfor_stmt_header = 
     pattern_type_parameter_list_2.l? pattern_name_parameter_list.n? FOR LPAREN pattern.p nested_patterns.np? RPAREN 
     {: 
-	if ( np.getNumChild() == 0 ) {
+	if ( np.getNumChildNoTransform() == 0 ) {
 	  TrueNestedPattern tnp = new TrueNestedPattern();
   	  tnp.bypassErrorChecking = true;
           np.add(tnp);
@@ -54,7 +54,7 @@ IteratorDecl staticfor_stmt_header =
 IteratorDecl staticfor_header = 
     pattern_type_parameter_list.l? pattern_name_parameter_list.n? FOR LPAREN pattern.p nested_patterns.np? RPAREN 
     {: 
-	if ( np.getNumChild() == 0 ) {
+	if ( np.getNumChildNoTransform() == 0 ) {
 	  TrueNestedPattern tnp = new TrueNestedPattern();
   	  tnp.bypassErrorChecking = true;
           np.add(tnp);
@@ -104,9 +104,11 @@ PatternNameVariable pattern_name_parameter =
     
 Pattern pattern = 
      modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b 
-     {: return new Pattern(new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, b, new Opt()); :}
-  |  modifiers.m? type.t IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b 
-     {: return new Pattern(new Modifiers(m), t, id, l, tl, b, new Opt()); :}
+     {: return new MethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt()); :}
+  |  modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b 
+     {: return new OptMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt()); :}
+  | modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
+     {: return new OptFieldPattern(b, new Modifiers(m), t, id); :}
   ;
 
 List nested_patterns =
@@ -114,15 +116,19 @@ List nested_patterns =
   | nested_patterns.l SEMICOLON nested_pattern.p {: return l.add(p); :}
   ;
 
-NestedPattern nested_pattern =
-     NO modifiers.m? type.t IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-     {: return new NestedPattern(new Modifiers(m), t, id, l, tl, b, new Opt(), false); :}
+Pattern nested_pattern =
+     NO modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+     {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), false); :}
   |  NO modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-     {: return new NestedPattern(new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, b, new Opt(), false); :}
-  |  SOME modifiers.m? type.t IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-     {: return new NestedPattern(new Modifiers(m), t, id, l, tl, b, new Opt(), true); :}
+    {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), false); :}
+  |  NO modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
+     {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, false); :}
+  |  SOME modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+     {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), true); :}
   |  SOME modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-     {: return new NestedPattern(new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, b, new Opt(), true); :}
+     {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), true); :}
+  |  SOME modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
+     {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, true); :}
   ;	
 
 Modifier modifier = 

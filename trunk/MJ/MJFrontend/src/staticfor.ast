@@ -1,8 +1,9 @@
 PatternTypeVariable : TypeVariable;
-AllMatchingTypeVariable : PatternTypeVariable;
-NonVoidType : TypeDecl;
 VectorTypeVariable : PatternTypeVariable ::= MatchedVectorTypeVariable*;
 MatchedVectorTypeVariable : PatternTypeVariable;
+
+AllMatchingTypeVariable : PatternTypeVariable;
+NonVoidType : TypeDecl;
 
 PatternNameVariable ::= <ID:String>;
 
@@ -18,13 +19,25 @@ StaticForFieldDeclaration : FieldDeclaration ::=  IteratorDecl;
 StaticForStmt : Stmt ::= IteratorDecl Stmt*;
 StaticForStatement : Stmt ::= IteratorDecl Stmt;
 
-IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern*;
+IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern:Pattern*;
 ParIteratorDecl : IteratorDecl;
 
-Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* Exception:Access* BaseSet [PatternMethodDecl]; 
+Pattern ::= BaseSet;
 
-NestedPattern : Pattern ::= <IsPositive:boolean>;
-TrueNestedPattern : NestedPattern;
+OptMethodPattern : Pattern ::= Modifiers [TypeAccess:Access] <ID:String> Parameter:TypeAccess* Exception:Access*  [PatternMethodDecl];
+OptNestedMethodPattern : OptMethodPattern ::= <IsPositive:boolean>;
+
+OptFieldPattern : Pattern ::= Modifiers [TypeAccess:Access] <ID:String>;
+OptNestedFieldPattern : OptFieldPattern ::= <IsPositive:boolean>;
+
+MethodPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* Exception:Access*  [PatternMethodDecl];
+
+FieldPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String>;
+
+NestedMethodPattern : MethodPattern ::= <IsPositive:boolean>;
+NestedFieldPattern : FieldPattern ::= <IsPositive:boolean>;
+
+TrueNestedPattern : Pattern;
 
 BaseSet ::= TypeAccess:Access RefElmt;
 

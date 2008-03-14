@@ -44,7 +44,7 @@ aspect MJPrettyPrint {
     public void PatternNameVariable.toString(StringBuffer buf) {
 	buf.append(getID());
     }
-    public void Pattern.toString(StringBuffer buf) {
+    public void MethodPattern.toString(StringBuffer buf) {
 	getTypeAccess().toString(buf);
 	buf.append(" ");
 	buf.append(getID());
@@ -65,12 +65,50 @@ aspect MJPrettyPrint {
 	getBaseSet().toString(buf);
 	buf.append(";");
     }
-    public void NestedPattern.toString(StringBuffer buf) {
+    public void NestedMethodPattern.toString(StringBuffer buf) {
 	if ( getIsPositive()) buf.append("some ");
 	else buf.append("no ");
 
-	super.toString(buf);
+	getTypeAccess().toString(buf);
+	buf.append(" ");
+	buf.append(getID());
+	buf.append("(");
+	for ( int i=0; i<getNumParameter(); i++) {
+	    if ( i > 0 ) buf.append(", ");
+	    getParameter(i).toString(buf);
+	}
+	buf.append(")");
+	if ( getNumException() > 0 ) {
+	    buf.append("throws ");
+	    for ( int i=0; i<getNumException(); i++) {
+		if ( i > 0 ) buf.append(",");
+		getException(i).toString(buf);
+	    }
+	}
+	buf.append(":");
+	getBaseSet().toString(buf);
+	buf.append(";");
     }
+    public void FieldPattern.toString(StringBuffer buf) {
+	getTypeAccess().toString(buf);
+	buf.append(" ");
+	buf.append(getID());
+	buf.append(":");
+	getBaseSet().toString(buf);
+	buf.append(";");
+    }
+    public void NestedFieldPattern.toString(StringBuffer buf) {
+	if ( getIsPositive()) buf.append("some ");
+	else buf.append("no ");
+
+	getTypeAccess().toString(buf);
+	buf.append(" ");
+	buf.append(getID());
+	buf.append(":");
+	getBaseSet().toString(buf);
+	buf.append(";");
+    }
+
     public void BaseSet.toString(StringBuffer buf) {
 	getTypeAccess().toString(buf);
 	buf.append(".");

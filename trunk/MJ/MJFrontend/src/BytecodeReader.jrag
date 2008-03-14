@@ -648,12 +648,59 @@ aspect BytecodeReader {
 		  if ( next("+")) isPositive = true;
 
 		  Pattern p = parsePattern();
-		  nestedPatterns.add(new NestedPattern(p.getModifiers(), p.getTypeAccess(), p.getID(), p.getParameterList(), p.getExceptionList(), p.getBaseSet(), new Opt(), isPositive));
+		  
+		  nestedPatterns.add(p.makeNestedPattern(isPositive));
 	      }
 	  }
-
+      
 	  Pattern parsePattern() {
+	      if ( next("(")) 
+		  return parseMethodPattern();
+	      return parseFieldPattern();
+	  }
+
+	  Pattern parseFieldPattern() {
+	      // field pattern: type[name]
+	      Access type = typeSignature();
+	      // name
+	      eat ("[");
+	      String fieldName = identifier();
+	      eat("]");
+
+	      // parse modifiers.
+	      Modifiers mods = parseModifiers();
+	      BaseSet bs = parseBaseSet();
+
+	      return new FieldPattern(bs, mods, type, fieldName); 
+	  }
+
+	  Modifiers parseModifiers() {
+	      // parse modifiers.
+	      Modifiers mods = new Modifiers();
+	      eat("(");
+	      while (!next(")")) {
+		  mods.addModifier(modifiersSignature());
+	      }
+	      eat(")");
+	      return mods;
+	  }
+
+	  BaseSet parseBaseSet () {
+	      Access baseType = typeSignature();
+	      RefElmt refElmt = null;
+	      if ( next("methods;")) {
+		  eat("methods;");
+		  refElmt = new RefElmt("methods");
+	      } else if ( next("fields;")) {
+		  eat("fields;");
+		  refElmt = new RefElmt("fields");
+	      }
+	      return new BaseSet(baseType, refElmt);
+	  }
+
+	  Pattern parseMethodPattern() {
 	      List parameterTypes = new List();
+
 	      eat("(");
 	      while(!next(")")) {
 		  parameterTypes.add(typeSignature());
@@ -671,27 +718,14 @@ aspect BytecodeReader {
 	      eat("]");
 
 	      // parse modifiers.
-	      Modifiers mods = new Modifiers();
-	      eat("(");
-	      while (!next(")")) {
-		  mods.addModifier(modifiersSignature());
-	      }
-	      eat(")");
+	      Modifiers mods = parseModifiers();
 
-	      Access baseType = typeSignature();
-	      RefElmt refElmt = null;
-	      if ( next("methods;")) {
-		  eat("methods;");
-		  refElmt = new RefElmt("methods");
-	      } else if ( next("fields;")) {
-		  eat("fields;");
-		  refElmt = new RefElmt("fields");
-	      }
+	      // base set
+	      BaseSet bs = parseBaseSet();
 		  
-	      return new Pattern(mods,returnType, methodName, 
-				 parameterTypes, exceptionList,
-				 new BaseSet(baseType, refElmt), 
-				 new Opt());
+	      return new MethodPattern(bs,mods,returnType, methodName, 
+				       parameterTypes, exceptionList,
+				       new Opt());
 	  }
 
 	  // TODO: need to handle the case where there is no return type,

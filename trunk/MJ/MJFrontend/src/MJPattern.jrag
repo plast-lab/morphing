@@ -54,38 +54,19 @@ aspect MJPattern {
     eq Program.getChild().enclosingRefIterator() = null;
 
     // get the enclosing reflective base type
-    /*
-    syn lazy TypeDecl BodyDecl.reflectiveBaseType() =
-	enclosingRefIterator() != null ? enclosingRefIterator().getPattern().reflectiveBaseType() : null;
-    */
     syn lazy TypeDecl BodyDecl.reflectiveBaseType() =
 	refIterator() != null ? refIterator().getPattern().reflectiveBaseType() : null;
 
     syn lazy TypeDecl Pattern.reflectiveBaseType() = getBaseSet().getTypeAccess().type();
 
-    /*
-    inh TypeDecl IteratorDecl.reflectiveBaseType();
-    eq StaticForMethodDecl.getIteratorDecl().reflectiveBaseType() = reflectiveBaseType();
-    eq StaticForConstructorDecl.getIteratorDecl().reflectiveBaseType() = reflectiveBaseType();
-    eq StaticForFieldDeclaration.getIteratorDecl().reflectiveBaseType() = reflectiveBaseType();
-    eq StaticForDecl.getIteratorDecl().reflectiveBaseType() = reflectiveBaseType();
-    */
-
     syn lazy TypeDecl Stmt.reflectiveBaseType() = enclosingRefIterator() != null ? enclosingRefIterator().getPattern().reflectiveBaseType() : null;
-    /*
-    eq StaticForStmt.getIteratorDecl().reflectiveBaseType() = reflectiveBaseType();
-    eq StaticForStatement.getIteratorDecl().reflectiveBaseType() = reflectiveBaseType();
-    */
+
     syn lazy TypeDecl IteratorDecl.reflectiveBaseType() = getPattern().reflectiveBaseType();
 
     inh TypeDecl PatternNameVariable.reflectiveBaseType();
     eq IteratorDecl.getPatternNameParameter(int i).reflectiveBaseType() = getPattern().reflectiveBaseType();
 
     // get enclosing pattern name variables.
-    /*
-    syn lazy Collection BodyDecl.patternNameVariables() =
-	enclosingRefIterator() != null ? enclosingRefIterator().patternNameVariables() : new ArrayList();
-    */
     syn lazy Collection BodyDecl.patternNameVariables() =
 	refIterator() != null ? refIterator().patternNameVariables() : new ArrayList();
 
@@ -95,54 +76,71 @@ aspect MJPattern {
 	    c.add(getPatternNameParameter(i));
 	return c;
     }
-    //    eq ParIteratorDecl.patternNameVariables() = original.patternNameVariables();
 
     inh Collection Pattern.patternNameVariables();
     eq IteratorDecl.getPattern().patternNameVariables() = patternNameVariables();
     // The only name variables that are still variables for nested pattern
     // are the ones not bounded by the primary pattern.
-    eq IteratorDecl.getNestedPattern(int i).patternNameVariables()=unboundedNameVariables();
+    eq IteratorDecl.getNestedPattern(int i).patternNameVariables() = unboundNameVariables();
 
-    syn lazy Collection IteratorDecl.unboundedNameVariables() {
+    syn lazy Collection IteratorDecl.unboundNameVariables() {
 	Pattern p = getPattern();
+	Collection unbound = new ArrayList(patternNameVariables());
+	p.removeBoundNameVariables(unbound);
 
-	Collection nvs = patternNameVariables();
-	Collection unbounded = new ArrayList(nvs);
-
-	PatternNameVariable nv  = getNameVariable(p.getID());
-	unbounded.remove(nv);
-
-	return unbounded;
+	return unbound;
     }
-    eq IteratorDecl.getPattern().unboundedNameVariables() = unboundedNameVariables();
-    eq IteratorDecl.getNestedPattern(int i).unboundedNameVariables() = unboundedNameVariables();
-    inh Collection Pattern.unboundedNameVariables();
 
-    syn lazy Collection IteratorDecl.unboundedTypeVariables() {
+    public void Pattern.removeBoundNameVariables(Collection unbound) {
+	throw new Error("Unsupported method removeBoundNameVariables by " +
+			getClass().getName());
+    }
+    public void MethodPattern.removeBoundNameVariables(Collection unbound) {
+	unbound.remove(getNameVariable(getID()));
+    }
+    public void FieldPattern.removeBoundNameVariables(Collection unbound) {
+	unbound.remove(getNameVariable(getID()));
+    }
+
+    eq IteratorDecl.getPattern().unboundNameVariables() = unboundNameVariables();
+    eq IteratorDecl.getNestedPattern(int i).unboundNameVariables() = unboundNameVariables();
+    inh Collection Pattern.unboundNameVariables();
+
+    syn lazy Collection IteratorDecl.unboundTypeVariables() {
 	Pattern p = getPattern();
 	Collection typeVars = patternTypeVariables();
-	Collection unbounded = new ArrayList(typeVars);
+	Collection unbound = new ArrayList(typeVars);
 
-	p.getTypeAccess().type().removeBoundedTypeVariables(unbounded);
-	for ( int i=0; i<p.getNumParameter(); i++) {
-	    p.getParameter(i).type().removeBoundedTypeVariables(unbounded);
-	}
-	for ( int i=0; i<p.getNumException(); i++) {
-	    p.getException(i).type().removeBoundedTypeVariables(unbounded);
-	}
-	return unbounded;
+	p.removeBoundTypeVariables(unbound);
+	return unbound;
     }
-    eq IteratorDecl.getPattern().unboundedTypeVariables() = unboundedTypeVariables();
-    eq IteratorDecl.getNestedPattern(int i).unboundedTypeVariables() = unboundedTypeVariables();
+    eq IteratorDecl.getPattern().unboundTypeVariables() = unboundTypeVariables();
+    eq IteratorDecl.getNestedPattern(int i).unboundTypeVariables() = unboundTypeVariables();
+    
+    public void Pattern.removeBoundTypeVariables(Collection unbound) {
+	throw new Error("Unsupported method removeBoundTypeVariables by " +
+			getClass().getName());
+    }
+    public void MethodPattern.removeBoundTypeVariables(Collection unbound) {
+	getTypeAccess().type().removeBoundTypeVariables(unbound);
+	for ( int i=0; i<getNumParameter(); i++) {
+	    getParameter(i).type().removeBoundTypeVariables(unbound);
+	}
+	for ( int i=0; i<getNumException(); i++) {
+	    getException(i).type().removeBoundTypeVariables(unbound);
+	}
+    }
+    public void FieldPattern.removeBoundTypeVariables(Collection unbound) {
+	getTypeAccess().type().removeBoundTypeVariables(unbound);
+    }
+    inh Collection Pattern.unboundTypeVariables();
 
-    inh Collection Pattern.unboundedTypeVariables();
-
-    public void TypeDecl.removeBoundedTypeVariables(Collection c ) {
+    public void TypeDecl.removeBoundTypeVariables(Collection c ) {
 	c.remove(this);
     }
-    public void ParTypeDecl.removeBoundedTypeVariables(Collection c) {
+    public void ParTypeDecl.removeBoundTypeVariables(Collection c) {
 	for ( int i=0; i<getNumArgument(); i++) {
-	    getArgument(i).type().removeBoundedTypeVariables(c);
+	    getArgument(i).type().removeBoundTypeVariables(c);
 	}
     }
 
@@ -150,10 +148,6 @@ aspect MJPattern {
     syn lazy Collection Expr.patternNameVariables() = enclosingStmt().patternNameVariables();
 
     // get enclosing pattern type variables.
-    /*
-    syn lazy Collection BodyDecl.patternTypeVariables() =
-	enclosingRefIterator() != null ? enclosingRefIterator().patternTypeVariables() : new ArrayList();
-    */
     syn lazy Collection BodyDecl.patternTypeVariables() =
 	refIterator() != null ? refIterator().patternTypeVariables() : new ArrayList();
 
@@ -165,7 +159,7 @@ aspect MJPattern {
     }
     inh Collection Pattern.patternTypeVariables();
     eq IteratorDecl.getPattern().patternTypeVariables() = patternTypeVariables();
-    eq IteratorDecl.getNestedPattern(int i).patternTypeVariables() = unboundedTypeVariables();
+    eq IteratorDecl.getNestedPattern(int i).patternTypeVariables() = unboundTypeVariables();
 
     inh Collection Stmt.patternTypeVariables();
     eq StaticForMethodDecl.getBlock().patternTypeVariables() = patternTypeVariables();
@@ -252,8 +246,12 @@ aspect MJPattern {
     eq IteratorDecl.getPattern().getNameVariable(String name) = getNameVariable(name);
     eq IteratorDecl.getNestedPattern(int i).getNameVariable(String name) = getNameVariable(name);
 
-    // returns a "fake" MethodDecl determined by the pattern of the iterator.
     syn lazy PatternMethodDecl Pattern.patternMethodDecl() {
+	throw new Error("patternMethodDecl can only be retrieve for MethodPatterns");
+    }
+
+    // returns a "fake" MethodDecl determined by the pattern of the iterator.
+    eq MethodPattern.patternMethodDecl() {
 	List<TypeAccess> paramTypes = getParameterList();
 	// turn types into a list of ParameterDeclarations.
 	List<ParameterDeclaration> params = new List();
@@ -276,7 +274,6 @@ aspect MJPattern {
 
 	return pd;
     }
-
     syn TypeDecl PatternMethodDecl.hostType() = reflectiveBaseType();
     syn String PatternMethodDecl.hostPackage() = reflectiveBaseType().hostPackage();
     eq PatternMethodDecl.refIterator() = 
@@ -304,7 +301,8 @@ aspect MJPattern {
     }
 
     syn lazy boolean Pattern.isPositiveCondition() = true;
-    syn lazy boolean NestedPattern.isPositiveCondition() = getIsPositive();
+    syn lazy boolean NestedMethodPattern.isPositiveCondition() = getIsPositive();
+    syn lazy boolean NestedFieldPattern.isPositiveCondition() = getIsPositive();
 
     syn lazy TypeDecl BaseSet.type() = getTypeAccess().type();
 
@@ -358,13 +356,128 @@ aspect MJPattern {
 	}
 	return false;
     }
-    syn lazy boolean Pattern.exceptionParameter(TypeVariable t) {
+    syn lazy boolean Pattern.exceptionParameter(TypeVariable t) = false;
+    eq MethodPattern.exceptionParameter(TypeVariable t) {
 	for ( int i=0; i<getNumException(); i++) {
 	    if (getException(i).type() == t)
 		return true;
 	}
 	return false;
     }
-
     public void TrueNestedPattern.transformation() {}
+
+    syn lazy boolean Pattern.isPositive() = true;
+    eq NestedMethodPattern.isPositive() = getIsPositive();
+    eq NestedFieldPattern.isPositive() = getIsPositive();
+
+    syn lazy boolean Pattern.isMethodPattern() = false;
+    eq MethodPattern.isMethodPattern () = true;
+    syn lazy boolean Pattern.isFieldPattern() = false;
+    eq FieldPattern.isFieldPattern() = true;
+
+    public Pattern Pattern.makeNestedPattern(boolean isPositive) {
+	throw new Error("makeNestedPattern(boolean) not supported by " +
+			getClass().getName());
+    }
+    public MethodPattern MethodPattern.makeNestedPattern(boolean isPositive) {
+	return new NestedMethodPattern(getBaseSet().fullCopy(), 
+				       getModifiers().fullCopy(), 
+				       (Access) getTypeAccess().fullCopy(), 
+				       getID(), 
+				       getParameterList().fullCopy(), 
+				       getExceptionList().fullCopy(), 
+				       new Opt(), 
+				       isPositive);
+    }
+    public FieldPattern FieldPattern.makeNestedPattern(boolean isPositive) {
+	return new NestedFieldPattern(getBaseSet().fullCopy(), 
+				      getModifiers().fullCopy(), 
+				      (Access) getTypeAccess().fullCopy(), 
+				      getID(), isPositive);
+    }
+
+    public void Pattern.flipSign() {
+	throw new Error("flipSign() not supported by " + 
+			getClass().getName());
+    }
+    public void NestedMethodPattern.flipSign() {
+	setIsPositive(!getIsPositive());
+    }
+    public void NestedFieldPattern.flipSign() {
+	setIsPositive(!getIsPositive());
+    }
+
+    // Rewrite patterns with missing types to patterns where the type
+    // is AllMatchingTypeVariable.
+    rewrite OptFieldPattern {
+	to FieldPattern {
+	    if ( hasTypeAccess() )
+		return new FieldPattern(getBaseSet(), getModifiers(),
+					getTypeAccess(), getID());
+	    else {
+		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), "__MJINTERNAL$$R", new List(), new List());	
+		enclosingRefIterator().addPatternTypeParameter(R);
+		return new FieldPattern(getBaseSet(), getModifiers(),
+					R.createQualifiedAccess(), getID());
+	    }
+	}
+    }
+    rewrite OptNestedFieldPattern {
+	to NestedFieldPattern {
+	    if ( hasTypeAccess() )
+		return new NestedFieldPattern(getBaseSet(), getModifiers(),
+					      getTypeAccess(), getID(),
+					      getIsPositive());
+	    else {
+		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), "__MJINTERNAL$$R", new List(), new List());	
+		enclosingRefIterator().addPatternTypeParameter(R);
+		return new NestedFieldPattern(getBaseSet(), getModifiers(),
+					      R.createQualifiedAccess(),
+					      getID(), getIsPositive());
+	    }
+	}
+    }
+    rewrite OptMethodPattern {
+	to MethodPattern {
+	    if ( hasTypeAccess()) {
+		return new MethodPattern(getBaseSet(),
+					 getModifiers(),
+					 getTypeAccess(),
+					 getID(),
+					 getParameterList(),
+					 getExceptionList(),
+					 new Opt());
+	    } else {
+		// generate a type variable with fresh name.
+		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), "__MJINTERNAL$$R", new List(), new List());	
+		enclosingRefIterator().addPatternTypeParameter(R);
+		return new MethodPattern(getBaseSet(), getModifiers(),
+					 R.createQualifiedAccess(),getID(),
+					 getParameterList(), 
+					 getExceptionList(), 
+					 new Opt());
+	    }
+	}
+    }
+    rewrite OptNestedMethodPattern { 
+	to NestedMethodPattern {
+	    if ( hasTypeAccess()) {
+		return new NestedMethodPattern(getBaseSet(), getModifiers(),
+					       getTypeAccess(),getID(),
+					       getParameterList(), 
+					       getExceptionList(), 
+					       new Opt(), getIsPositive());
+	    } else {
+		// generate a type variable with fresh name.
+		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), "__MJINTERNAL$$R", new List(), new List());	
+		enclosingRefIterator().addPatternTypeParameter(R);
+		return new NestedMethodPattern(getBaseSet(), getModifiers(),
+					       R.createQualifiedAccess(),
+					       getID(),
+					       getParameterList(), 
+					       getExceptionList(), 
+					       new Opt(), getIsPositive());
+	    }
+	}
+    }
 }
