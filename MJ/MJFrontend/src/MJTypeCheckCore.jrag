@@ -73,16 +73,20 @@ aspect MJTypeCheckCore {
 	return true;
     }
 
-    syn lazy boolean NestedPattern.satisfiedBy(Map uniMap) {
+    syn lazy boolean Pattern.satisfiedBy(Map uniMap)  = false;
+    eq NestedMethodPattern.satisfiedBy(Map uniMap) {
+	// substitute pattern.
+	NestedMethodPattern subed = substitute(uniMap);
+
 	// expand the methods in the pattern after substitution.
-	Map methods = substitute(uniMap).getBaseSet().type().unrestrictedMethodsSignatureMap();	
+	Map methods = subed.getBaseSet().type().unrestrictedMethodsSignatureMap();	
 	int matched = 0;
-	PatternMethodDecl pmd = patternMethodDecl();
+	PatternMethodDecl pmd = subed.patternMethodDecl();
 	for ( Iterator mIt = methods.values().iterator(); mIt.hasNext(); ) {
 	    MethodDecl md = (MethodDecl) mIt.next();
 	    if ( md.canUnifySignature(pmd, uniMap, 
-				      patternNameVariables(),
-				      patternTypeVariables()) &&
+				      patternTypeVariables(),
+				      patternNameVariables()) &&
 		 md.type().unifiesWith(pmd.type(),
 				       uniMap,patternTypeVariables()) &&
 		 md.getModifiers().unifiesWith(pmd.getModifiers()))
@@ -100,85 +104,65 @@ aspect MJTypeCheckCore {
 		Pattern p2 = (Pattern) innerIt.next();
 		if ( p1 == p2) continue;
 		
-		// first, the patterns must be iterating over types in the same
-		// hierarchy.
-		if ( !p1.reflectiveBaseType().subtype(p2.reflectiveBaseType()) &&
-		     !p2.reflectiveBaseType().subtype(p2.reflectiveBaseType()))
-		    continue;
-
-		if ( p1.isPositiveCondition() && p2.isPositiveCondition()) {
-		    // if p1 and p2 have same method argument types, but
-		    // different return types, then these conditions
-		    // are disjoint.
-		    List p1params = p1.substitutedParameters(uniMap);
-		    List p2params = p2.substitutedParameters(uniMap);
-		    
-		    if ( sameParameterLists(p1params,p2params))
-			continue;
-
-		    if ( !p1.getTypeAccess().type().substituteUniMap(uniMap).equals(p2.getTypeAccess().type().substituteUniMap(uniMap)))
-			return true;
-
-		} else if ( p1.isPositiveCondition() || p2.isPositiveCondition()) {
-		    // if p1 and p2 have exact same argument and return types.
-		    // then these conditions are disjoint.
-		    List p1params = p1.substitutedParameters(uniMap);
-		    List p2params = p2.substitutedParameters(uniMap);
-		    
-		    if ( !sameParameterLists(p1params,p2params))
-			continue;
-		    
-		    if ( p1.getTypeAccess().type().substituteUniMap(uniMap).equals(p2.getTypeAccess().type().substituteUniMap(uniMap)))
-			return true;
-		}
+		if (p1.isMutuallyExclusiveFrom(p2, uniMap))
+		    return true;
 	    }
 	}
 	return false;
     }
 
-    public boolean MethodDecl.sameParameterLists(List p1params, List p2params) {
-	if ( p1params.getNumChild() != p2params.getNumChild())
+    syn lazy boolean Pattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = false;
+    eq MethodPattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = p2.isMutuallyExclusiveFromMethodPattern(this, uniMap);
+    eq FieldPattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = p2.isMutuallyExclusiveFromFieldPattern(this, uniMap);
+    
+    syn lazy boolean Pattern.isMutuallyExclusiveFromFieldPattern(FieldPattern p2, Map uniMap) = false;
+    eq FieldPattern.isMutuallyExclusiveFromFieldPattern(FieldPattern p2, Map uniMap) {
+	// TODO
+	if ( isPositiveCondition() && p2.isPositiveCondition()) {
+
+	}
+
+	return false;
+    }
+
+    syn lazy boolean Pattern.isMutuallyExclusiveFromMethodPattern(MethodPattern p2, Map uniMap) = false;
+    eq MethodPattern.isMutuallyExclusiveFromMethodPattern(MethodPattern p2, Map uniMap) {
+	if ( isPositiveCondition() && p2.isPositiveCondition()) {
+	    // if p1 and p2 have same method argument types and name, but
+	    // different return types, then these conditions
+	    // are disjoint.
+	    TypeDecl rb = this.reflectiveBaseType().substitute(uniMap).type();
+	    TypeDecl p2rb = p2.reflectiveBaseType().substitute(uniMap).type();
+	    if ( ! rb.subtype(p2rb) && ! p2rb.subtype(rb))
+		return false;
+	    
+	    java.util.List p1params = substitutedParameterTypes(uniMap);
+	    java.util.List p2params = p2.substitutedParameterTypes(uniMap);
+
+	    if ( sameParameterLists(p1params,p2params))
+		return false;
+	    if ( !getTypeAccess().type().substitute(uniMap).type().equals(p2.getTypeAccess().type().substitute(uniMap).type()))
+		return true;
+	    
+	} else if ( isPositiveCondition() ) {
+	    // If this is +, p2 is -, and p2 subsumes this, then 
+	    // this and p2 are mutually exclusive
+	    return p2.subsumes(this, uniMap);
+	} else if ( p2.isPositiveCondition()) {
+	    return this.subsumes(p2, uniMap);
+	}
+	return false;
+    }
+
+    public boolean Pattern.sameParameterLists(java.util.List p1params, java.util.List p2params) {
+	if ( p1params.size() != p2params.size()) 
 	    return false;
-	for ( int i=0; i<p1params.getNumChild(); i++) {
-	    if (!p1params.getChild(i).equals(p2params.getChild(i)))
+	for ( int i=0; i<p1params.size(); i++) {
+	    if (!p1params.get(i).equals(p2params.get(i)))
 		return false;
 	}
 	return true;
     }
-
-    public List Pattern.substitutedParameters(Map uniMap) {
-	List l = new List();
-	for ( int i=0; i<getNumParameter(); i++) {
-	    List pl = getParameter(i).type().substituteUniMap(uniMap);
-	    for ( int j=0; j<pl.getNumChild(); j++)
-		l.add(pl.getChild(j));
-	}
-	return l;
-    }
-
-    syn List TypeDecl.substituteUniMap(Map uniMap) {
-	if ( uniMap.containsKey(this)) 
-	    return new List().add(((TypeDecl) uniMap.get(this)).substitute(uniMap));
-	return new List().add(this);
-    }
-    eq VectorTypeVariable.substituteUniMap(Map uniMap) {
-	if ( uniMap.containsKey(this)) {
-	    List types = (List) uniMap.get(this);
-	    for ( int i=0; i<types.getNumChild(); i++) {
-		types.setChild(((TypeDecl) types.getChild(i)).substituteUniMap(uniMap), i);
-	    }
-	}
-	return new List().add(this);
-    }
-    eq ParTypeDecl.substituteUniMap(Map uniMap) {
-	GenericTypeDecl g = (GenericTypeDecl) genericDecl();
-	ArrayList al = new ArrayList();
-	for ( int i=0; i<getNumArgument(); i++) {
-	    al.add(getArgument(i).type().substituteUniMap(uniMap));
-	}
-	return new List().add(g.lookupParTypeDecl(al));
-    }
-
 
     syn lazy boolean MethodDecl.canOnewayUnifyTo(MethodDecl m) {
 	return canUnifySignature(m, new HashMap(), 
@@ -221,7 +205,8 @@ aspect MJTypeCheckCore {
 	    int r = mods.unifiesWith(getModifier(i));
 	    if ( r > 0 ) continue;
 	    else if ( r < 0 ) return false;
-	    else if ( !declaredFromPattern()) return false;
+	    else if ( !declaredFromPattern() &&
+		      !mods.declaredFromPattern()) return false;
 	}
 	return true;
     }
@@ -254,7 +239,23 @@ aspect MJTypeCheckCore {
 						  Collection uniTypeVars,
 						  Collection uniNameVars ) {
 	if ( this == m ) return true;
+
 	// easiest thing to check is the names.
+	// first check whether the map contains mapping for either this's id
+	// or m's id.
+	/*
+	PatternNameVariable thisNv = getNameVariable(getID());
+	PatternNameVariable mNv = m.getNameVariable(m.getID());
+
+	Object thisMappedTo = 
+	    thisNv != null ? thisNv.substitute(uniMap) : null;
+	Object mMappedTo = mNv != null ? mNv.substitute(uniMap) : null;
+
+	if ( thisMappedTo != null && mMappedTo != null &&
+	     !thisMappedTo.equals(mMappedTo))
+	    return false;
+	*/
+	
 	if ( isNameVariable(getID(), uniNameVars)) {
 	    if ( m.isNameVariable(m.getID(), uniNameVars))
 		uniMap.put(getNameVariable(getID(), uniNameVars),
@@ -263,7 +264,9 @@ aspect MJTypeCheckCore {
 	} else if ( m.isNameVariable(m.getID(), uniNameVars))
 	    uniMap.put(m.getNameVariable(m.getID(), uniNameVars), 
 		       getID());
-	else return false;
+	else // both names are constant symbols.
+	    if ( !m.getID().equals(getID()))		
+		return false;
 	
 	// unify parameter types.
 	if ( !type().typeListUnifies(parameterTypes(), m.parameterTypes(), uniMap, uniTypeVars)) return false;
@@ -271,42 +274,89 @@ aspect MJTypeCheckCore {
 	return true;
     }
 
-    syn lazy boolean NestedPattern.implies(NestedPattern p, Map uniMap ) {
+    syn lazy boolean Pattern.implies(Pattern p, Map uniMap ) {
 	if ( this == p ) return true;
-	if ( getIsPositive() ^ p.getIsPositive()) return false;
+	if ( isPositive() ^ p.isPositive()) return false;
 	
-	if ( getIsPositive()) {
+	if ( isPositive()) {
 	    // +THIS implies +p iff p subsumes THIS
 	    return p.subsumes(this, uniMap);
 	} else
 	    // -THIS implies -p iff THIS subsumes p
 	    return subsumes(p, uniMap);
     }
-    eq TrueNestedPattern.implies(NestedPattern p, Map uniMap) = true;
+    eq TrueNestedPattern.implies(Pattern p, Map uniMap) = true;
 
-    syn lazy NestedPattern NestedPattern.difference(NestedPattern p, Map uniMap) {
-	if ( getIsPositive() && p.subsumes(this, uniMap) ||
-	     !getIsPositive() && this.subsumes(p, uniMap)) {
+    syn lazy Pattern Pattern.difference(Pattern p, Map uniMap) {
+	if ( isPositive() && p.subsumes(this, uniMap) ||
+	     !isPositive() && this.subsumes(p, uniMap)) {
 	    TrueNestedPattern tnp = new TrueNestedPattern(); 
 	    tnp.bypassErrorChecking = true;
 	    return tnp;
 	}
 	return this;
     }
-    eq TrueNestedPattern.difference(NestedPattern p, Map uniMap) {
+    eq TrueNestedPattern.difference(Pattern p, Map uniMap) {
 	if ( p instanceof TrueNestedPattern ) return this;
 
 	// flip the sign of p, apply mapping to rest.
-	NestedPattern np = p.substitute(uniMap);
-	np.setIsPositive(!p.getIsPositive());
+	Pattern np = p.substitute(uniMap);
+	np.flipSign();
 	return np;
     }
 
-    syn lazy boolean Pattern.subsumes(Pattern p, Map uniMap) {
+    syn lazy boolean Pattern.subsumes(Pattern p, Map uniMap) = false;
+    eq MethodPattern.subsumes(Pattern p, Map uniMap) = p.subsumedByMethodPattern(this, uniMap);
+    eq FieldPattern.subsumes(Pattern p, Map uniMap) = p.subsumedByFieldPattern(this, uniMap);
+
+    syn lazy boolean Pattern.subsumedByFieldPattern(FieldPattern p, Map uniMap) = false;
+    eq FieldPattern.subsumedByFieldPattern(FieldPattern p, Map uniMap) {
+	if ( this == p ) return true;
+	// this's base type must be a supertype of p's base type.
+	if ( !p.reflectiveBaseType().subtype(reflectiveBaseType()))
+	    return false;
+
+	// check that name can be unified.
+	Collection uniNameVars = p.patternNameVariables();
+	if ( isNameVariable(p.getID(), uniNameVars)) {
+	    if ( isNameVariable(getID()) )
+		uniMap.put(getNameVariable(p.getID(), uniNameVars),
+			   getNameVariable(getID()));
+	    else uniMap.put(getNameVariable(p.getID(), uniNameVars),getID());
+	    return true;
+	} else if ( isNameVariable(getID()) &&
+		    getID().equals(p.getID()))
+	    return true;
+	return false;
+    }
+    syn lazy PatternNameVariable FieldPattern.getNameVariable(String name, Collection uniNameVars) {
+	for ( Iterator nameIt = uniNameVars.iterator(); nameIt.hasNext(); ) {
+	    PatternNameVariable pv = (PatternNameVariable) nameIt.next();
+	    if ( pv.getID().equals(name) && 
+		 enclosingRefIterator() == pv.enclosingRefIterator())
+		return pv;
+	}
+	return null;
+    }
+    syn lazy boolean FieldPattern.isNameVariable(String name, Collection uniNameVars) {
+	for ( Iterator nameIt = uniNameVars.iterator(); nameIt.hasNext(); ) {
+	    PatternNameVariable pv = (PatternNameVariable) nameIt.next();
+	    if ( pv.getID().equals(name) && 
+		 enclosingRefIterator() == pv.enclosingRefIterator())
+		return true;
+	}
+	return false;
+    }
+
+    syn lazy boolean Pattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) = false;
+    eq MethodPattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) {
 	if ( this == p ) return true;
 
 	// this's base type must be a supertype of p's base type.
-	if ( !p.reflectiveBaseType().subtype(this.reflectiveBaseType()))
+	TypeDecl thisBaseType = reflectiveBaseType().substitute(uniMap).type();
+	TypeDecl pBaseType = p.reflectiveBaseType().substitute(uniMap).type();
+	//	if ( !p.reflectiveBaseType().subtype(reflectiveBaseType()))
+	if ( !pBaseType.subtype(thisBaseType))
 	    return false;
 	
 	// signitures must unify using this' type and name variables.
@@ -314,15 +364,16 @@ aspect MJTypeCheckCore {
 	PatternMethodDecl pMd = p.patternMethodDecl();
 
 	// name + arg types unify
-	if ( !thisMd.canUnifySignature(pMd, uniMap, patternTypeVariables(), patternNameVariables())) return false;
+	if ( !thisMd.canUnifySignature(pMd, uniMap, p.patternTypeVariables(), p.patternNameVariables())) return false;
 
 	// return types unify
-	if ( !getTypeAccess().type().unifiesWith(pMd.type(), uniMap, patternTypeVariables()))
+	//	if ( !getTypeAccess().type().unifiesWith(pMd.type(), uniMap, p.patternTypeVariables()))
+	if ( !pMd.type().unifiesWith(getTypeAccess().type(), uniMap, p.patternTypeVariables()))
 	    return false;
 
 	// exceptions must unify.
 	if ( !TypeDecl.typeListUnifies(exceptionTypes(),p.exceptionTypes(),
-				       uniMap, patternTypeVariables()))
+				       uniMap, p.patternTypeVariables()))
 	    return false;
 
 	return true;
@@ -341,19 +392,30 @@ aspect MJTypeCheckCore {
 	return list;
     }
 
-    public ArrayList Pattern.parameterTypes() {
+    public ArrayList MethodPattern.parameterTypes() {
 	ArrayList list = new ArrayList();
 	for ( int i=0; i<getNumParameter(); i++ )
 	    list.add(getParameter(i).type());
 	return list;	
     }
-    public ArrayList Pattern.exceptionTypes () {
+    public ArrayList NestedMethodPattern.parameterTypes() {
+	ArrayList list = new ArrayList();
+	for ( int i=0; i<getNumParameter(); i++ )
+	    list.add(getParameter(i).type());
+	return list;	
+    }
+    public ArrayList MethodPattern.exceptionTypes () {
 	ArrayList list = new ArrayList();
 	for ( int i=0; i<getNumException(); i++) 
 	    list.add(getException(i).type());
 	return list;
     }
-
+    public ArrayList NestedMethodPattern.exceptionTypes () {
+	ArrayList list = new ArrayList();
+	for ( int i=0; i<getNumException(); i++) 
+	    list.add(getException(i).type());
+	return list;
+    }
 
     refine Generics public void ParTypeAccess.typeCheck() {
 	Generics.ParTypeAccess.typeCheck();
@@ -390,8 +452,9 @@ aspect MJTypeCheckCore {
 
 	// type variables used in declaration must be bounded by the primary 
 	// pattern.
-	if ( t.isTypeVariable() && !bound((TypeVariable) t))
-	    error(t.fullName() + " is not bounded.");
+	if ( t.isTypeVariable() && !inPatterns() && !bound((TypeVariable) t))
+	    error(t.name() + " is not bound by a primary pattern " + 
+		  "and cannot be used in code.");
     }
 
     syn lazy boolean TypeAccess.fromImportDecl() {

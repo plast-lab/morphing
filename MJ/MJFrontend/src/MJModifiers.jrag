@@ -1,17 +1,35 @@
 aspect MJModifiers {
-    eq Pattern.getModifiers().mayBePublic() = true;
-    eq Pattern.getModifiers().mayBePrivate() = true;
-    eq Pattern.getModifiers().mayBeProtected() = true;
-    eq Pattern.getModifiers().mayBeStatic() = true;
-    eq Pattern.getModifiers().mayBeFinal() = true;
 
-    eq Pattern.getModifiers().mayBeAbstract() = getBaseSet().iterateMethods();
-    eq Pattern.getModifiers().mayBeSynchronized() = getBaseSet().iterateMethods();
-    eq Pattern.getModifiers().mayBeNative() = getBaseSet().iterateMethods();
-    eq Pattern.getModifiers().mayBeStrictfp() = getBaseSet().iterateMethods();
+    // Define what kind of modifiers are allowed in method patterns.
+    eq MethodPattern.getModifiers().mayBePublic() = true;
+    eq MethodPattern.getModifiers().mayBePrivate() = true;
+    eq MethodPattern.getModifiers().mayBeProtected() = true;
+    eq MethodPattern.getModifiers().mayBeStatic() = true;
+    eq MethodPattern.getModifiers().mayBeFinal() = true;
+    eq MethodPattern.getModifiers().mayBeAbstract() = true;
+    eq MethodPattern.getModifiers().mayBeSynchronized() = true;
+    eq MethodPattern.getModifiers().mayBeNative() = true;
+    eq MethodPattern.getModifiers().mayBeStrictfp() = true;
 
-    eq Pattern.getModifiers().mayBeTransient() = getBaseSet().iterateFields();
-    eq Pattern.getModifiers().mayBeVolatile() = getBaseSet().iterateFields();
+
+    // define what kind of modifiers are allowed in field patterns.
+    /*
+    eq FieldPattern.getModifiers().maybePublic() = true;
+    eq FieldPattern.getModifiers().maybePrivate() = true;
+    eq FieldPattern.getModifiers().maybeProtected() = true;
+    eq FieldPattern.getModifiers().mayBeStatic() = true;
+    eq FieldPattern.getModifiers().mayBeFinal() = true;
+    eq FieldPattern.getModifiers().mayBeTransient() = true;
+    eq FieldPattern.getModifiers().mayBeVolatile() = true;
+
+    eq NestedFieldPattern.getModifiers().maybePublic() = true;
+    eq NestedFieldPattern.getModifiers().maybePrivate() = true;
+    eq NestedFieldPattern.getModifiers().maybeProtected() = true;
+    eq NestedFieldPattern.getModifiers().mayBeStatic() = true;
+    eq NestedFieldPattern.getModifiers().mayBeFinal() = true;
+    eq NestedFieldPattern.getModifiers().mayBeTransient() = true;
+    eq NestedFieldPattern.getModifiers().mayBeVolatile() = true;
+    */
 
     syn lazy Collection<StaticForMethodDecl> TypeDecl.unimplementedTypeVariableMethods() = Collections.EMPTY_LIST;
     eq ClassDecl.unimplementedTypeVariableMethods() { 
@@ -52,13 +70,16 @@ aspect MJModifiers {
 	// 6. modifiers must be public, non-static, non-final
 	// 7. declared methods copy signature of pattern exactly
 	Pattern pp = getIteratorDecl().getPattern();
+	if ( !pp.isMethodPattern() ) return false;
+
+	MethodPattern mp = (MethodPattern) pp;
 	if ( reflectiveBaseType().subtype(iface) // 1.
-	     && pp.getBaseSet().iterateMethods() // 2.
-	     && pp.isNameVariable(pp.getID()) // 3.
-	     && pp.getNumParameter() == 1 && pp.getParameter(0).type().isVectorTypeVariable() // 4.
-	     && pp.getNumException() == 1 && pp.getException(0).type().isVectorTypeVariable() // 5.
-	     && pp.getModifiers().possiblyPublic() && !pp.getModifiers().isStatic() && !pp.getModifiers().isFinal() // 6.
-	     && pp.sameSignature(this) // 7.
+	     && mp.getBaseSet().iterateMethods() // 2.
+	     && mp.isNameVariable(mp.getID()) // 3.
+	     && mp.getNumParameter() == 1 && mp.getParameter(0).type().isVectorTypeVariable() // 4.
+	     && mp.getNumException() == 1 && mp.getException(0).type().isVectorTypeVariable() // 5.
+	     && mp.getModifiers().possiblyPublic() && !mp.getModifiers().isStatic() && !mp.getModifiers().isFinal() // 6.
+	     && mp.sameSignature(this) // 7.
 	     ) return true;
 	return false;
     }
@@ -134,7 +155,7 @@ aspect MJModifiers {
 	return changed;
     }
 
-    public boolean Pattern.sameSignature(MethodDecl md) {
+    public boolean MethodPattern.sameSignature(MethodDecl md) {
 	// return type.
 	if ( getTypeAccess().type() != md.type()) return false;
 	
@@ -154,7 +175,6 @@ aspect MJModifiers {
 
 	return true;
     }
-    		 
     refine Modifiers public void TypeDecl.checkModifiers() {
 	Modifiers.TypeDecl.checkModifiers();
 	Collection<StaticForMethodDecl> c = unimplementedTypeVariableMethods();
@@ -183,12 +203,16 @@ aspect MJModifiers {
     eq Program.getChild().possiblyPublic() = false;
     eq TypeDecl.getBodyDecl().possiblyPublic() = false;
 
-    eq Pattern.getModifiers().possiblyPublic() = 
+    eq MethodPattern.getModifiers().possiblyPublic() = 
 	getModifiers().isPublic() || 
 	( !getModifiers().isPublic() && 
 	  getModifiers().numModifier("private") == 0 &&
 	  getModifiers().numNegativeModifier("public") == 0 );
-
+    eq FieldPattern.getModifiers().possiblyPublic() = 
+	getModifiers().isPublic() || 
+	( !getModifiers().isPublic() && 
+	  getModifiers().numModifier("private") == 0 &&
+	  getModifiers().numNegativeModifier("public") == 0 );
     syn lazy boolean Modifier.isNegative() = false;
     eq NegativeModifier.isNegative() = true;
 

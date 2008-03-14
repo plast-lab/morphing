@@ -200,7 +200,10 @@ aspect MJAttributes {
 	}
 	return buf.toString();
     }
-    syn String Pattern.signature() {
+    syn String Pattern.signature() { 
+	throw new Error("signature() unsupported by " + getClass().getName());
+    }
+    syn String MethodPattern.signature() {
 	PatternMethodDecl md = patternMethodDecl();
 	StringBuffer buf = new StringBuffer(md.methodTypeSignature());
 	// append method name.
@@ -217,7 +220,7 @@ aspect MJAttributes {
 	buf.append(getBaseSet().signature());
 	return buf.toString();
     }
-    syn String NestedPattern.signature() {
+    syn String NestedMethodPattern.signature() {
 	StringBuffer buf = new StringBuffer();
 	if ( getIsPositive()) buf.append("+");
 	else buf.append("-");

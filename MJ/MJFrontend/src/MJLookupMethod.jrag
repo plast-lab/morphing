@@ -134,29 +134,44 @@ aspect MJLookupMethod {
 	return LookupMethod.AbstractDot.getRight().lookupMethod(name);
     }
 
+    syn lazy boolean Pattern.identifiedBy(PatternNameVariable name) = false;
+    eq MethodPattern.identifiedBy(PatternNameVariable name) = name.getID().equals(getID());
+    eq FieldPattern.identifiedBy(PatternNameVariable name) = name.getID().equals(getID());
+	
+
     syn Collection TypeDecl.memberMethods(PatternNameVariable name) = Collections.EMPTY_LIST;
 
     eq TypeVariable.memberMethods(PatternNameVariable name) {
 	Collection methods = new ArrayList();
 
-	if ( name.reflectiveBaseType() == this ) 
+	IteratorDecl id = name.enclosingRefIterator();
+	if ( name.reflectiveBaseType() == this &&
+	     id.getPattern().isMethodPattern() &&
+	     id.getPattern().identifiedBy(name) )
 	    // If the name is exactly what is used to match on the outermost
 	    // reflective loop, then the method designated by the name is
 	    // exactly what is specified by the pattern.
-	    methods.add(name.enclosingRefIterator().getPattern().patternMethodDecl());
-	else if ( false ) {
-	    // TODO
-	    // otherwise, if :
-	    // 1. the type is the reflective base type for a nested pattern, AND
-	    // 2. name is the name variable used in the nested pattern, AND
-	    // 3. the nested pattern is guaranteed to have a range of exactly one.
-	    // then again the method is what's specified by the nested pattern.
-
-	} else {
-	    // look into bounds.
-	    for ( int i=0; i<getNumTypeBound(); i++) {
-		methods.addAll(getTypeBound(i).type().memberMethods(name));
+	    methods.add(id.getPattern().patternMethodDecl());
+	else {
+	    for ( int i=0; i<id.getNumNestedPattern(); i++) {
+		// otherwise, if :
+		// 1. type is reflective base type for a nested pattern, AND
+		// 2. nested pattern is positieve AND
+		// 3. pattern is a method pattern AND
+		// 4. name is the name variable used in the nested pattern, AND
+		// 5. the nested pattern has a range of exactly one.
+		// then again the method is what's specified by the nested pattern.
+		Pattern np = id.getNestedPattern(i);
+		if ( np.isPositive() && np.getBaseSet().type() == this &&
+		     np.isMethodPattern() && np.identifiedBy(name) &&
+		     np.exactlyRangeOfOne()) {
+		    methods.add(np.patternMethodDecl());
+		}
 	    }
+	} 
+	// look into bounds.
+	for ( int i=0; i<getNumTypeBound(); i++) {
+	    methods.addAll(getTypeBound(i).type().memberMethods(name));
 	}
 	return methods;
     }
@@ -283,64 +298,6 @@ aspect MJLookupMethod {
 	    };
     }
     
-
-    public List List.expandParameterList(Map submap ) {
-	List list = new List();
-	for ( int i=0; i<getNumChild(); i++) {
-	    ParameterDeclaration node = (ParameterDeclaration) getChild(i);
-	    TypeDecl argType = node.getTypeAccess().type();
-
-	    // call substitution first.
-	    Access argAccess = argType.substitute(submap);
-	    TypeDecl subArgType = argAccess.type();
-
-	    if ( subArgType.isVectorTypeVariable()) {
-		List argTypes = subArgType.expandAccessList(submap);
-		for ( int j=0; j<argTypes.getNumChild(); j++) {
-		    ParameterDeclaration newNode = 
-			new ParameterDeclaration((Modifiers) node.getModifiers().fullCopy(),
-						 (Access) argTypes.getChild(j),
-						 node.getID() + j);
-		    list.add(newNode);
-		}
-	    } else {
-		ParameterDeclaration newNode = 
-		    new ParameterDeclaration((Modifiers) node.getModifiers().fullCopy(),
-					     argAccess,
-					     node.getID());
-		list.add(newNode);
-	    }
-	}
-	return list;
-    }
-
-    public List List.expandAccessList(Map submap) {
-	List list = new List();
-	for ( int i=0; i<getNumChild(); i++) {
-	    Access node = (Access) getChild(i);
-	    List subs = node.type().expandAccessList(submap);
-	    for ( int j=0; j<subs.getNumChild(); j++)
-		list.add(subs.getChild(j));
-	}
-	return list;
-    }
-    syn lazy List TypeDecl.expandAccessList(Map submap ) {
-	return new List().add(substitute(submap));
-    }
-    eq VectorTypeVariable.expandAccessList(Map submap) {
-	List subed = new List();
-
-	// check whether there is a map for this type in submap.
-	if ( submap.containsKey(this))
-	    return ((TypeDecl) submap.get(this)).expandAccessList(submap);
-
-	for ( int i=0; i<getNumMatchedVectorTypeVariable(); i++) {
-	    MatchedVectorTypeVariable t = getMatchedVectorTypeVariable(i);
-	    if ( submap.containsKey(t) && submap.get(t) != null )
-		subed.add(((TypeDecl) submap.get(t)).substitute(submap));
-	}
-	return subed;
-    }
 
     syn lazy List<? extends MethodDecl> MethodDecl.expandedMethods () = new List().add(this);
     eq StaticForMethodDecl.expandedMethods() = new List<MethodDecl>();

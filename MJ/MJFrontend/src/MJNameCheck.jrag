@@ -46,13 +46,14 @@ aspect MJNameCheck {
 						      new List());
 	PatternNameVariable m = new PatternNameVariable("m");
 
-	Pattern p = new Pattern(new Modifiers(), 
-				returnType.createQualifiedAccess(),"m",
-				new List().add(A.createQualifiedAccess()),
-				new List().add(E.createQualifiedAccess()),
-				new BaseSet(createQualifiedAccess(), 
-					    new RefElmt("methods")),
-				new Opt());
+	Pattern p = new MethodPattern(new BaseSet(createQualifiedAccess(), 
+						  new RefElmt("methods")),
+				      new Modifiers(), 
+				      returnType.createQualifiedAccess(),"m",
+				      new List().add(A.createQualifiedAccess()),
+				      new List().add(E.createQualifiedAccess()),
+				     
+				      new Opt());
 	List patternTypeVariables = new List().add(A).add(E);
 	if ( returnType instanceof PatternTypeVariable )
 	    patternTypeVariables.add(returnType);
@@ -90,13 +91,13 @@ aspect MJNameCheck {
 						      new List().add(typeThrowable().createBoundAccess()),
 						      new List());
 	PatternNameVariable m = new PatternNameVariable("m");
-	Pattern p = new Pattern(new Modifiers(),
-				R.createQualifiedAccess(),"m",
-				new List().add(A.createQualifiedAccess()),
-				new List().add(E.createQualifiedAccess()),
-				new BaseSet(createQualifiedAccess(), 
-					    new RefElmt("methods")),
-				new Opt());
+	Pattern p = new MethodPattern(new BaseSet(createQualifiedAccess(), 
+						  new RefElmt("methods")),
+				      new Modifiers(),
+				      R.createQualifiedAccess(),"m",
+				      new List().add(A.createQualifiedAccess()),
+				      new List().add(E.createQualifiedAccess()),
+				      new Opt());
 				
 	IteratorDecl id = new IteratorDecl(new List().add(R).add(A).add(E),
 					   new List().add(m),
