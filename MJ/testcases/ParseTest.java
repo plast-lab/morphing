@@ -22,6 +22,31 @@ class MultipleNestedPattern<X,Y> {
     R m () { return null; }
 }
 
+class FieldPattern<X> {
+    <F>[f] for ( F f : X.fields )
+    F f;
+}
+
+class OptionalReturnType<X> {
+    <A>[m] for ( void m (A) : X.methods; no m (A) : X.methods )
+	void m (A args) { }
+}
+
+class OptionalReturnType2<X> {
+    <R,A>[m] for ( m (A) : X.methods; no R m (A) : X.methods )
+	void m (A args) { }
+}
+
+class OptionalFieldType<X> {
+    <R,A>[m] for ( void m (A) : X.methods; no m : X.fields )
+    void m (A args) { }
+}
+
+class OptionalFieldType2<X> {
+    <R,A>[m] for ( m : X.fields; some R m(A) : X.methods )
+    void m (A args) { }
+}
+
 class Statement<X> {
     X x;
 
@@ -70,5 +95,5 @@ class Statement<X> {
 	<A* extends Object,R extends Object>[m] for (R m(A): X.methods)
 	x.m();
     }
-
 }
+
