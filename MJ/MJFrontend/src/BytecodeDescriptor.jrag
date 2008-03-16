@@ -281,6 +281,8 @@ aspect BytecodeDescriptor {
           return new ArrayTypeAccess(type(s.substring(1)));
         case 'V':
           return new PrimitiveTypeAccess("void");
+      case 'T':
+	  return new TypeAccess(s.substring(1, s.length() - 1));
         default:
           this.p.println("Error: unknown type in TypeDescriptor");
           throw new Error("Error: unknown Type in TypeDescriptor: " + s);
@@ -350,6 +352,13 @@ aspect BytecodeDescriptor {
                 this.p.fromClassName(s1),
                 "p" + l.getNumChildNoTransform()));
           return s2;
+      case 'T':
+          int post = s.indexOf(';');
+          String s1t = s.substring(1, post);
+          String s2t = s.substring(post+1, s.length());
+          l.add(new ParameterDeclaration(new Modifiers(),new TypeAccess(s1t),
+					 "p" + l.getNumChildNoTransform()));
+          return s2t;
         case '[':
           int i = 1;
           while(s.charAt(i) == '[') i++;

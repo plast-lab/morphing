@@ -1,5 +1,5 @@
 aspect MJExpansionProperties {
-    public boolean TypeDecl.expansionAttribute = false;
+    //    public boolean TypeDecl.expansionAttribute = false;
 
     syn lazy boolean TypeDecl.grounded() circular [false] = true;
     /**
@@ -29,7 +29,7 @@ aspect MJExpansionProperties {
 	return false;
     }
     eq TypeDecl.needsExpansion() {
-	if ( !compilationUnit().fromSource()) return expansionAttribute;
+	//	if ( !compilationUnit().fromSource()) return expansionAttribute;
 	if ( this.isObject()) return false;
 
 	// check all body decls.

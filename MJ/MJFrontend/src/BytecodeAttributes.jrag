@@ -291,9 +291,11 @@ aspect BytecodeAttributes {
           }
         }
 	// -- Added for MJFrontend -- ssh
+	/*
 	else if (attribute_name.equals("NeedsExpansion")) {
 	    typeDecl.expansionAttribute = true;
 	}
+	*/
         else {
           super.processAttribute(attribute_name, attribute_length);
         }

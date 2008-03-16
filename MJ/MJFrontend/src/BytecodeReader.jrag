@@ -604,11 +604,15 @@ aspect BytecodeReader {
       protected List superinterfaceSignature = new List(); 
 
       Access parseSuperclassSignature() {
-        return classTypeSignature();
+	  if ( next("L"))
+	      return classTypeSignature();
+	  return typeVariableSignature();
       }
 
       Access parseSuperinterfaceSignature() {
-        return classTypeSignature();
+	  if ( next("L"))
+	      return classTypeSignature();
+	  return typeVariableSignature();
       }
     }
 
@@ -775,25 +779,25 @@ aspect BytecodeReader {
 	  }
 
 	  TypeVariable patternTypeParameter() {
+	      eat("T");
+
 	      String id = identifier();
 
 	      // may have *
 	      boolean isVector = false;
-	      if ( data.charAt(pos) == '*')
+	      if ( data.charAt(pos) == '*') {
 		  isVector = true;
+		  eat("*");
+	      }
 
 	      List bounds = new List();
-	      Access classBound = classBound();
-	      if(classBound != null)
-		  bounds.add(classBound);
 	      while(next(":")) {
 		  bounds.add(interfaceBound());
 	      }
-	      if(bounds.getNumChild() == 0)
-		  bounds.add(new TypeAccess("java.lang", "Object"));
+	      if ( bounds.getNumChild() == 0) eat(";");
 	      if ( isVector )
 		  return new VectorTypeVariable(new Modifiers(new List()), id, new List(), bounds, new List());
-	      else return new TypeVariable(new Modifiers(new List()), id, new List(), bounds);
+	      else return new PatternTypeVariable(new Modifiers(new List()), id, new List(), bounds);
 	  }
 	  
       }

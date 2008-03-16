@@ -41,30 +41,12 @@ List staticfor_body =
 
 IteratorDecl staticfor_stmt_header = 
     pattern_type_parameter_list_2.l? pattern_name_parameter_list.n? FOR LPAREN pattern.p nested_patterns.np? RPAREN 
-    {: 
-/*
-	if ( np.getNumChildNoTransform() == 0 ) {
-	  TrueNestedPattern tnp = new TrueNestedPattern();
-  	  tnp.bypassErrorChecking = true;
-          np.add(tnp);
-        }
-*/
-	return new IteratorDecl(l, n, p, np);
-    :}
+    {: return new IteratorDecl(l, n, p, np); :}
     ;
 
 IteratorDecl staticfor_header = 
     pattern_type_parameter_list.l? pattern_name_parameter_list.n? FOR LPAREN pattern.p nested_patterns.np? RPAREN 
-    {: 
-/*
-	if ( np.getNumChildNoTransform() == 0 ) {
-	  TrueNestedPattern tnp = new TrueNestedPattern();
-  	  tnp.bypassErrorChecking = true;
-          np.add(tnp);
-        }
-*/
-	return new IteratorDecl(l, n, p, np);
-    :}
+    {: return new IteratorDecl(l, n, p, np); :}
   ;  
 
 List pattern_type_parameter_list =

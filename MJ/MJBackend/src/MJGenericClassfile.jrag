@@ -47,7 +47,29 @@ aspect MJGenerateClassfile {
 
     protected String ParClassDecl.sourceFile() {
 	TypeDecl gt = genericDecl();
-	String outFileName = gt.destinationPath() + File.separator + expandedConstantPoolName() + ".class";
+
+	String outDir = null;
+	String destPath = gt.destinationPath();
+	
+	String filePath = expandedConstantPoolName().substring(0, expandedConstantPoolName().lastIndexOf(File.separator));
+
+	if ( gt.compilationUnit().fromSource()) 
+	    outDir = destPath + File.separator + filePath;
+	else
+	    outDir = destPath.substring(0, destPath.lastIndexOf(File.separator) + 1);
+
+	String outFileName = null;
+
+	// check whether outDir is writeable.
+	File outDirFile = new File(outDir);
+	if ( !outDirFile.canWrite()) {
+	    // TODO: write into output dir + expandedConstantPoolName
+	    if(Program.hasValueForOption("-d")) 
+		outFileName = Program.getValueForOption("-d");
+	    else outFileName = ".";
+	    outFileName += expandedConstantPoolName();
+	} else 
+	    outFileName = outDirFile + File.separator + expandedName() + ".class";
 	return outFileName;
     }
 
@@ -87,7 +109,10 @@ aspect MJGenerateClassfile {
 		}
 	    }
 
-	    String gtSource = gt.destinationPath() + File.separator + gt.constantPoolName() + ".class";
+	    String gtSource = gt.compilationUnit().fromSource() ? 
+		gt.destinationPath() + File.separator + gt.constantPoolName() + ".class"
+		: gt.destinationPath();
+
 	    String outFileName = sourceFile();
 
 	    if(Program.verbose()) 
