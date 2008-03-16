@@ -7,6 +7,24 @@ import testcases.*;
 
 public class BasicTest2 extends TestCase {
 
+    @Test public void testSynchronizedList () {
+	List myList = new ArrayList();
+	SynchronizeMe<List> synchronizedList = 
+	    new SynchronizeMe<List>(myList);
+	synchronizedList.add("a");
+	synchronizedList.add("b");
+
+	int lsize = synchronizedList.size();
+	assertTrue(lsize == 2);
+
+	List sublist = synchronizedList.subList(0,1);
+	int newsize = sublist.size();
+	assertTrue(newsize == 1);
+
+	myList.clear();
+	assertTrue(myList.size() == 0 );
+    }
+
     @Test public void testDefaultImplementation() {
 	IncompleteList il = new IncompleteList();
 
@@ -50,6 +68,13 @@ public class BasicTest2 extends TestCase {
 	DefaultImplementation<IncompleteList, List> l = 
 	    new DefaultImplementation<IncompleteList, List>(il);
 
+	assertTrue(l.indexOf(null) == 0);
+    }
+
+    @Test public void testDefaultImplementation6() {
+	IncompleteList il = new IncompleteList();
+
+	List l = new DefaultImplementation<IncompleteList, List>(il);
 	assertTrue(l.indexOf(null) == 0);
     }
 
