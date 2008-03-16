@@ -46,4 +46,48 @@ aspect MJMixin {
 	}
 	return set;
     }
+
+    syn lazy boolean TypeDecl.isMixin () = false;
+    eq GenericClassDecl.isMixin() {
+	if ( hasSuperclass() && superclass().isTypeVariable()) return true;
+	for (Iterator ifIt = interfacesIterator(); ifIt.hasNext(); ) {
+	    if ( ((TypeDecl)ifIt.next()).isTypeVariable()) return true;
+	}
+	return false;
+    }
+    eq GenericInterfaceDecl.isMixin() {
+	for (Iterator ifIt = superinterfacesIterator(); ifIt.hasNext(); ) {
+	    if ( ((TypeDecl) ifIt.next()).isTypeVariable()) return true;
+	}
+	return false;
+    }
+
+    refine GenericsSubtype eq ParInterfaceDecl.supertypeParClassDecl(ParClassDecl type) {
+	if ( type.genericDecl().isMixin()) {
+	    // test the mixin supertype.
+	    if ( type.hasSuperclass() && type.superclass().subtype(this))
+		return true;
+	    for ( Iterator ifIt = type.interfacesIterator(); ifIt.hasNext(); )
+		if ( ((TypeDecl) ifIt.next()).subtype(this))
+		    return true;
+	}
+	return GenericsSubtype.ParInterfaceDecl.supertypeParClassDecl(type);
+    }
+
+    refine GenericsSubtype eq ParClassDecl.supertypeParClassDecl(ParClassDecl type) {
+	if ( type.genericDecl().isMixin() &&
+	     type.hasSuperclass() && type.superclass().subtype(this))
+	    return true;
+	return GenericsSubtype.ParClassDecl.supertypeParClassDecl(type);
+    }
+    
+    refine GenericsSubtype eq ParInterfaceDecl.supertypeParInterfaceDecl(ParInterfaceDecl type) {
+	if ( type.genericDecl().isMixin()) {
+	    for (Iterator ifIt = type.superinterfacesIterator(); ifIt.hasNext(); ) {
+		if ( ((TypeDecl) ifIt.next()).subtype(this))
+		    return true;
+	    }
+	}
+	return GenericsSubtype.ParInterfaceDecl.supertypeParInterfaceDecl(type);
+    }
 }
