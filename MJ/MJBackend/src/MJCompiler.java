@@ -23,6 +23,12 @@ class MJCompiler extends Frontend {
 			for (java.util.Iterator iter = compiler.program
 					.compilationUnitIterator(); iter.hasNext();) {
 				CompilationUnit unit = (CompilationUnit) iter.next();
+				
+				if(unit.fromSource()) {
+					unit.transformation();
+			  		unit.generateClassfile();
+				}
+				
 				for (int i = 0; i < unit.getNumTypeDecl(); i++) {
 					TypeDecl td = unit.getTypeDecl(i);
 					if (td.isGenericType() && td.needsExpansion()) {
@@ -59,12 +65,12 @@ class MJCompiler extends Frontend {
 		}
 		return b;
 	}
-
+/*
 	protected void processNoErrors(CompilationUnit unit) {
-		// expansionTypes.addAll(unit.collectExpansionTypes());
 		unit.transformation();
 		unit.generateClassfile();
 	}
+	*/
 
 	protected String name() {
 		return "MJCompiler";
