@@ -51,7 +51,16 @@ aspect MJGenerateClassfile {
 	return outFileName;
     }
 
-    boolean ParClassDecl.generated = false;
+    public boolean TypeDecl.generated = false;
+    refine GenerateClassfile public void ClassDecl.generateClassfile() {
+	GenerateClassfile.ClassDecl.generateClassfile();
+	generated = true;
+    }
+    refine GenerateClassfile public void InterfaceDecl.generateClassfile() {
+	GenerateClassfile.InterfaceDecl.generateClassfile();
+	generated = true;
+    }
+
     public void ParClassDecl.generateClassfile() {
 	if ( generated ) return;
 	try {
@@ -60,6 +69,24 @@ aspect MJGenerateClassfile {
 	    // TODO: should check whether gt already exists and has the proper
 	    // timestamp: i.e. its timestamp is newer than the timestamp of its
 	    // generic decl as well as all type arguments.
+
+	    // Check that all type arguments can be accessed from this
+	    // package. If not, 
+	    // - warn user.
+	    // - increase visibility of type argument.
+	    for ( int i=0; i<getNumArgument(); i++) {
+		TypeDecl at = getArgument(i).type();
+		if ( !at.accessibleFrom(this)) {
+		    // warn user.
+		    System.out.println(at.fullName() + 
+				       " cannot be accessed from " +
+				       nameWithArgs() + ". Increasing " +
+				       "visibility of " + 
+				       at.fullName() + " to public.");
+		    at.makePublic();
+		}
+	    }
+
 	    String gtSource = gt.destinationPath() + File.separator + gt.constantPoolName() + ".class";
 	    String outFileName = sourceFile();
 
@@ -89,7 +116,9 @@ aspect MJGenerateClassfile {
 	    DataOutputStream out = new DataOutputStream(new BufferedOutputStream(f));
 	    
 	    out.write(cw.toByteArray());
+
 	    out.close();
+	    fis.close();
 
 	    generated = true;
 	} catch (IOException e) {

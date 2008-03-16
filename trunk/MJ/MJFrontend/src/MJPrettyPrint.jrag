@@ -108,6 +108,7 @@ aspect MJPrettyPrint {
 	getBaseSet().toString(buf);
 	buf.append(";");
     }
+    public void TrueNestedPattern.toString(StringBuffer buf) {}
 
     public void BaseSet.toString(StringBuffer buf) {
 	getTypeAccess().toString(buf);

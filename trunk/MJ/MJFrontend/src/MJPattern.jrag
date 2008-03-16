@@ -407,6 +407,14 @@ aspect MJPattern {
 	setIsPositive(!getIsPositive());
     }
 
+    rewrite IteratorDecl {
+	when ( getNumNestedPattern() == 0 ) to IteratorDecl {
+	    TrueNestedPattern tnp = new TrueNestedPattern();
+	    tnp.bypassErrorChecking = true;
+	    addNestedPattern(tnp);
+	    return this;
+	}
+    }
     // Rewrite patterns with missing types to patterns where the type
     // is AllMatchingTypeVariable.
     rewrite OptFieldPattern {

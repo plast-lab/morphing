@@ -364,6 +364,7 @@ aspect MJUnification {
 	    return true;
 	return false;
     }
+    eq InterfaceDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars ) = c.isObject(); 
 
     syn lazy boolean TypeDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) = substitute(uniMap) == i.substitute(uniMap);
     eq ClassDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {

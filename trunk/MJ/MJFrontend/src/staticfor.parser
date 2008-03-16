@@ -42,11 +42,13 @@ List staticfor_body =
 IteratorDecl staticfor_stmt_header = 
     pattern_type_parameter_list_2.l? pattern_name_parameter_list.n? FOR LPAREN pattern.p nested_patterns.np? RPAREN 
     {: 
+/*
 	if ( np.getNumChildNoTransform() == 0 ) {
 	  TrueNestedPattern tnp = new TrueNestedPattern();
   	  tnp.bypassErrorChecking = true;
           np.add(tnp);
         }
+*/
 	return new IteratorDecl(l, n, p, np);
     :}
     ;
@@ -54,11 +56,13 @@ IteratorDecl staticfor_stmt_header =
 IteratorDecl staticfor_header = 
     pattern_type_parameter_list.l? pattern_name_parameter_list.n? FOR LPAREN pattern.p nested_patterns.np? RPAREN 
     {: 
+/*
 	if ( np.getNumChildNoTransform() == 0 ) {
 	  TrueNestedPattern tnp = new TrueNestedPattern();
   	  tnp.bypassErrorChecking = true;
           np.add(tnp);
         }
+*/
 	return new IteratorDecl(l, n, p, np);
     :}
   ;  
@@ -71,9 +75,12 @@ List pattern_type_parameter_list_1 =
     {: 
 	List l2 = new List();
 	for ( int i=0; i<l.getNumChildNoTransform(); i++) {
-	  if ( !(l.getChildNoTransform(i) instanceof PatternTypeVariable) ) 
-		  l2.add(new PatternTypeVariable(new Modifiers(), ((TypeVariable) l.getChildNoTransform(i)).getID(), new List(), new List()));
-	  else l2.add(l.getChildNoTransform(i));
+	  TypeVariable tv = (TypeVariable) l.getChildNoTransform(i); 	
+	  if ( !(tv instanceof PatternTypeVariable) )
+		  l2.add(new PatternTypeVariable(tv.getModifiersNoTransform(),
+                                                 tv.getID(), 
+                                                 tv.getBodyDeclListNoTransform(), tv.getTypeBoundListNoTransform()));
+	  else l2.add(tv);
 	}				
 	return l2;	
     :}
