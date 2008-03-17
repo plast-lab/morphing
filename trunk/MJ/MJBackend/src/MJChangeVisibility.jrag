@@ -1,0 +1,67 @@
+aspect MJChangeVisibility {
+    public void TypeDecl.makePublic() {
+	if ( generated || !compilationUnit().fromSource())
+	    makePublicInClassfile();
+	else 
+	    makePublicInASTNode();
+    }
+
+    public void TypeDecl.makePublicInClassfile() {
+	try {
+	    // change in classfile.
+	    String source = destinationPath() + File.separator + 
+		constantPoolName() + ".class";	    
+	    File thisFile = new File(source);
+	    FileInputStream fis = new FileInputStream(thisFile);
+
+	    // load class.
+	    ClassReader cr = new ClassReader(fis);
+	    ClassNode cn = new ClassNode();
+	    cr.accept(cn, 
+		      new org.objectweb.asm.Attribute[] { new ASMIteratorDeclAttribute("") }, 
+		      0);
+
+	    // change modifier.
+	    cn.access ^= org.objectweb.asm.Opcodes.ACC_PRIVATE;
+	    cn.access ^= org.objectweb.asm.Opcodes.ACC_PROTECTED;
+	    cn.access |= org.objectweb.asm.Opcodes.ACC_PUBLIC;
+
+	    fis.close();
+
+	    // write class.
+	    ClassWriter cw = new ClassWriter(0);
+	    cn.accept(cw);
+	    
+	    FileOutputStream f = new FileOutputStream(thisFile);
+	    DataOutputStream out = new DataOutputStream(new BufferedOutputStream(f));
+	    
+	    out.write(cw.toByteArray());
+	    
+	    out.close();
+	} catch (IOException e) {
+	    e.printStackTrace();
+	}
+    }
+
+    public void TypeDecl.makePublicInASTNode() {
+	// change modifiers.
+	Modifiers mods = getModifiers();
+	mods.removeModifier("private");
+	mods.removeModifier("protected");
+	mods.addModifier(new Modifier("public"));
+
+	mods.flushCache();
+	isPublic_computed = false;
+    }
+
+    public void Modifiers.removeModifier(String p) {
+	for ( int i=0; i<getNumModifier(); i++) {
+	    if ( getModifier(i).getID().equals(p)) {
+		removeChild(i);
+		break;
+	    }
+	}
+
+	is$Final = false;
+    }
+}
