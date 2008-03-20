@@ -10,14 +10,18 @@ PatternNameVariable ::= <ID:String>;
 StaticForDecl : MemberDecl ::= IteratorDecl BodyDecl*;
 
 StaticForConstructorDecl : ConstructorDecl ::= IteratorDecl;
+ParStaticForConstructorDecl : StaticForConstructorDecl ::= ExpandedConstructorDecl*;
+ExpandedConstructorDecl : ConstructorDecl;
+
 StaticForMethodDecl : MethodDecl ::= IteratorDecl DecompiledAccess:Access* ;
 ParStaticForMethodDecl : StaticForMethodDecl ::= ExpandedMethodDecl*; 
 ExpandedMethodDecl : MethodDecl;
 
 StaticForFieldDeclaration : FieldDeclaration ::=  IteratorDecl;
+ParStaticForFieldDeclaration : StaticForFieldDeclaration ::= ExpandedFieldDeclaration*;
+ExpandedFieldDeclaration : FieldDeclaration;
 
 StaticForStmt : Stmt ::= IteratorDecl Stmt*;
-StaticForStatement : Stmt ::= IteratorDecl Stmt;
 
 IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern:Pattern*;
 ParIteratorDecl : IteratorDecl;
@@ -30,9 +34,9 @@ OptNestedMethodPattern : OptMethodPattern ::= <IsPositive:boolean>;
 OptFieldPattern : Pattern ::= Modifiers [TypeAccess:Access] <ID:String>;
 OptNestedFieldPattern : OptFieldPattern ::= <IsPositive:boolean>;
 
-MethodPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* Exception:Access*  [PatternMethodDecl];
+MethodPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* Exception:Access*  [PatternMethodDecl] SubMethodPattern:MethodPattern*;
 
-FieldPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String>;
+FieldPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String> [PatternFieldDeclaration] SubFieldPattern:FieldPattern*;
 
 NestedMethodPattern : MethodPattern ::= <IsPositive:boolean>;
 NestedFieldPattern : FieldPattern ::= <IsPositive:boolean>;
@@ -44,6 +48,7 @@ BaseSet ::= TypeAccess:Access RefElmt;
 RefElmt ::= <ElmtName:String>;
 
 PatternMethodDecl : MethodDecl;
+PatternFieldDeclaration : FieldDeclaration;
 
 NegativeModifier : Modifier;
 NoModifier : Modifier;

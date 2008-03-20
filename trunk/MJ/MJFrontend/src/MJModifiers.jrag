@@ -155,6 +155,7 @@ aspect MJModifiers {
 	return changed;
     }
 
+    public boolean Pattern.sameSignature(MethodDecl md) { return false; }
     public boolean MethodPattern.sameSignature(MethodDecl md) {
 	// return type.
 	if ( getTypeAccess().type() != md.type()) return false;

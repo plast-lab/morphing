@@ -21,7 +21,7 @@ aspect MJTypeVariableUse {
     eq StaticForFieldDeclaration.getTypeAccess().boundByPattern(TypeVariable tv) = getIteratorDecl().boundByPattern(tv);
 
 
-    eq StaticForStatement.getChild(int i).boundByPattern(TypeVariable tv) {
+    eq StaticForStmt.getChild(int i).boundByPattern(TypeVariable tv) {
 	if ( refIterator().boundByPattern(tv)) return true;
 	if ( enclosingRefIterator() != null )
 	    return enclosingRefIterator().boundByPattern(tv);

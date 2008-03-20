@@ -22,16 +22,12 @@ aspect MJTypeCheckCore {
 	// unify signature.
 	if (!canUnifySignature(m, uniMap, uniTypeVars, uniNameVars))
 	    return true;
-	
-	// unify return type.	
-	// if return type unifies and the host types are different, then
-	// methods are still unique.
-	if ( m.type().unifiesWith(this.type(), uniMap, uniTypeVars)) {
-	    if (hostType() != m.hostType()) 
-		return true;
-	} else 
-	    return true;
-	
+
+	// in order for the pattern conditions to be checked, we have to try
+	// to unify return type.
+	boolean retTypeUnifies =
+	    m.type().unifiesWith(this.type(), uniMap, uniTypeVars);
+
 	// check whether unification mapping cause mutually exclusive
 	// pattern conditions.
 	Collection patternConditions = new ArrayList();
@@ -41,35 +37,186 @@ aspect MJTypeCheckCore {
 	    patternConditions.addAll(m.refIterator().getPatternConditions());
 	if ( hasMutualExclusiveConditions(patternConditions, uniMap))
 	    return true;
+	
+	if ( !hostType().subtype(m.hostType()) &&
+	     !m.hostType().subtype(hostType())) 
+	    return false;
+	
+	// if this one's return type can be unified with m's return type,
+	// then we need to check for possible override.
+	if ( retTypeUnifies )
+	    return this.overrides(m);
+	
+	return true;
+    }
 
+    refine LookupMethod eq MethodDecl.overrides(MethodDecl m) =
+	!isStatic() && !m.isPrivate() && m.accessibleFrom(hostType()) && 
+	hostType().instanceOf(m.hostType()) &&
+	signatureOverrides(m);
+
+    refine LookupMethod eq MethodDecl.hides(MethodDecl m) =
+	isStatic() && !m.isPrivate() && m.accessibleFrom(hostType()) && 
+	hostType().instanceOf(m.hostType()) && 
+	signatureOverrides(m);
+
+    syn lazy boolean MethodDecl.signatureOverrides(MethodDecl m) {
+	if ( this == m ) return true;
+	// if static, then compare signature. This is how it was specified
+	// in Jastadd before.
+	if ( !m.isReflectiveDecl())
+	    return m.signature().equals(signature());
+
+	StaticForMethodDecl sm = (StaticForMethodDecl) m;
+
+	// 1. is this in the iterator decl range of sm?
+	HashMap uniMap = new HashMap();
+	if ( this.isSubsumedBy(sm.getIteratorDecl(), uniMap)) { 
+	    // apply mapping and check signature.
+	    if ( canUnifySignature(sm, uniMap, Collections.EMPTY_LIST,
+				   Collections.EMPTY_LIST)) {
+		// after apply substitutions, type() should be a subtype of m's type.
+		return type().substitute(uniMap).type().subtype(sm.type().substitute(uniMap).type());
+	    }
+	}
 	return false;
     }
 
-    syn lazy boolean MethodDecl.isSubsumedBy(IteratorDecl id, HashMap map) {
-	// first, this method needs to fall within the base pattern
-	// and the substitution mappings need to statisfy the nested conditions
-
-	// 1.method's declaring type needs to be a supertype of pattern's base type
-	TypeDecl baseType = id.getPattern().getBaseSet().type();
-	if ( !baseType.subtype(hostType()))
-	    return false;
-
-	PatternMethodDecl md = id.getPattern().patternMethodDecl();
-	// 2. we need to be able to unify the signature and the return type
-	if ( !canUnifySignature(md, map, id.patternTypeVariables(),
-				id.patternNameVariables()) ||
-	     // check return type.
-	     !type().unifiesWith(md.type(),map, id.patternTypeVariables()) ||
-	     // check modifiers.
-	     !getModifiers().unifiesWith(md.getModifiers()))
-	    return false;
+    eq StaticForMethodDecl.signatureOverrides(MethodDecl m) {
+	if (this == m) return true;
 	
-	// check each nested pattern condition is satisfied.
+	// if this method 
+	// 1. copies the signature of a (positive) pattern exactly, and 
+	// 2. the base type of the pattern is a subtype of m's host type 
+	// Then overrides is true.
+	Pattern primePattern = getIteratorDecl().getPattern();
+	if ( primePattern.sameSignature(this) &&
+	     primePattern.getBaseSet().type().subtype(m.hostType()))
+	    return true;
+	for ( int i=0; i<getIteratorDecl().getNumNestedPattern(); i++) {
+	    Pattern np = getIteratorDecl().getNestedPattern(i);
+	    if ( np.isPositive() && np.sameSignature(this) &&
+		 np.getBaseSet().type().subtype(m.hostType()))
+		return true;
+	}
+
+	// 1. Is m in the range of this' iterator?
+	Map uniMap = new HashMap();
+	if ( !m.isSubsumedBy(getIteratorDecl(), (HashMap) uniMap)) {
+	    // fetch method named by this's name in m's host type.
+	    if ( isNameVariable(getID())) {
+		HashMap possOverrides = m.hostType().memberMethodsAndMap(getNameVariable(getID()));
+		// is m one of the possible override methods?
+		boolean possOv = false;
+		for ( Iterator ovIt = possOverrides.keySet().iterator(); 
+		      ovIt.hasNext();)
+		    if ( m == ovIt.next()) { possOv = true; break; }
+		// if m is not a method that could be possibly overriden by
+		// this, then just return.
+		if ( !possOv ) return false;
+		
+		// get the unification map again and check signature and ret type.
+		// TODO: inefficient. already calculated this when getting
+		// possible overrides.
+		// clear uniMap first.
+		uniMap = (Map) possOverrides.get(m);
+	    } else {
+		Collection possOverrides = m.hostType().lookupMethod(getID());
+		// is m one of the possible override methods?
+		boolean possOv = false;
+		for ( Iterator ovIt = possOverrides.iterator(); 
+		      ovIt.hasNext();)
+		    if ( m == ovIt.next()) { possOv = true; break; }
+		// if m is not a method that could be possibly overriden by
+		// this, then just return.
+		if ( !possOv ) return false;		
+
+		uniMap = Collections.EMPTY_MAP;
+	    }
+	}
+
+	// check signatures unify using uniMap.
+	if ( substitute(uniMap).canUnifySignature(m.substitute(uniMap), uniMap,
+			       Collections.EMPTY_LIST, Collections.EMPTY_LIST))
+	    return type().substitute(uniMap).type().subtype(m.type().substitute(uniMap).type());
+	
+	return false;
+    }
+
+    syn lazy boolean IteratorDecl.subsumes(IteratorDecl that, HashMap uniMap) {
+	if ( this == that ) return true;
+
+	// first check whether the primary pattern of this subsumes
+	// primary pattern of that.
+	if ( !getPattern().subsumes(that.getPattern(), uniMap))
+	    return true;
+
+	// the unification causing the subsumption must make all nested
+	// patterns true.
+	return nestedPatternSatisfiedBy(uniMap) &&
+	    that.nestedPatternSatisfiedBy(uniMap);
+    }
+
+    syn lazy boolean IteratorDecl.nestedPatternSatisfiedBy(HashMap uniMap) {
+	for ( int i=0; i<getNumNestedPattern(); i++ ) {
+	    if ( !getNestedPattern(i).satisfiedBy(uniMap))
+		return false;
+	}	
+	return true;
+    }
+
+    syn lazy boolean BodyDecl.isSubsumedBy(IteratorDecl id, HashMap map) {
+	// 2. BodyDecl must be within range of the primary pattern.
+	if ( !this.isSubsumedBy(id.getPattern(), map))
+	    return false;
+
+	// 3. All nested patterns must be satisfied by the mapping.
 	for ( int i=0; i<id.getNumNestedPattern(); i++ ) {
 	    if ( !id.getNestedPattern(i).satisfiedBy(map))
 		return false;
 	}
 
+	return true;
+    }
+
+    syn lazy boolean BodyDecl.isSubsumedBy(Pattern p, HashMap map) = false;
+    eq FieldDeclaration.isSubsumedBy(Pattern p, HashMap map) = 
+	p.subsumesFieldDeclaration(this, map);
+    eq MethodDecl.isSubsumedBy(Pattern p, HashMap map) = p.subsumesMethodDecl(this, map);
+
+    syn lazy boolean Pattern.subsumesMethodDecl(MethodDecl md, HashMap map) = false;
+    eq MethodPattern.subsumesMethodDecl(MethodDecl md, HashMap map) {
+	// 1, hostType of md has to be a supertype of pattern's base type.
+	if ( !getBaseSet().type().subtype(md.hostType()))
+	    return false;
+
+	PatternMethodDecl patternMd = patternMethodDecl();
+	// 2. we need to be able to unify the signature and the return type
+	if ( !md.canUnifySignature(patternMd, map, 
+				   patternTypeVariables(),
+				   patternNameVariables()) ||
+	     // check return type.
+	     !md.type().unifiesWith(patternMd.type(),map, 
+				    patternTypeVariables()) ||
+	     // check modifiers.
+	     !md.getModifiers().unifiesWith(patternMd.getModifiers()))
+	    return false;
+
+	return true;
+    }
+    syn lazy boolean Pattern.subsumesFieldDeclaration(FieldDeclaration fd, HashMap map) = false;
+    eq FieldPattern.subsumesFieldDeclaration(FieldDeclaration fd, HashMap map) {
+	// 1, hostType of fd has to be a supertype of pattern's base type.
+	if ( !getBaseSet().type().subtype(fd.hostType()))
+	    return false;
+
+	PatternFieldDeclaration patternFd = patternFieldDeclaration();
+	if ( !fd.canUnifySignature(patternFd, map,
+				   patternTypeVariables(),
+				   patternNameVariables()) ||
+	     // check modifiers.
+	     !fd.getModifiers().unifiesWith(patternFd.getModifiers()))
+	    return false;
 	return true;
     }
 
@@ -100,11 +247,15 @@ aspect MJTypeCheckCore {
     public boolean MethodDecl.hasMutualExclusiveConditions(Collection patternConditions, Map uniMap) {
 	for ( Iterator outerIt = patternConditions.iterator(); outerIt.hasNext(); ) {
 	    Pattern p1 = (Pattern) outerIt.next();
+	    // apply substitution first.
+	    Pattern p1sub = p1.substitute(uniMap);
+
 	    for ( Iterator innerIt = patternConditions.iterator(); innerIt.hasNext(); ) {
 		Pattern p2 = (Pattern) innerIt.next();
 		if ( p1 == p2) continue;
 		
-		if (p1.isMutuallyExclusiveFrom(p2, uniMap))
+		Pattern p2sub = p2.substitute(uniMap);
+		if (p1sub.isMutuallyExclusiveFrom(p2sub, uniMap))
 		    return true;
 	    }
 	}
@@ -170,7 +321,7 @@ aspect MJTypeCheckCore {
 				 patternNameVariables());
     }
 
-    syn lazy boolean MethodDecl.isNameVariable(String name, Collection uniNameVars) {
+    public boolean BodyDecl.isNameVariable(String name, Collection uniNameVars) {
 	for ( Iterator nameIt = uniNameVars.iterator(); nameIt.hasNext(); ) {
 	    PatternNameVariable pv = (PatternNameVariable) nameIt.next();
 	    if ( pv.getID().equals(name) && 
@@ -180,7 +331,7 @@ aspect MJTypeCheckCore {
 	return false;
     }
 
-    syn lazy PatternNameVariable MethodDecl.getNameVariable(String name, Collection uniNameVars) {
+    public PatternNameVariable BodyDecl.getNameVariable(String name, Collection uniNameVars) {
 	for ( Iterator nameIt = uniNameVars.iterator(); nameIt.hasNext(); ) {
 	    PatternNameVariable pv = (PatternNameVariable) nameIt.next();
 	    if ( pv.getID().equals(name) && 
@@ -189,6 +340,7 @@ aspect MJTypeCheckCore {
 	}
 	return null;
     }
+
     syn lazy boolean Modifiers.declaredFromPattern() {
 	ASTNode p = parent;
 	while ( p != null ) {
@@ -232,46 +384,6 @@ aspect MJTypeCheckCore {
 	    if ( getModifier(i).precludes(m)) return -1;
 	}
 	return foundUniMod ? 1 : 0;
-    }
-
-    syn lazy boolean MethodDecl.canUnifySignature(MethodDecl m, 
-						  Map uniMap,
-						  Collection uniTypeVars,
-						  Collection uniNameVars ) {
-	if ( this == m ) return true;
-
-	// easiest thing to check is the names.
-	// first check whether the map contains mapping for either this's id
-	// or m's id.
-	/*
-	PatternNameVariable thisNv = getNameVariable(getID());
-	PatternNameVariable mNv = m.getNameVariable(m.getID());
-
-	Object thisMappedTo = 
-	    thisNv != null ? thisNv.substitute(uniMap) : null;
-	Object mMappedTo = mNv != null ? mNv.substitute(uniMap) : null;
-
-	if ( thisMappedTo != null && mMappedTo != null &&
-	     !thisMappedTo.equals(mMappedTo))
-	    return false;
-	*/
-	
-	if ( isNameVariable(getID(), uniNameVars)) {
-	    if ( m.isNameVariable(m.getID(), uniNameVars))
-		uniMap.put(getNameVariable(getID(), uniNameVars),
-			   m.getNameVariable(m.getID(), uniNameVars));
-	    else uniMap.put(getNameVariable(getID(), uniNameVars),m.getID());
-	} else if ( m.isNameVariable(m.getID(), uniNameVars))
-	    uniMap.put(m.getNameVariable(m.getID(), uniNameVars), 
-		       getID());
-	else // both names are constant symbols.
-	    if ( !m.getID().equals(getID()))		
-		return false;
-	
-	// unify parameter types.
-	if ( !type().typeListUnifies(parameterTypes(), m.parameterTypes(), uniMap, uniTypeVars)) return false;
-
-	return true;
     }
 
     syn lazy boolean Pattern.implies(Pattern p, Map uniMap ) {
@@ -364,7 +476,8 @@ aspect MJTypeCheckCore {
 	PatternMethodDecl pMd = p.patternMethodDecl();
 
 	// name + arg types unify
-	if ( !thisMd.canUnifySignature(pMd, uniMap, p.patternTypeVariables(), p.patternNameVariables())) return false;
+	if ( !thisMd.canUnifySignature(pMd, uniMap, p.patternTypeVariables(), p.patternNameVariables())) 
+	    return false;
 
 	// return types unify
 	//	if ( !getTypeAccess().type().unifiesWith(pMd.type(), uniMap, p.patternTypeVariables()))

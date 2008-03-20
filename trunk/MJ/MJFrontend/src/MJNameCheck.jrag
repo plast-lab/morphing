@@ -53,7 +53,7 @@ aspect MJNameCheck {
 				      new List().add(A.createQualifiedAccess()),
 				      new List().add(E.createQualifiedAccess()),
 				     
-				      new Opt());
+				      new Opt(), new List());
 	List patternTypeVariables = new List().add(A).add(E);
 	if ( returnType instanceof PatternTypeVariable )
 	    patternTypeVariables.add(returnType);
@@ -97,7 +97,7 @@ aspect MJNameCheck {
 				      R.createQualifiedAccess(),"m",
 				      new List().add(A.createQualifiedAccess()),
 				      new List().add(E.createQualifiedAccess()),
-				      new Opt());
+				      new Opt(), new List());
 				
 	IteratorDecl id = new IteratorDecl(new List().add(R).add(A).add(E),
 					   new List().add(m),
@@ -143,11 +143,13 @@ aspect MJNameCheck {
 
 	    for (Iterator mIt = methods.iterator(); mIt.hasNext(); ) {
 		MethodDecl md = (MethodDecl) mIt.next();
-
-		if ( !this.isUniqueFrom(md) && this != md )
-		    error("method with signature " + infoSignature() + 
-			  " conflicts with method " + md.infoSignature() +
-			  " in type " + hostType().typeName() + ".");
+		
+		if ( md != this && !this.isUniqueFrom(md))
+		    error("method with signature \n" + 
+			  "       " + infoSignature() + 
+			  "\n    conflicts with method\n" + 
+			  "       " + md.infoSignature() +
+			  "\n    in type " + md.hostType().typeName() + ".");
 	    }
 	    
 	    // if the superclass is a type variable, then special treatment
@@ -157,10 +159,13 @@ aspect MJNameCheck {
 		 ((ClassDecl) hostType()).hasSuperclass() &&
 		 ((ClassDecl) hostType()).superclass().isTypeVariable()) {
 		MethodDecl md = ((ClassDecl) hostType()).superclass().everyMethod();
-		if (!isUniqueFrom(md) && this != md )
-		    error("method with signature " + infoSignature() + 
-			  " conflicts with method " + md.infoSignature() +
-			  " in type " + hostType().typeName() + ".");
+		if ( !isUniqueFrom(md) )
+		    // check whether this and md are overriding methods.
+		    error("method with signature \n" + 
+			  "       " + infoSignature() + 
+			  "\n    conflicts with method\n" + 
+			  "       " + md.infoSignature() +
+			  "\n    in type " + md.hostType().typeName() + ".");
 	    }
 	} else {
 	    // static method. But still needs to make sure it does

@@ -91,42 +91,6 @@ aspect MJLookupMethod {
 	return map;
     }
 
-    protected StaticForMethodDecl StaticForMethodDecl.original;
-    syn StaticForMethodDecl StaticForMethodDecl.original() = original != null ? original : this;
-
-    HashMap StaticForMethodDecl.parMethodDeclMap = new HashMap();
-
-    public BodyDecl StaticForMethodDecl.p(ParTypeDecl parTypeDecl) {
-	// check that this substitution doesn't already exist.
-	if ( parMethodDeclMap.get(parTypeDecl) != null)
-	    return (BodyDecl) parMethodDeclMap.get(parTypeDecl);
-	
-	// TODO: this is not good enough for generic methods.
-	// Might need a StaticForGenericMethodDecl...
-	// What I really need is for StaticForMethodDecl to be a proxy for
-	// the underlying MethodDecl. But it is simply too hard to duplicate
-	// all the functionalities in MethodDecl.
-	// May be a nice functionality for JastAdd.
-	ParStaticForMethodDecl m = 
-	    new ParStaticForMethodDecl((Modifiers)getModifiers().fullCopy(), 
-				       getTypeAccess().type().substituteReturnType(parTypeDecl),
-				       getID(),
-				       // TODO: this list needs to be substituted with whatever IteratorDecl's substitutions are.
-				       getParameterList().substitute(parTypeDecl),
-				       getExceptionList().substitute(parTypeDecl),
-				       new Opt(),
-				       getIteratorDecl().substitute(parTypeDecl),
-				       new List(), new List());
-	m.original = this;
-
-	m.is$Final = true;
-	((TypeDecl)parTypeDecl).addBodyDecl(m);
-
-	parMethodDeclMap.put(parTypeDecl, m);
-
-	return m;
-    }
-
     // Modify how methods are retrieved.
     refine LookupMethod eq AbstractDot.getRight().lookupMethod(String name) {
 	if ( isNameVariable(name)) 
@@ -138,9 +102,69 @@ aspect MJLookupMethod {
     eq MethodPattern.identifiedBy(PatternNameVariable name) = name.getID().equals(getID());
     eq FieldPattern.identifiedBy(PatternNameVariable name) = name.getID().equals(getID());
 	
+    syn Collection<StaticForMethodDecl> TypeDecl.reflectivelyDeclaredMethods(MethodDecl m) {
+	Collection<StaticForMethodDecl> results = new HashSet<StaticForMethodDecl>();
+	Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
+	for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
+	    StaticForMethodDecl md = refIt.next();
+	    if ( md.expandable()) continue;
+
+	    HashMap uniMap = new HashMap();
+	    if ( m.canUnifySignature(md, uniMap, md.getIteratorDecl().patternTypeVariables(), md.getIteratorDecl().patternNameVariables()) &&
+		 m.type().unifiesWith(md.type(), uniMap, md.getIteratorDecl().patternTypeVariables())) {
+		results.add(md);
+	    }
+	}
+	return results;
+    }
+
+    syn HashMap TypeDecl.memberMethodsAndMap(PatternNameVariable name) {
+	HashMap map = new HashMap();
+	Collection methods = memberMethods(name);
+	for ( Iterator mIt = methods.iterator(); mIt.hasNext(); )
+	    map.put(mIt.next(), Collections.EMPTY_MAP);
+	return map;
+    }
+    eq ClassDecl.memberMethodsAndMap(PatternNameVariable name) {
+	HashMap methods = new HashMap();
+	
+	Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
+	for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
+	    StaticForMethodDecl md = refIt.next();
+
+	    // name could be a member method of this if
+	    // 1. its' enclosing iterator decl is subsumed by one of this's
+	    // method's iterator decl.
+	    HashMap uniMap = new HashMap();
+	    if ( md.getIteratorDecl().subsumes(name.enclosingRefIterator(), uniMap)) {
+		// 2. the name it maps to is used in declaring method.
+		if ( md.substitute(uniMap).getID().equals(name.getID()))
+		    methods.put(md, uniMap);
+	    }
+	}
+	return methods;
+    }
 
     syn Collection TypeDecl.memberMethods(PatternNameVariable name) = Collections.EMPTY_LIST;
+    eq ClassDecl.memberMethods(PatternNameVariable name) {
+	Collection methods = new ArrayList();
+	
+	Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
+	for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
+	    StaticForMethodDecl md = refIt.next();
 
+	    // name could be a member method of this if
+	    // 1. its' enclosing iterator decl is subsumed by one of this's
+	    // method's iterator decl.
+	    HashMap uniMap = new HashMap();
+	    if ( md.getIteratorDecl().subsumes(name.enclosingRefIterator(), uniMap)) {
+		// 2. the name it maps to is used in declaring method.
+		if ( md.substitute(uniMap).getID().equals(name.getID()))
+		    methods.add(md);
+	    }
+	}
+	return methods;
+    }
     eq TypeVariable.memberMethods(PatternNameVariable name) {
 	Collection methods = new ArrayList();
 
@@ -162,6 +186,7 @@ aspect MJLookupMethod {
 		// 5. the nested pattern has a range of exactly one.
 		// then again the method is what's specified by the nested pattern.
 		Pattern np = id.getNestedPattern(i);
+		if ( np instanceof TrueNestedPattern ) continue;
 		if ( np.isPositive() && np.getBaseSet().type() == this &&
 		     np.isMethodPattern() && np.identifiedBy(name) &&
 		     np.exactlyRangeOfOne()) {
@@ -176,22 +201,6 @@ aspect MJLookupMethod {
 	return methods;
     }
 	
-    syn Collection<StaticForMethodDecl> TypeDecl.reflectivelyDeclaredMethods(MethodDecl m) {
-	Collection<StaticForMethodDecl> results = new HashSet<StaticForMethodDecl>();
-	Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
-	for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
-	    StaticForMethodDecl md = refIt.next();
-	    if ( md.expandable()) continue;
-
-	    HashMap uniMap = new HashMap();
-	    if ( m.canUnifySignature(md, uniMap, md.getIteratorDecl().patternTypeVariables(), md.getIteratorDecl().patternNameVariables()) &&
-		 m.type().unifiesWith(md.type(), uniMap, md.getIteratorDecl().patternTypeVariables())) {
-		results.add(md);
-	    }
-	}
-	return results;
-    }
-
     syn lazy HashMap TypeDecl.unrestrictedMethodsSignatureMap() 
 	= localMethodsSignatureMap();
     
@@ -329,10 +338,6 @@ aspect MJLookupMethod {
 	return getExpandedMethodDeclList();
     }
 
-    public Map BodyDecl.expansionSubstitutions = null;
-
-    public StaticForMethodDecl ExpandedMethodDecl.original = null;
-
     // A map from elements in the reflective range to the mappings 
     // resulting from the pattern variables to the concrete values in
     // the element.
@@ -372,6 +377,15 @@ aspect MJLookupMethod {
 	    }
 	} else {
 	    // iterate over fields.
+	    SimpleSet fields = getPattern().getBaseSet().type().unrestrictedFields();
+	    for ( Iterator fIt = fields.iterator(); fIt.hasNext(); ) {
+		FieldDeclaration fd = (FieldDeclaration) fIt.next();
+		HashMap map = new HashMap();
+		if ( fd.isSubsumedBy(this, map)) {
+		    map.putAll(ptMap);
+		    refElmtsMap.put(fd, map);
+		}
+	    }
 	}
 
 	return refElmtsMap;
