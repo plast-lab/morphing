@@ -42,6 +42,7 @@ aspect StaticFor {
 	when(getNumVariableDecl() > 1)
 	    to List createVariableDeclarationList();
     }
+    /*
     rewrite StaticForStmt in Block.getStmt() { 
 	to List {
 	    List stmts = new List();
@@ -62,7 +63,7 @@ aspect StaticFor {
 	for ( int i=0; i<s.getNumChild(); i++) 
 	    normalizeStaticForStmts(stmts,(Stmt) s.getChild(i));
     }
-
+    */
     public StaticForDeclaration BodyDecl.createStaticForDeclarationFrom(IteratorDecl id) {
 	throw new Error("Cannot create StaticForDeclaration for " +
 			getClass().getName());

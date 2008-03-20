@@ -22,9 +22,12 @@ aspect MJLookupType {
     eq StaticForFieldDeclaration.getChild().lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);
 
 
-    syn SimpleSet StaticForStatement.localLookupType(String name) = getIteratorDecl().localLookupType(name);
-    inh SimpleSet StaticForStatement.lookupType(String name);
-    eq StaticForStatement.getStmt().lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);
+    syn SimpleSet StaticForStmt.localLookupType(String name) = getIteratorDecl().localLookupType(name);
+    inh lazy SimpleSet StaticForStmt.lookupType(String name);
+    eq StaticForStmt.getStmt(int i).lookupType(String name) = 
+	localLookupType(name).isEmpty() ? 
+	lookupType(name) : localLookupType(name);
+	
 
     inh SimpleSet IteratorDecl.lookupType(String name);
     eq IteratorDecl.getPattern().lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);

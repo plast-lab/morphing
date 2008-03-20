@@ -675,7 +675,7 @@ aspect BytecodeReader {
 	      Modifiers mods = parseModifiers();
 	      BaseSet bs = parseBaseSet();
 
-	      return new FieldPattern(bs, mods, type, fieldName); 
+	      return new FieldPattern(bs, mods, type, fieldName, new Opt(), new List()); 
 	  }
 
 	  Modifiers parseModifiers() {
@@ -729,7 +729,7 @@ aspect BytecodeReader {
 		  
 	      return new MethodPattern(bs,mods,returnType, methodName, 
 				       parameterTypes, exceptionList,
-				       new Opt());
+				       new Opt(), new List());
 	  }
 
 	  // TODO: need to handle the case where there is no return type,

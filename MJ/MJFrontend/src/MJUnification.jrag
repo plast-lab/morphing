@@ -1,4 +1,112 @@
 aspect MJUnification {
+    public boolean MethodDecl.canUnifySignature(MethodDecl m, 
+						  Map uniMap,
+						  Collection uniTypeVars,
+						  Collection uniNameVars ) {
+	if ( this == m ) return true;
+
+	if ( !canUnifyName(getID(), m.getID(),m, uniMap, uniNameVars))
+	    return false; 
+	// unify parameter types.
+	if ( ! TypeDecl.typeListUnifies(parameterTypes(), m.parameterTypes(), uniMap, uniTypeVars)) return false;
+
+	return true;
+    }
+
+    public boolean FieldDeclaration.canUnifySignature(FieldDeclaration f,
+						      Map uniMap,
+						      Collection uniTypeVars,
+						      Collection uniNameVars) {
+	if ( this == f ) return true;
+
+	if ( !canUnifyName(getID(), f.getID(), f, uniMap, uniNameVars))
+	    return false; 
+	// unify type.
+	return type().unifiesWith(f.type(), uniMap, uniTypeVars);
+    }
+
+    // Determines whether thisName can be mapped to thatName, given
+    // the uniMap and name vars.
+    public boolean BodyDecl.thisNameMapsToThatName(String thisName, 
+						   String thatName,
+						   BodyDecl that,
+						   Map uniMap,
+						   Collection uniNameVars) {
+	/*
+	// check whether thisName has been mapped.
+	if ( this.isNameVariable(thisName) &&
+	     uniMap.containsKey(this.getNameVariable(thisName))) {
+	    Object o = uniMap.get(this.getNameVariable(thisName));
+	    if ( o instanceof String )
+		return thisNameMapsToThatName((String) o, thatName, that, uniMap, uniNameVars);
+	    return thisNameMapsToThatName(((PatternNameVariable) o).getID(),
+					  thatName, that, uniMap, uniNameVars);
+	}
+	*/
+
+	// - If thisName is a name variable used in mapping, 
+	if ( isNameVariable(thisName, uniNameVars)) {
+	    PatternNameVariable thisNv = getNameVariable(thisName,uniNameVars);
+
+	    // - and it has been mapped.
+	    if (uniMap.containsKey(thisNv)) {
+		Object subbedThis = uniMap.get(thisNv);
+		// - if thatName is also a name variable
+		if ( that.isNameVariable(thatName, uniNameVars)) {
+		    PatternNameVariable thatNv = that.getNameVariable(thatName, uniNameVars);
+		    if ( thatNv == subbedThis ) return true;
+
+		    if (uniMap.containsKey(thatNv)) {
+			Object subbedThat = uniMap.get(thatNv);
+			// both must be mapped to the same thing.
+			return subbedThis.equals(subbedThat);
+		    } else {
+			// thatName has not been mapped.
+			uniMap.put(getNameVariable(thatName, uniNameVars),
+				   subbedThis);
+		    }
+		} else // thatName is name a name variable. it must be equal to
+		    // whatever this has been mapped to.
+		    return thatName.equals(subbedThis);
+	     } else { // thisName has not been mapped.
+		// thisName is a name variable. Simply map it to whatever
+		// thatName is.
+		 if ( that.isNameVariable(thatName, uniNameVars)) {
+		    PatternNameVariable thatNv = that.getNameVariable(thatName, uniNameVars);
+		    if ( thatNv != thisNv)
+			uniMap.put(thisNv, thatNv);
+		 } else 
+		     uniMap.put(thisNv, thatName);
+		 return true;
+	     }
+	} else { // thisName is constant.
+	    if ( !that.isNameVariable(thatName, uniNameVars))
+		// if thatName is also a constant.
+		return thisName.equals(thatName);
+	}
+	return false;
+    }
+
+    public boolean BodyDecl.canUnifyName(String thisName, String thatName, 
+					 BodyDecl that,
+					 Map uniMap, Collection uniNameVars) {
+
+	return thisNameMapsToThatName(thisName, thatName, that, uniMap, uniNameVars) 
+	    || that.thisNameMapsToThatName(thatName, thisName, this, uniMap, uniNameVars);
+	/*	
+	if ( isNameVariable(getID(), uniNameVars)) {
+	    if ( m.isNameVariable(m.getID(), uniNameVars))
+		uniMap.put(getNameVariable(getID(), uniNameVars),
+			   m.getNameVariable(m.getID(), uniNameVars));
+	    else uniMap.put(getNameVariable(getID(), uniNameVars),m.getID());
+	} else if ( m.isNameVariable(m.getID(), uniNameVars))
+	    uniMap.put(m.getNameVariable(m.getID(), uniNameVars), 
+		       getID());
+	else // both names are constant symbols. 
+	    if ( !m.getID().equals(getID()))		
+		return false;	
+	*/
+    }
 
     /**
      * Determines wether the list1 and list2 can be unified to the same
@@ -23,6 +131,12 @@ aspect MJUnification {
 
 	    TypeDecl t1 = ((TypeDecl) list1.get(0)).substitute(uniMap).type();
 	    TypeDecl t2 = ((TypeDecl) list2.get(0)).substitute(uniMap).type();
+
+	    if ( t1 == t2 ) {
+		list1.remove(0);
+		list2.remove(0);
+		continue;
+	    }
 
 	    // first check whether there's a * type.
 	    if ( t1.isVectorTypeVariable()) {
@@ -82,7 +196,7 @@ aspect MJUnification {
 	if ( !uniTypeVars.contains(this)) {
 	    // this is not a unification type variable.
 	    if ( typeList.size() != 1 ||
-		 unifiesWith((TypeDecl)typeList.get(0), uniMap, uniTypeVars))
+		 !unifiesWith((TypeDecl)typeList.get(0), uniMap, uniTypeVars))
 		return -1;
 	    else {
 		typeList.remove(0);
@@ -158,10 +272,10 @@ aspect MJUnification {
 	v.bypassErrorChecking = true;
 	return v;
     }
-    syn lazy boolean PatternTypeVariable.isMapped(Map uniMap) {
+    public boolean TypeDecl.isMapped(Map uniMap) {
 	return uniMap.containsKey(this);
     }
-    eq VectorTypeVariable.isMapped(Map uniMap) {
+    public boolean VectorTypeVariable.isMapped(Map uniMap) {
 	for ( Iterator keyIt = uniMap.keySet().iterator(); keyIt.hasNext(); ) {
 	    Object t = keyIt.next();
 	    if ( t instanceof MatchedVectorTypeVariable && 
@@ -174,12 +288,15 @@ aspect MJUnification {
     /**
      * Determines wether two types unify.  
      **/
-    syn lazy boolean TypeDecl.unifiesWith(TypeDecl t, Map uniMap, Collection uniTypeVars) {
+    public boolean TypeDecl.unifiesWith(TypeDecl t, Map uniMap, Collection uniTypeVars) {
 	if ( t.isTypeVariable())
 	    return t.unifiesWith(this,uniMap,uniTypeVars);
 	return substitute(uniMap).type() == t.substitute(uniMap).type();
     }
-    eq PatternTypeVariable.unifiesWith(TypeDecl t, Map uniMap, Collection uniTypeVars) {
+    public boolean PatternTypeVariable.unifiesWith(TypeDecl t, Map uniMap, Collection uniTypeVars) {
+	if ( this == t ) return true;
+
+	// apply the mappings first.
 	if ( isMapped(uniMap)) {
 	    if ( isVectorTypeVariable() ) {
 		ArrayList mapped = ((VectorTypeVariable) this).retrieveMapped(uniMap);
@@ -192,9 +309,19 @@ aspect MJUnification {
 		// if t is already mapped to something, then this needs to
 		// be able to be matched by what t's mapped to.
 		return this.substitute(uniMap).type().unifiesWith(t,uniMap,uniTypeVars);	    
-	} else if ( uniTypeVars.contains(this))
+	} else if ( t.isMapped(uniMap))
+	    return t.unifiesWith(this, uniMap, uniTypeVars);
+	else if ( uniTypeVars.contains(this))
 	    return t.unifiesWithUnmappedUnificationTypeVariable(this, uniMap, uniTypeVars);
-	
+	else if ( uniTypeVars.contains(t)) {
+	    /*
+	    if ( t.isMapped(uniMap)) 
+		return t.unifiesWith(this, uniMap, uniTypeVars);
+	    else 
+	    */
+	    this.unifiesWithUnmappedUnificationTypeVariable((PatternTypeVariable)t, uniMap, uniTypeVars);
+	}
+
 	TypeDecl tsub = t.substitute(uniMap).type();
 	if ( tsub != t ) 
 	    return tsub.unifiesWith(this, uniMap, uniTypeVars);
@@ -202,14 +329,15 @@ aspect MJUnification {
 	return tsub == this;
     }
 
-    syn lazy boolean ParTypeDecl.unifiesWith(TypeDecl t, Map uniMap, Collection uniTypeVars) {
+    public boolean ParTypeDecl.unifiesWith(TypeDecl t, Map uniMap, Collection uniTypeVars) {
+	if ( this == t ) return true;
 	if ( t.isParameterizedType())
 	    return t.unifiesWithParTypeDecl(this, uniMap, uniTypeVars);
 	return super.unifiesWith(t, uniMap, uniTypeVars);
     }
-    eq VoidType.unifiesWith(TypeDecl t, Map uniMap, Collection uniTypeVars) =
-	t.isVoid() || t.unifiesWithVoid(uniMap, uniTypeVars);
-
+    public boolean VoidType.unifiesWith(TypeDecl t, Map uniMap, Collection uniTypeVars) {
+	return t.isVoid() || t.unifiesWithVoid(uniMap, uniTypeVars);
+    }
     
     /**
      * Check whether type and a type variable t unifies.
@@ -219,6 +347,7 @@ aspect MJUnification {
 	// For a type decl to be mapped by a unification type variable,
 	// one of t's bounds must be able to match this.
 	//uniMap.put(t, this);
+	if ( this == t ) return true;
 
 	HashMap tmpMap = new HashMap();
 	tmpMap.put(t, this);
@@ -236,6 +365,8 @@ aspect MJUnification {
     }
 
     public boolean TypeVariable.unifiesWithUnmappedUnificationTypeVariable(PatternTypeVariable t, Map uniMap,Collection uniTypeVars ) {
+	if ( this == t ) return true;
+
 	// one of this type variable's bounds must be able to
 	// unify with t.
 	// 
@@ -254,6 +385,8 @@ aspect MJUnification {
 	return false;
     }
     public boolean PatternTypeVariable.unifiesWithUnmappedUnificationTypeVariable(PatternTypeVariable t, Map uniMap, Collection uniTypeVars) {
+	if ( this == t ) return true;
+
 	if ( uniTypeVars.contains(this))
 	    return super.unifiesWithUnmappedUnificationTypeVariable(t, uniMap, uniTypeVars);
 
@@ -309,9 +442,13 @@ aspect MJUnification {
 	return false;
     }
     
-    syn lazy boolean TypeDecl.unifiesWithParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) = substitute(uniMap) == t.substitute(uniMap);
+    public boolean TypeDecl.unifiesWithParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) {
+	return substitute(uniMap).type() == t.substitute(uniMap).type();
+    }
 
-    eq ParTypeDecl.unifiesWithParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) {
+    public boolean ParTypeDecl.unifiesWithParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) {
+	if ( this == t ) return true;
+
 	if ( this.genericDecl() == t.genericDecl()) {
 	    // Same generic decl. The type parameters must be able to match.
 	    for ( int i=0; i<getNumArgument(); i++)
@@ -324,8 +461,8 @@ aspect MJUnification {
 	return false;
     }
 
-    syn lazy boolean TypeDecl.unifiesWithVoid(Map uniMap, Collection uniTypeVars) = isVoid();
-    eq AllMatchingTypeVariable.unifiesWithVoid(Map uniMap, Collection uniTypeVars) {
+    public boolean TypeDecl.unifiesWithVoid(Map uniMap, Collection uniTypeVars) { return isVoid(); }
+    public boolean AllMatchingTypeVariable.unifiesWithVoid(Map uniMap, Collection uniTypeVars) {
 	if ( uniMap.containsKey(this)) 
 	    return ((TypeDecl) uniMap.get(this)).unifiesWithVoid(uniMap, uniTypeVars);
 	if ( uniTypeVars.contains(this) ) {
@@ -335,28 +472,25 @@ aspect MJUnification {
 	return false;
     }
 
-    syn lazy boolean TypeDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars ) {
+    public boolean TypeDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars ) {
 	if ( substitute(uniMap) == t.substitute(uniMap))
 	    return true;
 	return false;
     }
-    eq ClassDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars)=
-	t.matchedByClassDecl(this, uniMap, uniTypeVars);
+    public boolean ClassDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return t.matchedByClassDecl(this, uniMap, uniTypeVars); }
     
-    eq InterfaceDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars)=
-	t.matchedByInterfaceDecl(this, uniMap, uniTypeVars);
+    public boolean InterfaceDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return t.matchedByInterfaceDecl(this, uniMap, uniTypeVars); }
 
-    syn lazy boolean ParTypeDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) =
-	t.matchedByParTypeDecl(this, uniMap, uniTypeVars);
+    public boolean ParTypeDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return t.matchedByParTypeDecl(this, uniMap, uniTypeVars); }
 
-    eq AllMatchingTypeVariable.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) = true;
+    public boolean AllMatchingTypeVariable.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return true; }
     
-    eq NonVoidType.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) = 
-	!t.isVoid();
-
+    public boolean NonVoidType.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return !t.isVoid(); }
     
-    syn lazy boolean TypeDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars) = substitute(uniMap).type() == c.substitute(uniMap).type();
-    eq ClassDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars) {
+    public boolean TypeDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars) {
+	return substitute(uniMap).type() == c.substitute(uniMap).type();
+    }
+    public boolean ClassDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars) {
 	if ( super.matchedByClassDecl(c, uniMap,uniTypeVars)) return true;
 
 	if (hasSuperclass() &&
@@ -364,10 +498,13 @@ aspect MJUnification {
 	    return true;
 	return false;
     }
-    eq InterfaceDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars ) = c.isObject(); 
+    public boolean InterfaceDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars ) { return c.isObject(); }
 
-    syn lazy boolean TypeDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) = substitute(uniMap) == i.substitute(uniMap);
-    eq ClassDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
+    public boolean TypeDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
+	return substitute(uniMap).type() == i.substitute(uniMap).type();
+    }
+
+    public boolean ClassDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
 	if ( super.matchedByInterfaceDecl(i, uniMap,uniTypeVars)) return true;
 
 	if (hasSuperclass() &&
@@ -379,7 +516,7 @@ aspect MJUnification {
 		return true;
 	return false;
     }
-    eq InterfaceDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
+    public boolean InterfaceDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
 	if ( super.matchedByInterfaceDecl(i, uniMap,uniTypeVars)) return true;
 	for (Iterator ifIt = superinterfacesIterator();  ifIt.hasNext(); )
 	    if (((TypeDecl) ifIt.next()).matchedByInterfaceDecl(i, uniMap, uniTypeVars))
@@ -389,9 +526,11 @@ aspect MJUnification {
 
 
     // The only type that can be matched by a ParTypeDecl is a ParTypeDecl
-    syn lazy boolean TypeDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) = substitute(uniMap).type() == t.substitute(uniMap).type();
+    public  boolean TypeDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) {
+	return substitute(uniMap).type() == t.substitute(uniMap).type();
+    }
 
-    eq ParClassDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) {
+    public boolean ParClassDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) {
 	if ( genericDecl().equals(t.genericDecl()) ) {
 	    // Same generic decl. The type parameters must be able to match.
 	    for ( int i=0; i<getNumArgument(); i++)
@@ -411,7 +550,7 @@ aspect MJUnification {
 	}
 	return false;
     }
-    eq ParInterfaceDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) {
+    public boolean ParInterfaceDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) {
 	if ( genericDecl().equals(t.genericDecl()) ) {
 	    // Same generic decl. The type parameters must be able to match.
 	    for ( int i=0; i<getNumArgument(); i++)

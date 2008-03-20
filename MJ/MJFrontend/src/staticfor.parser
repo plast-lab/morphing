@@ -93,7 +93,7 @@ PatternNameVariable pattern_name_parameter =
     
 Pattern pattern = 
      modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b 
-     {: return new MethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt()); :}
+     {: return new MethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List()); :}
   |  modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b 
      {: return new OptMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt()); :}
   | modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
@@ -109,13 +109,13 @@ Pattern nested_pattern =
      NO modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
      {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), false); :}
   |  NO modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-    {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), false); :}
+    {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), false); :}
   |  NO modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
      {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, false); :}
   |  SOME modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
      {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), true); :}
   |  SOME modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-     {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), true); :}
+     {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), true); :}
   |  SOME modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
      {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, true); :}
   ;	

@@ -1,4 +1,10 @@
 aspect MJExpansionProperties {
+    public Map BodyDecl.expansionSubstitutions = null;
+    public StaticForMethodDecl ExpandedMethodDecl.original = null;
+    public StaticForConstructorDecl ExpandedConstructorDecl.original = null;
+    public StaticForFieldDeclaration ExpandedFieldDeclaration.original = null;
+
+
     //    public boolean TypeDecl.expansionAttribute = false;
 
     syn lazy boolean TypeDecl.grounded() circular [false] = true;
@@ -124,6 +130,18 @@ aspect MJExpansionProperties {
 	if ( getIteratorDecl().needsExpansion()) return true;
 	return super.needsExpansion();
     }
+    eq StaticForConstructorDecl.needsExpansion() {
+	if ( getIteratorDecl().needsExpansion()) return true;
+	return super.needsExpansion();
+    }
+    eq StaticForFieldDeclaration.needsExpansion() {
+	if ( getIteratorDecl().needsExpansion()) return true;
+	return super.needsExpansion();
+    }
+    eq StaticForStmt.needsExpansion() {
+	if ( getIteratorDecl().needsExpansion()) return true;
+	return super.needsExpansion();
+    }
     eq IteratorDecl.needsExpansion() {
 	if ( getPattern().needsExpansion()) return true;
 	for ( int i=0; i<getNumNestedPattern(); i++)
@@ -147,7 +165,12 @@ aspect MJExpansionProperties {
     }
     
     eq TypeAccess.needsExpansion() = type().needsExpansion() && !type().grounded();
+
     syn lazy boolean StaticForMethodDecl.expandable() = getIteratorDecl().expandable();
+    syn lazy boolean StaticForFieldDeclaration.expandable() = getIteratorDecl().expandable();
+    syn lazy boolean StaticForConstructorDecl.expandable() = getIteratorDecl().expandable();
+    syn lazy boolean StaticForStmt.expandable() = getIteratorDecl().expandable();
+
     syn lazy boolean IteratorDecl.expandable() {
 	if ( !getPattern().expandable()) return false;
 	for ( int i=0; i<getNumNestedPattern(); i++)
