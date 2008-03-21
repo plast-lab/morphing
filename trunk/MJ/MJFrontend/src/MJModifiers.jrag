@@ -11,26 +11,6 @@ aspect MJModifiers {
     eq MethodPattern.getModifiers().mayBeNative() = true;
     eq MethodPattern.getModifiers().mayBeStrictfp() = true;
 
-
-    // define what kind of modifiers are allowed in field patterns.
-    /*
-    eq FieldPattern.getModifiers().maybePublic() = true;
-    eq FieldPattern.getModifiers().maybePrivate() = true;
-    eq FieldPattern.getModifiers().maybeProtected() = true;
-    eq FieldPattern.getModifiers().mayBeStatic() = true;
-    eq FieldPattern.getModifiers().mayBeFinal() = true;
-    eq FieldPattern.getModifiers().mayBeTransient() = true;
-    eq FieldPattern.getModifiers().mayBeVolatile() = true;
-
-    eq NestedFieldPattern.getModifiers().maybePublic() = true;
-    eq NestedFieldPattern.getModifiers().maybePrivate() = true;
-    eq NestedFieldPattern.getModifiers().maybeProtected() = true;
-    eq NestedFieldPattern.getModifiers().mayBeStatic() = true;
-    eq NestedFieldPattern.getModifiers().mayBeFinal() = true;
-    eq NestedFieldPattern.getModifiers().mayBeTransient() = true;
-    eq NestedFieldPattern.getModifiers().mayBeVolatile() = true;
-    */
-
     syn lazy Collection<StaticForMethodDecl> TypeDecl.unimplementedTypeVariableMethods() = Collections.EMPTY_LIST;
     eq ClassDecl.unimplementedTypeVariableMethods() { 
 	Collection<StaticForMethodDecl> c = new ArrayList();
@@ -124,11 +104,20 @@ aspect MJModifiers {
 
 	    // at this point, if there's no nested pattern left in imid,
 	    // then im is completely implemented.
-	    if ( imid.getNumNestedPattern() == 0 ) {
+	    //if ( imid.getNumNestedPattern() == 0 ) {
+	    if ( imid.nestedPatternsSatisfied()) {
 		ifaceIt.remove();
 	    }
 	}	    
 	return changed;
+    }
+
+    public boolean IteratorDecl.nestedPatternsSatisfied() {
+	for ( int i=0; i<getNumNestedPattern(); i++) {
+	    if ( !getNestedPattern(i).satisfiedBy(Collections.EMPTY_MAP))
+		return false;
+	}
+	return true;
     }
 
     public boolean TypeVariable.resolveNestedPatterns(IteratorDecl imid,
