@@ -1,5 +1,6 @@
 package testcases;
 
+/*
 class NoTypeParameter<X> {
     [m] for ( void m () : X.methods )
 	void m () { }
@@ -46,6 +47,7 @@ class OptionalFieldType2<X> {
     <R,A>[m] for ( m : X.fields; some R m(A) : X.methods )
     void m (A args) { }
 }
+*/
 
 class Statement<X> {
     X x;
