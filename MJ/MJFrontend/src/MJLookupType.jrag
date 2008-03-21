@@ -44,4 +44,5 @@ aspect MJLookupType {
 
     inh TypeDecl PatternTypeVariable.typeThrowable();
     inh TypeDecl TypeDecl.typeThrowable();
+    inh TypeDecl Pattern.typeThrowable();
 }

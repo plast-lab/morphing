@@ -100,12 +100,21 @@ aspect MJGenerateClassfile {
 		TypeDecl at = getArgument(i).type();
 		if ( !at.accessibleFrom(this)) {
 		    // warn user.
-		    System.out.println(at.fullName() + 
+		    System.out.println("WARNING: " + at.fullName() + 
 				       " cannot be accessed from " +
 				       nameWithArgs() + ". Increasing " +
 				       "visibility of " + 
 				       at.fullName() + " to public.");
 		    at.makePublic();
+
+		    // if type is used as superclass, then must changed
+		    // the visibility of constructors, transitively.
+		    if ( hasSuperclass() && superclass() == at ) {
+			for ( int j=0; j<getNumBodyDecl(); j++) {
+			    if ( getBodyDecl(j) instanceof ConstructorDecl)
+				((ConstructorDecl) getBodyDecl(j)).makeSuperConstructorPublic((ClassDecl) at);
+			}
+		    }
 		}
 	    }
 
@@ -256,6 +265,18 @@ aspect MJAttributes {
     }
     syn String Pattern.signature() { 
 	throw new Error("signature() unsupported by " + getClass().getName());
+    }
+    syn String FieldPattern.signature() {
+	// field pattern: type[name]	
+	StringBuffer buf = new StringBuffer(getTypeAccess().type().classTypeSignature());
+	// append field name.
+	buf.append("[");
+	buf.append(getID());
+	buf.append("]");
+
+	// append base set signature.
+	buf.append(getBaseSet().signature());
+	return buf.toString();
     }
     syn String MethodPattern.signature() {
 	PatternMethodDecl md = patternMethodDecl();

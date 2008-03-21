@@ -133,7 +133,7 @@ List formal_types =
 
 BaseSet baseset =
     type.t reflection_elmt.e
-    {: return new BaseSet(t, new RefElmt("methods")); :}
+    {: return new BaseSet(t, e); :} 
   ;
 
 RefElmt reflection_elmt =
