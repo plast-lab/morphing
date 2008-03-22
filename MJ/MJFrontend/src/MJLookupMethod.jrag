@@ -91,10 +91,31 @@ aspect MJLookupMethod {
 	return map;
     }
 
+    // Define method lookup by MJIdentifier.
+    inh Collection Expr.lookupMethod(Identifier id);
+    inh lazy Collection TypeDecl.lookupMethod(Identifier id);
+
+    eq MethodAccess.getArg().lookupMethod(Identifier id) = unqualifiedScope().lookupMethod(id);
+    eq ConstructorAccess.getArg().lookupMethod(Identifier id) = unqualifiedScope().lookupMethod(id);
+    eq ArrayAccess.getExpr().lookupMethod(Identifier id) = unqualifiedScope().lookupMethod(id);
+    eq ArrayTypeWithSizeAccess.getExpr().lookupMethod(Identifier id) = unqualifiedScope().lookupMethod(id);
+    
+    eq Program.getChild().lookupMethod(Identifier id) = Collections.EMPTY_LIST;
+    eq TypeDecl.getBodyDecl(int i).lookupMethod(Identifier id) = unqualifiedLookupMethod(id);
+
+    syn lazy Collection TypeDecl.unqualifiedLookupMethod(Identifier id) {
+	Collection c = memberMethods(id);
+	if(!c.isEmpty()) return c;
+	if(isInnerType())
+	    return lookupMethod(id);
+	return removeInstanceMethods(lookupMethod(id));
+    }    
+
     // Modify how methods are retrieved.
     refine LookupMethod eq AbstractDot.getRight().lookupMethod(String name) {
-	if ( isNameVariable(name)) 
-	    return getLeft().type().memberMethods(getNameVariable(name));
+	if ( isNameVariable(name) || containsNameVariable(name) ) 
+	    //	    return getLeft().type().memberMethods(getNameVariable(name));
+	    return getLeft().type().unqualifiedLookupMethod(new Identifier(name, this.enclosingRefIterator()));
 	return LookupMethod.AbstractDot.getRight().lookupMethod(name);
     }
 
@@ -102,6 +123,10 @@ aspect MJLookupMethod {
     eq MethodPattern.identifiedBy(PatternNameVariable name) = name.getID().equals(getID());
     eq FieldPattern.identifiedBy(PatternNameVariable name) = name.getID().equals(getID());
 	
+    syn lazy boolean Pattern.identifiedBy(Identifier name) = false;
+    eq MethodPattern.identifiedBy(Identifier name) = name.toString().equals(getID());
+    eq FieldPattern.identifiedBy(Identifier name) = name.toString().equals(getID());
+    
     syn Collection<StaticForMethodDecl> TypeDecl.reflectivelyDeclaredMethods(MethodDecl m) {
 	Collection<StaticForMethodDecl> results = new HashSet<StaticForMethodDecl>();
 	Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
@@ -141,6 +166,90 @@ aspect MJLookupMethod {
 		if ( md.substitute(uniMap).getID().equals(name.getID()))
 		    methods.put(md, uniMap);
 	    }
+	}
+	return methods;
+    }
+
+    syn HashMap TypeDecl.memberMethodsAndMap(Identifier name) {
+	HashMap map = new HashMap();
+	Collection methods = memberMethods(name);
+	for ( Iterator mIt = methods.iterator(); mIt.hasNext(); )
+	    map.put(mIt.next(), Collections.EMPTY_MAP);
+	return map;
+    }
+    eq ClassDecl.memberMethodsAndMap(Identifier name) {
+	HashMap methods = new HashMap();
+	
+	Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
+	for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
+	    StaticForMethodDecl md = refIt.next();
+
+	    // name could be a member method of this if
+	    // 1. its' enclosing iterator decl is subsumed by one of this's
+	    // method's iterator decl.
+	    HashMap uniMap = new HashMap();
+	    if ( md.getIteratorDecl().subsumes(name.enclosingRefIterator(), uniMap)) {
+		// 2. the name it maps to is used in declaring method.
+		if ( md.substitute(uniMap).getID().equals(name.substitutedName()))
+		    methods.put(md, uniMap);
+	    }
+	}
+	return methods;
+    }
+
+
+    syn Collection TypeDecl.memberMethods(Identifier id) = Collections.EMPTY_LIST;
+    eq ClassDecl.memberMethods(Identifier id) {
+	Collection methods = new ArrayList();
+	
+	Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
+	for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
+	    StaticForMethodDecl md = refIt.next();
+
+	    // id could be a member method of this if
+	    // 1. its' enclosing iterator decl is subsumed by one of this's
+	    // method's iterator decl.
+	    HashMap uniMap = new HashMap();
+	    if ( md.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
+		// 2. the name it maps to is used in declaring method.
+		if ( md.substitute(uniMap).getID().equals(id.substitutedName()))
+		    methods.add(md);
+	    }
+	}
+	return methods;
+    }
+    eq TypeVariable.memberMethods(Identifier id) {
+	Collection methods = new ArrayList();
+
+	IteratorDecl idecl = id.enclosingRefIterator();
+	if ( idecl.reflectiveBaseType() == this &&
+	     idecl.getPattern().isMethodPattern() &&
+	     idecl.getPattern().identifiedBy(id) )
+	    // If the name is exactly what is used to match on the outermost
+	    // reflective loop, then the method designated by the name is
+	    // exactly what is specified by the pattern.
+	    methods.add(idecl.getPattern().patternMethodDecl());
+	else {
+	    for ( int i=0; i<idecl.getNumNestedPattern(); i++) {
+		// otherwise, if :
+		// 1. type is reflective base type for a nested pattern, AND
+		// 2. nested pattern is positieve AND
+		// 3. pattern is a method pattern AND
+		// 4. name is the name variable used in the nested pattern, AND
+		// 5. the nested pattern has a range of exactly one.
+		// then again the method is what's specified by the nested pattern.
+		Pattern np = idecl.getNestedPattern(i);
+		if ( np instanceof TrueNestedPattern ) continue;
+		if ( np.isPositive() && np.getBaseSet().type() == this &&
+		     np.isMethodPattern() && np.identifiedBy(id) &&
+		     np.exactlyRangeOfOne()) {
+		    methods.add(np.patternMethodDecl());
+		}
+	    }
+	} 
+	// look into bounds.
+	for ( int i=0; i<getNumTypeBound(); i++) {
+	    methods.addAll(getTypeBound(i).type().memberMethods(id));
 	}
 	return methods;
     }
@@ -307,7 +416,6 @@ aspect MJLookupMethod {
 	    };
     }
     
-
     syn lazy List<? extends MethodDecl> MethodDecl.expandedMethods () = new List().add(this);
     eq StaticForMethodDecl.expandedMethods() = new List<MethodDecl>();
     eq ParStaticForMethodDecl.expandedMethods() {

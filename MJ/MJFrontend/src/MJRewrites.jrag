@@ -141,7 +141,7 @@ aspect MJRewrites {
     // this is to bypass the rewrite for TypeVariable, which adds
     // a bound Object for all type variables.
     rewrite PatternTypeVariable {
-	when ( /*throwableAdded() &&*/ getNumTypeBound() == 0  ) 
+	when ( !isAllMatchingTypeVariable() && /*throwableAdded() &&*/ getNumTypeBound() == 0  ) 
 	    to PatternTypeVariable {
 	    Access boundAccess = null;
 	    if ( matchingException())
@@ -156,4 +156,6 @@ aspect MJRewrites {
 	}
     }
 
+    syn lazy boolean PatternTypeVariable.isAllMatchingTypeVariable() = false;
+    eq AllMatchingTypeVariable.isAllMatchingTypeVariable() = true;
 }
