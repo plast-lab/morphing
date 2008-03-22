@@ -1,0 +1,165 @@
+aspect MJIdentifier {
+
+    public class Identifier {
+	public String prefix;
+	public String varname;
+
+	public IteratorDecl context;
+	public PatternNameVariable namevariable;
+	public Identifier mappedTo;
+
+	public String toString() {
+	    if ( prefix.length() == 0)
+		return varname;
+	    return prefix + "#" + varname;
+	}
+
+	public IteratorDecl enclosingRefIterator() {
+	    return context;
+	}
+
+	public Identifier(String s, IteratorDecl context, 
+			  Map uniMap, Collection uniNameVars) {
+	    // parse out the prefix and the (possibly) variable parts.
+	    parse(s);
+	    this.context = context;
+	    
+	    // check whether the varname is a name variable,
+	    if ( context != null && 
+		 context.isNameVariable(varname, uniNameVars)) {
+		namevariable = context.getNameVariable(varname, uniNameVars);
+
+		// and whether it has been mapped.
+		if ( uniMap.containsKey(namevariable))
+		    mappedTo = (Identifier) uniMap.get(namevariable);
+	    }
+	}
+
+	public Identifier(String s, IteratorDecl context) {
+	    // this is used for substitution.
+	    // parse out the prefix and the (possibly) variable parts.
+	    parse(s);
+	    this.context = context;
+	    if ( context != null && context.isNameVariable(varname))
+		namevariable = context.getNameVariable(varname);
+	}
+
+	public Identifier(String s, IteratorDecl context, Map uniMap ) {
+	    // this is used for substitution.
+	    // parse out the prefix and the (possibly) variable parts.
+	    parse(s);
+	    this.context = context;
+	    if ( context != null && context.isNameVariable(varname)) {
+		namevariable = context.getNameVariable(varname);
+		if ( uniMap.containsKey(namevariable))
+		    mappedTo = (Identifier) uniMap.get(namevariable);
+	    }
+	}
+
+	protected void parse(String s) {
+	    int pIndex = s.indexOf("#");
+	    if ( pIndex > 0 ) {
+		prefix = s.substring(0, pIndex);
+		varname = s.substring(pIndex+1);
+	    } else {
+		prefix = "";
+		varname = s;
+	    }
+	}
+
+	protected Object clone() {
+	    Identifier id = new Identifier();
+	    id.prefix = this.prefix;
+	    id.varname = this.varname;
+	    id.context = this.context;
+	    id.namevariable = this.namevariable;
+	    id.mappedTo = this.mappedTo;
+	    return id;
+	}
+
+	protected Identifier() {}
+
+	public String substitutedName() {
+	    if ( isNameVariable()) {
+		if ( isMapped()) {
+		    return prefix + mappedTo.substitutedName();
+		} else {
+		    if ( prefix.length() == 0 )
+			return varname;
+		    else
+			return prefix + "#" + varname;
+		}
+	    }
+	    return prefix + varname;
+	}
+
+	public boolean isNameVariable() { return namevariable != null; }
+	public boolean isMapped() { return mappedTo != null; }
+
+	// create a new Identifier from this, with the added
+	// prefix.
+	public Identifier absorbPrefix(String prefix) {
+	    Identifier newid = (Identifier) clone();
+	    newid.prefix = prefix + newid.prefix;
+	    return newid;
+	}
+	public Identifier removePrefix(String prefix) {
+	    Identifier newid = (Identifier) clone();
+	    if ( prefix.length() > 0 ) {
+		newid.prefix = newid.prefix.substring(prefix.length());
+	    }
+	    return newid;
+	}
+	
+	public boolean mapsTo(Identifier that, Map uniMap) {
+	    if ( this.isMapped()) {
+		// check whether the object this is mapped to 
+		// maps to that.
+		// absorb this.prefix into mappedTo.
+		return mappedTo.absorbPrefix(prefix).mapsTo(that, uniMap);
+	    } else 
+		return canbeMappedTo(that, uniMap);
+	}
+
+	/*
+	 * Prereq: this has not been mapped.
+	 *
+	 * Determines whether this identifier can be mapped to that.
+	 * - If this is not a variable name, then prefix+varname is a constant
+	 *   and should be equal to exactly that.prefix+that.varname
+	 * - If this is a variable name,  
+	 *   - If that is a variable name,
+	 *     - this.prefix must be a prefix of that.prefix
+	 *     - this.varname maps to (that.prefix-this.prefix) + that.varname
+	 *   - If that is not a variable name
+	 *     - this.prefix must be a prefix of that.wholename
+	 *     - this.varname maps to (that.wholename - this.prefix)
+	 */
+	public boolean canbeMappedTo(Identifier that, Map uniMap) {
+	    if ( isMapped()) 
+		throw new Error("Identifier.canbeMappedTo can only be " +
+				"invoked from unmapped identifiers");
+
+	    if ( !isNameVariable())
+		return (this.prefix + this.varname).equals(that.prefix+that.varname);
+	    
+	    if ( that.isNameVariable()) {
+		if ( that.prefix.startsWith(this.prefix)) {
+		    // then map this.namevariable to 
+		    // (that.prefix-this.prefix)#that.varname.
+		    uniMap.put(namevariable, 
+			       that.removePrefix(this.prefix));
+		    return true;
+		}
+	    } else {
+		if ( (that.prefix + that.varname).startsWith(this.prefix)) {
+		    uniMap.put(namevariable,
+			       that.removePrefix(this.prefix));
+		    return true;
+		}
+	    }
+	    return false;
+	}
+    }
+
+}

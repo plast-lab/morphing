@@ -5,10 +5,10 @@ aspect MJUnification {
 						  Collection uniNameVars ) {
 	if ( this == m ) return true;
 
-	if ( !canUnifyName(getID(), m.getID(),m, uniMap, uniNameVars))
+	if ( !canUnifyName(getID(), m.getID(), m, uniMap, uniNameVars))
 	    return false; 
 	// unify parameter types.
-	if ( ! TypeDecl.typeListUnifies(parameterTypes(), m.parameterTypes(), uniMap, uniTypeVars)) return false;
+	if ( !TypeDecl.typeListUnifies(parameterTypes(), m.parameterTypes(), uniMap, uniTypeVars)) return false;
 
 	return true;
     }
@@ -25,86 +25,18 @@ aspect MJUnification {
 	return type().unifiesWith(f.type(), uniMap, uniTypeVars);
     }
 
-    // Determines whether thisName can be mapped to thatName, given
-    // the uniMap and name vars.
-    public boolean BodyDecl.thisNameMapsToThatName(String thisName, 
-						   String thatName,
-						   BodyDecl that,
-						   Map uniMap,
-						   Collection uniNameVars) {
-	/*
-	// check whether thisName has been mapped.
-	if ( this.isNameVariable(thisName) &&
-	     uniMap.containsKey(this.getNameVariable(thisName))) {
-	    Object o = uniMap.get(this.getNameVariable(thisName));
-	    if ( o instanceof String )
-		return thisNameMapsToThatName((String) o, thatName, that, uniMap, uniNameVars);
-	    return thisNameMapsToThatName(((PatternNameVariable) o).getID(),
-					  thatName, that, uniMap, uniNameVars);
-	}
-	*/
-
-	// - If thisName is a name variable used in mapping, 
-	if ( isNameVariable(thisName, uniNameVars)) {
-	    PatternNameVariable thisNv = getNameVariable(thisName,uniNameVars);
-
-	    // - and it has been mapped.
-	    if (uniMap.containsKey(thisNv)) {
-		Object subbedThis = uniMap.get(thisNv);
-		// - if thatName is also a name variable
-		if ( that.isNameVariable(thatName, uniNameVars)) {
-		    PatternNameVariable thatNv = that.getNameVariable(thatName, uniNameVars);
-		    if ( thatNv == subbedThis ) return true;
-
-		    if (uniMap.containsKey(thatNv)) {
-			Object subbedThat = uniMap.get(thatNv);
-			// both must be mapped to the same thing.
-			return subbedThis.equals(subbedThat);
-		    } else {
-			// thatName has not been mapped.
-			uniMap.put(getNameVariable(thatName, uniNameVars),
-				   subbedThis);
-		    }
-		} else // thatName is name a name variable. it must be equal to
-		    // whatever this has been mapped to.
-		    return thatName.equals(subbedThis);
-	     } else { // thisName has not been mapped.
-		// thisName is a name variable. Simply map it to whatever
-		// thatName is.
-		 if ( that.isNameVariable(thatName, uniNameVars)) {
-		    PatternNameVariable thatNv = that.getNameVariable(thatName, uniNameVars);
-		    if ( thatNv != thisNv)
-			uniMap.put(thisNv, thatNv);
-		 } else 
-		     uniMap.put(thisNv, thatName);
-		 return true;
-	     }
-	} else { // thisName is constant.
-	    if ( !that.isNameVariable(thatName, uniNameVars))
-		// if thatName is also a constant.
-		return thisName.equals(thatName);
-	}
-	return false;
-    }
-
     public boolean BodyDecl.canUnifyName(String thisName, String thatName, 
 					 BodyDecl that,
 					 Map uniMap, Collection uniNameVars) {
-
+	// first parse out the real name variable parts of both names.
+	Identifier thisId = new Identifier(thisName, this.refIterator(),
+					   uniMap, uniNameVars);
+	Identifier thatId = new Identifier(thatName, that.refIterator(),
+					   uniMap, uniNameVars);
+	return thisId.mapsTo(thatId, uniMap) || thatId.mapsTo(thisId, uniMap);
+	/*
 	return thisNameMapsToThatName(thisName, thatName, that, uniMap, uniNameVars) 
 	    || that.thisNameMapsToThatName(thatName, thisName, this, uniMap, uniNameVars);
-	/*	
-	if ( isNameVariable(getID(), uniNameVars)) {
-	    if ( m.isNameVariable(m.getID(), uniNameVars))
-		uniMap.put(getNameVariable(getID(), uniNameVars),
-			   m.getNameVariable(m.getID(), uniNameVars));
-	    else uniMap.put(getNameVariable(getID(), uniNameVars),m.getID());
-	} else if ( m.isNameVariable(m.getID(), uniNameVars))
-	    uniMap.put(m.getNameVariable(m.getID(), uniNameVars), 
-		       getID());
-	else // both names are constant symbols. 
-	    if ( !m.getID().equals(getID()))		
-		return false;	
 	*/
     }
 
@@ -124,11 +56,6 @@ aspect MJUnification {
 	    return oneEmptyListUnifies(list2, list1, uniMap, uniTypeVars);
 		
 	while ( list1.size() > 0 && list2.size() > 0 ) {
-	    /*
-	    TypeDecl t1 = (TypeDecl) list1.get(0);
-	    TypeDecl t2 = (TypeDecl) list2.get(0);
-	    */
-
 	    TypeDecl t1 = ((TypeDecl) list1.get(0)).substitute(uniMap).type();
 	    TypeDecl t2 = ((TypeDecl) list2.get(0)).substitute(uniMap).type();
 
@@ -314,11 +241,6 @@ aspect MJUnification {
 	else if ( uniTypeVars.contains(this))
 	    return t.unifiesWithUnmappedUnificationTypeVariable(this, uniMap, uniTypeVars);
 	else if ( uniTypeVars.contains(t)) {
-	    /*
-	    if ( t.isMapped(uniMap)) 
-		return t.unifiesWith(this, uniMap, uniTypeVars);
-	    else 
-	    */
 	    this.unifiesWithUnmappedUnificationTypeVariable((PatternTypeVariable)t, uniMap, uniTypeVars);
 	}
 
@@ -327,6 +249,17 @@ aspect MJUnification {
 	    return tsub.unifiesWith(this, uniMap, uniTypeVars);
 	
 	return tsub == this;
+    }
+    public boolean AllMatchingTypeVariable.unifiesWith(TypeDecl t, Map uniMap, Collection uniTypeVars) {
+	if ( this == t ) return true;
+	if ( isMapped(uniMap))
+	    return this.substitute(uniMap).type().unifiesWith(t, uniMap, uniTypeVars);
+	else if ( uniTypeVars.contains(this)) {
+	    // since this is all matching, it simply matches.
+	    uniMap.put(this, t);
+	    return true;
+	} 
+	return t.unifiesWith(this, uniMap, uniTypeVars);
     }
 
     public boolean ParTypeDecl.unifiesWith(TypeDecl t, Map uniMap, Collection uniTypeVars) {

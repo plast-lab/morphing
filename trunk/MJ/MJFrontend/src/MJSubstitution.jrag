@@ -152,8 +152,7 @@ aspect MJSubstitution {
     public ExpandedMethodDecl StaticForMethodDecl.substitute(Map substitution) {
 	return new ExpandedMethodDecl((Modifiers) getModifiers().fullCopy(),
 				      getTypeAccess().type().substitute(substitution),
-				      isNameVariable(getID()) ?
-				      (String) substitution.get(getNameVariable(getID())) : getID(),
+				      substitutedName(getID(), substitution),
 				      getParameterList().expandParameterList(substitution),
 				      getExceptionList().expandAccessList(substitution),
 				      new Opt());
@@ -161,8 +160,7 @@ aspect MJSubstitution {
     public ExpandedFieldDeclaration StaticForFieldDeclaration.substitute(Map substitution) {
 	return new ExpandedFieldDeclaration((Modifiers) getModifiers().fullCopy(),
 					    getTypeAccess().type().substitute(substitution),
-					    isNameVariable(getID()) ?
-					    (String) substitution.get(getNameVariable(getID())) : getID(),
+					    substitutedName(getID(), substitution),
 					    new Opt());
     }
 
@@ -171,37 +169,24 @@ aspect MJSubstitution {
 			getClass().getName());
     }
     public String Pattern.substitutedName(String name, Map substitutions) {
-	// TODO: this is aweful. Need to fix this by changing all
-	// identifiers to an Identifier type.
-	String subedName = name;
-	if ( isNameVariable(name)) {
-	    PatternNameVariable nv = getNameVariable(name);
-	    Object o = nv.substitute(substitutions);
-	    if ( o != null ) {
-		if ( o instanceof String ) 
-		    subedName = (String) o;
-		else 
-		    subedName = ((PatternNameVariable) o).getID();
-	    }
-	}
-	return subedName;
+	Identifier nameId = new Identifier(name, enclosingRefIterator(),
+					   substitutions);
+	return nameId.substitutedName();
     }
     public String BodyDecl.substitutedName(String name, Map substitutions) {
-	// TODO: this is aweful. Need to fix this by changing all
-	// identifiers to an Identifier type.
-	String subedName = null;
-	if ( isNameVariable(name)) {
-	    PatternNameVariable nv = getNameVariable(name);
-	    Object o = nv.substitute(substitutions);
-	    if ( o != null ) {
-		if ( o instanceof String ) 
-		    subedName = (String) o;
-		else 
-		    subedName = ((PatternNameVariable) o).getID();
-	    }
-	}
-	return subedName;
+	Identifier nameId = new Identifier(name, refIterator(), substitutions);
+	return nameId.substitutedName();
     }
+    
+    public Object PatternNameVariable.substitute(Map uniMap) {
+	if ( uniMap.containsKey(this) ) {
+	    if ( uniMap.get(this) instanceof String )
+		return uniMap.get(this);
+	    return ((PatternNameVariable) uniMap.get(this)).substitute(uniMap);
+	} 
+	return this;
+    }
+
 
     public FieldPattern FieldPattern.substitute(Map substitutions) {
 	String name = substitutedName(getID(), substitutions);
@@ -231,6 +216,10 @@ aspect MJSubstitution {
 	return nfp;
     }
     
+    public MethodPattern StaticMethodPattern.substitute(Map substitutions) {
+	return this;
+    }
+
     public MethodPattern MethodPattern.substitute(Map substitutions) {
 	String name = substitutedName(getID(), substitutions);
 	MethodPattern mp =
@@ -381,14 +370,4 @@ aspect MJSubstitution {
 
 	return subed;
     }
-    
-    public Object PatternNameVariable.substitute(Map uniMap) {
-	if ( uniMap.containsKey(this) ) {
-	    if ( uniMap.get(this) instanceof String )
-		return uniMap.get(this);
-	    return ((PatternNameVariable) uniMap.get(this)).substitute(uniMap);
-	} 
-	return this;
-    }
-
 }

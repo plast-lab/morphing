@@ -13,6 +13,7 @@ aspect MJPattern {
     eq StaticForMethodDecl.refIterator() = getIteratorDecl();
     eq StaticForConstructorDecl.refIterator() = getIteratorDecl();
     eq StaticForFieldDeclaration.refIterator() = getIteratorDecl();
+    eq ExpandedMethodDecl.refIterator() = original.refIterator();
 
     eq StaticForMethodDecl.getBlock().enclosingRefIterator() = getIteratorDecl();
     eq StaticForMethodDecl.getTypeAccess().enclosingRefIterator() = getIteratorDecl();
@@ -27,12 +28,9 @@ aspect MJPattern {
     eq StaticForFieldDeclaration.getInit().enclosingRefIterator() = getIteratorDecl();
 
     inh IteratorDecl IteratorDecl.enclosingRefIterator();
-   
     inh IteratorDecl Stmt.enclosingRefIterator();
-    //    syn lazy IteratorDecl StaticForStatement.refIterator() = getIteratorDecl();
     eq StaticForStmt.getStmt(int index).enclosingRefIterator() = getIteratorDecl();
     syn lazy IteratorDecl StaticForStmt.refIterator() = getIteratorDecl();
-    //    eq StaticForStatement.getStmt().enclosingRefIterator() = getIteratorDecl();
 
     syn lazy IteratorDecl Expr.enclosingRefIterator() = enclosingStmt().enclosingRefIterator();
 
@@ -190,10 +188,35 @@ aspect MJPattern {
 	return false;
     }
     syn lazy boolean IteratorDecl.isNameVariable(String name) = isLocalNameVariable(name) || (enclosingRefIterator() != null && enclosingRefIterator().isNameVariable(name));
-
-    syn lazy boolean Expr.isNameVariable(String name) = enclosingStmt().isNameVariable(name);
-    
+    syn lazy boolean Expr.isNameVariable(String name) = 
+	enclosingStmt() != null && enclosingStmt().isNameVariable(name);
     syn lazy boolean Pattern.isNameVariable(String name) = hostBodyDecl().isNameVariable(name);
+
+
+    // determines whether a name contains name variable.
+    syn lazy boolean BodyDecl.containsNameVariable(String name) {
+	Identifier id = new Identifier(name, refIterator());
+	return id.isNameVariable();
+    }
+    eq ExpandedMethodDecl.containsNameVariable(String name) = original.containsNameVariable(name);
+    inh boolean Stmt.containsNameVariable(String name);
+    eq StaticForStmt.getStmt(int index).containsNameVariable(String name) =
+	getIteratorDecl().isLocalNameVariable(name) || containsNameVariable(name);
+    eq StaticForMethodDecl.getBlock().containsNameVariable(String name) =
+	getIteratorDecl().containsNameVariable(name);
+    eq StaticForConstructorDecl.getBlock().containsNameVariable(String name) =
+	getIteratorDecl().containsNameVariable(name);
+    eq Block.getStmt(int i).containsNameVariable(String name) = containsNameVariable(name);
+    eq Program.getChild(int i).containsNameVariable(String name) = false;
+
+    syn lazy boolean IteratorDecl.containsNameVariable(String name) {
+	Identifier id = new Identifier(name, this);
+	return id.isNameVariable();
+    }
+    syn lazy boolean Expr.containsNameVariable(String name) = 
+	enclosingStmt() != null && enclosingStmt().containsNameVariable(name);
+    syn lazy boolean Pattern.containsNameVariable(String name) = hostBodyDecl().containsNameVariable(name);
+
 
     // returns the name variable by the ID name.
     syn lazy PatternNameVariable BodyDecl.getNameVariable(String name) {
@@ -289,11 +312,6 @@ aspect MJPattern {
     eq PatternFieldDeclaration.refIterator() = 
 	((Pattern) parent.parent).enclosingRefIterator();
 
-	/* = getPattern().enclosingRefIterator();
-    eq PatternMethodDecl.getChild().lookupType(String name) =
-	pattern.hostBodyDecl().lookupType("", name);
-    */
-
     syn lazy boolean TypeDecl.isVectorTypeVariable() = false;
     eq VectorTypeVariable.isVectorTypeVariable() = true;
 
@@ -308,6 +326,38 @@ aspect MJPattern {
 	for ( int i=0; i<getNumNestedPattern(); i++)
 	    l.add(getNestedPattern(i));
 	return l;
+    }
+
+    syn Collection MethodDecl.patternConditions() {
+	Collection l = new ArrayList();
+
+	ArrayList params = parameterTypes();
+	List paramTypes = new List();
+	for ( int i=0; i<params.size(); i++)
+	    paramTypes.add(((TypeDecl) params.get(i)).createBoundAccess());
+
+	ArrayList exceptions = exceptionTypes();
+	List expTypes = new List();
+	for ( int i=0; i<exceptions.size(); i++)
+	    expTypes.add(((TypeDecl) exceptions.get(i)).createBoundAccess());
+
+	StaticMethodPattern mp = 
+	    new StaticMethodPattern(new BaseSet(hostType().createBoundAccess(),
+					  new RefElmt("methods")),
+				    (Modifiers) getModifiers().fullCopy(),
+				    type().createBoundAccess(),
+				    getID(), paramTypes, expTypes, new Opt(), new List());
+	/*
+	IteratorDecl fakeId = new IteratorDecl(new List(), new List(), 
+					       mp, new List());
+	*/
+	l.add(mp);
+	return l;
+    }
+
+    eq StaticForMethodDecl.patternConditions() {
+	// TODO: nested patterns have more conditions.
+	return refIterator().getPatternConditions();
     }
 
     syn lazy boolean Pattern.isPositiveCondition() = true;

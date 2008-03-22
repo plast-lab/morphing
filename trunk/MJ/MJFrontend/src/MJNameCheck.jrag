@@ -144,12 +144,16 @@ aspect MJNameCheck {
 	    for (Iterator mIt = methods.iterator(); mIt.hasNext(); ) {
 		MethodDecl md = (MethodDecl) mIt.next();
 		
-		if ( md != this && !this.isUniqueFrom(md))
+		if ( md == this ) continue;
+
+		if ( !this.isUniqueFrom(md) ) {
 		    error("method with signature \n" + 
 			  "       " + infoSignature() + 
 			  "\n    conflicts with method\n" + 
 			  "       " + md.infoSignature() +
-			  "\n    in type " + md.hostType().typeName() + ".");
+			  "\n    in type " + md.hostType().typeName() + 
+			  ".");
+		}
 	    }
 	    
 	    // if the superclass is a type variable, then special treatment

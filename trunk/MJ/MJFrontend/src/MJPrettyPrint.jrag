@@ -25,6 +25,14 @@ aspect MJPrettyPrint {
 	return realTypeBound;
     }
 
+    public int MethodPattern.getNumRealException() {
+	int realExp = 0;
+	for ( int i=0; i<getNumException(); i++) {
+	    if ( !getException(i).addedByPatternRewrite())
+		realExp++;
+	}
+	return realExp;
+    }
 
     // these methods are used in error reporting.
     public String MethodDecl.infoSignature() {
@@ -104,10 +112,18 @@ aspect MJPrettyPrint {
 	    getParameter(i).toString(buf);
 	}
 	buf.append(")");
-	if ( getNumException() > 0 ) {
-	    buf.append("throws ");
-	    for ( int i=0; i<getNumException(); i++) {
-		if ( i > 0 ) buf.append(",");
+	if ( getNumRealException() > 0 ) {
+	    buf.append(" throws ");
+	    int i=0;
+	    for ( i=0; i<getNumException(); i++) {
+		if ( getException(i).addedByPatternRewrite()) continue;
+		getException(i).toString(buf);
+		i++;
+		break;
+	    }
+	    for ( ; i<getNumException(); i++)  {
+		if ( getException(i).addedByPatternRewrite()) continue;
+		buf.append(",");
 		getException(i).toString(buf);
 	    }
 	}
@@ -131,10 +147,18 @@ aspect MJPrettyPrint {
 	    getParameter(i).toString(buf);
 	}
 	buf.append(")");
-	if ( getNumException() > 0 ) {
-	    buf.append("throws ");
-	    for ( int i=0; i<getNumException(); i++) {
-		if ( i > 0 ) buf.append(",");
+
+	if ( getNumRealException() > 0 ) {
+	    buf.append(" throws ");
+	    int i=0;
+	    for ( i=0; i<getNumException(); i++) {
+		if ( getException(i).addedByPatternRewrite()) continue;
+		getException(i).toString(buf);
+		break;
+	    }
+	    for ( ; i<getNumException(); i++)  {
+		if ( getException(i).addedByPatternRewrite()) continue;
+		buf.append(",");
 		getException(i).toString(buf);
 	    }
 	}

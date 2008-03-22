@@ -31,13 +31,22 @@ aspect MJTypeCheckCore {
 	// check whether unification mapping cause mutually exclusive
 	// pattern conditions.
 	Collection patternConditions = new ArrayList();
-	if ( isReflectiveDecl())
+	patternConditions.addAll(patternConditions());
+	patternConditions.addAll(m.patternConditions());
+	/*
+	if ( isReflectiveDecl()) 
 	    patternConditions.addAll(refIterator().getPatternConditions());
-	if ( m.isReflectiveDecl())
+	else {
+	    // a statically defined method has one positive condition associated
+	    // with it.
+	}
+	if ( m.isReflectiveDecl()) {
 	    patternConditions.addAll(m.refIterator().getPatternConditions());
+	}
+	*/
 	if ( hasMutualExclusiveConditions(patternConditions, uniMap))
 	    return true;
-	
+
 	if ( !hostType().subtype(m.hostType()) &&
 	     !m.hostType().subtype(hostType())) 
 	    return false;
@@ -46,8 +55,8 @@ aspect MJTypeCheckCore {
 	// then we need to check for possible override.
 	if ( retTypeUnifies )
 	    return this.overrides(m);
-	
-	return true;
+
+	return false;
     }
 
     refine LookupMethod eq MethodDecl.overrides(MethodDecl m) =
@@ -290,7 +299,7 @@ aspect MJTypeCheckCore {
 	    java.util.List p1params = substitutedParameterTypes(uniMap);
 	    java.util.List p2params = p2.substitutedParameterTypes(uniMap);
 
-	    if ( sameParameterLists(p1params,p2params))
+	    if ( !sameParameterLists(p1params,p2params))
 		return false;
 	    if ( !getTypeAccess().type().substitute(uniMap).type().equals(p2.getTypeAccess().type().substitute(uniMap).type()))
 		return true;
@@ -320,27 +329,25 @@ aspect MJTypeCheckCore {
 				 patternTypeVariables(),
 				 patternNameVariables());
     }
-
-    public boolean BodyDecl.isNameVariable(String name, Collection uniNameVars) {
+    public boolean IteratorDecl.isNameVariable(String name, Collection uniNameVars) {
 	for ( Iterator nameIt = uniNameVars.iterator(); nameIt.hasNext(); ) {
 	    PatternNameVariable pv = (PatternNameVariable) nameIt.next();
 	    if ( pv.getID().equals(name) && 
-		 refIterator() == pv.enclosingRefIterator())
+		 this == pv.enclosingRefIterator())
 		return true;
 	}
 	return false;
     }
 
-    public PatternNameVariable BodyDecl.getNameVariable(String name, Collection uniNameVars) {
+    public PatternNameVariable IteratorDecl.getNameVariable(String name, Collection uniNameVars) {
 	for ( Iterator nameIt = uniNameVars.iterator(); nameIt.hasNext(); ) {
 	    PatternNameVariable pv = (PatternNameVariable) nameIt.next();
 	    if ( pv.getID().equals(name) && 
-		 refIterator() == pv.enclosingRefIterator())
+		 this == pv.enclosingRefIterator())
 		return pv;
 	}
 	return null;
     }
-
     syn lazy boolean Modifiers.declaredFromPattern() {
 	ASTNode p = parent;
 	while ( p != null ) {
@@ -430,36 +437,17 @@ aspect MJTypeCheckCore {
 
 	// check that name can be unified.
 	Collection uniNameVars = p.patternNameVariables();
-	if ( isNameVariable(p.getID(), uniNameVars)) {
+	if ( enclosingRefIterator().isNameVariable(p.getID(), uniNameVars)) {
 	    if ( isNameVariable(getID()) )
-		uniMap.put(getNameVariable(p.getID(), uniNameVars),
+		uniMap.put(enclosingRefIterator().getNameVariable(p.getID(), uniNameVars),
 			   getNameVariable(getID()));
-	    else uniMap.put(getNameVariable(p.getID(), uniNameVars),getID());
+	    else uniMap.put(enclosingRefIterator().getNameVariable(p.getID(), uniNameVars),getID());
 	    return true;
 	} else if ( isNameVariable(getID()) &&
 		    getID().equals(p.getID()))
 	    return true;
 	return false;
     }
-    syn lazy PatternNameVariable FieldPattern.getNameVariable(String name, Collection uniNameVars) {
-	for ( Iterator nameIt = uniNameVars.iterator(); nameIt.hasNext(); ) {
-	    PatternNameVariable pv = (PatternNameVariable) nameIt.next();
-	    if ( pv.getID().equals(name) && 
-		 enclosingRefIterator() == pv.enclosingRefIterator())
-		return pv;
-	}
-	return null;
-    }
-    syn lazy boolean FieldPattern.isNameVariable(String name, Collection uniNameVars) {
-	for ( Iterator nameIt = uniNameVars.iterator(); nameIt.hasNext(); ) {
-	    PatternNameVariable pv = (PatternNameVariable) nameIt.next();
-	    if ( pv.getID().equals(name) && 
-		 enclosingRefIterator() == pv.enclosingRefIterator())
-		return true;
-	}
-	return false;
-    }
-
     syn lazy boolean Pattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) = false;
     eq MethodPattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) {
 	if ( this == p ) return true;

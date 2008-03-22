@@ -148,6 +148,8 @@ aspect MJModifiers {
     public boolean MethodPattern.sameSignature(MethodDecl md) {
 	// return type.
 	if ( getTypeAccess().type() != md.type()) return false;
+
+	// name.
 	
 	// arguments.
 	if ( getNumParameter() != md.getNumParameter()) return false;

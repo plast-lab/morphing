@@ -50,7 +50,9 @@ aspect MJInstructionTransform {
 
 	protected int retrieveOpcode(String owner, String name, String desc) {
 	    BodyDecl bd = retrieveMethod(owner, name, desc);
-	    if ( bd instanceof ConstructorDecl) 
+	    if ( bd instanceof ConstructorDecl || 
+		 // this is a super call.
+		 (parClass.hasSuperclass() && retrieveOwnerType(owner) == parClass.superclass()))
 		return org.objectweb.asm.Opcodes.INVOKESPECIAL;
 
 	    MethodDecl m = (MethodDecl) bd;
@@ -89,9 +91,12 @@ aspect MJInstructionTransform {
 	}
 
 	protected String retrieveName(String name) {
+	    return md.substitutedName(name, substitutions);
+	    /*
 	    if ( md.isNameVariable(name)) 
 		return (String) substitutions.get(md.getNameVariable(name));
 	    return name;
+	    */
 	}
 
 	protected TypeDecl retrieveTypeFromDesc(String desc) {
