@@ -119,6 +119,44 @@ aspect MJNameCheck {
 	return sfd;
     }
 
+    refine NameCheck public void FieldDeclaration.nameCheck() {
+	NameCheck.FieldDeclaration.nameCheck();
+
+	// check reflective fields.
+	Collection<? extends FieldDeclaration> refFields = hostType().reflectiveFields();
+	for ( Iterator<? extends FieldDeclaration> fIt = refFields.iterator(); fIt.hasNext(); ) {
+	    FieldDeclaration field = fIt.next();
+	    if ( this.isUniqueFrom(field)) {
+		error("field \n" + 
+		      "       " + infoSignature() + 
+		      "\n    conflicts with field \n" + 
+		      "       " + field.infoSignature() +
+		      "\n    in type " + field.hostType().typeName() + 
+		      ".");		
+	    }
+	}
+    }
+
+    public void StaticForFieldDeclaration.nameCheck() {
+	// check that it is unqique from all fields.
+	// all statically declared fields.
+	SimpleSet fields = hostType().unrestrictedFields();
+	Collection refFields = hostType().reflectiveFields();
+	for ( Iterator fIt = fields.iterator(); fIt.hasNext(); )
+	    refFields.add(fIt.next());
+
+	for ( Iterator fIt = refFields.iterator(); fIt.hasNext(); ) {
+	    FieldDeclaration field = (FieldDeclaration) fIt.next();
+	    if ( this != field && !this.isUniqueFrom(field) ) {
+		error("field \n" + 
+		      "       " + infoSignature() + 
+		      "    conflicts with field \n" + 
+		      "       " + field.infoSignature() +
+		      "    in type " + field.hostType().typeName());
+	    }
+	}
+    }
+
     refine NameCheck public void MethodDecl.nameCheck() {
 	// make sure that method signature is disjoint from all
 	// other method signatures.

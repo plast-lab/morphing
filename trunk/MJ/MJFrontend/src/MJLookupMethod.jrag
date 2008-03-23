@@ -16,6 +16,17 @@ aspect MJLookupMethod {
 	}
 	return set;
     }
+    eq ClassDecl.reflectiveMethods() {
+	Collection<StaticForMethodDecl> methods = super.reflectiveMethods();
+	if ( hasSuperclass())
+	    methods.addAll(superclass().reflectiveMethods());
+	// interfaces.
+	for ( Iterator ifIt = interfacesIterator(); ifIt.hasNext(); ) {
+	    methods.addAll(((TypeDecl) ifIt.next()).reflectiveMethods());
+	}
+	return methods;
+    }
+
     eq TypeVariable.reflectiveMethods() {
 	Set set = new HashSet();
 	for ( int i=0; i<getNumTypeBound(); i++) {

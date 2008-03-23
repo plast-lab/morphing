@@ -1,5 +1,35 @@
 aspect MJTypeCheckCore {
 
+    syn lazy boolean FieldDeclaration.isUniqueFrom(FieldDeclaration f) {
+	/**
+	 * 
+	 **/
+	if ( this == f ) return false;
+	
+	Collection uniTypeVars = f.patternTypeVariables();
+	uniTypeVars.addAll(patternTypeVariables());
+
+	Collection uniNameVars = f.patternNameVariables();
+	uniNameVars.addAll(patternNameVariables());
+
+	HashMap uniMap = new HashMap();
+
+	if ( !this.canUnifySignature(f, uniMap, uniTypeVars, uniNameVars))
+	    return true;
+
+	// check whether unification mapping cause mutually exclusive
+	// pattern conditions.
+	Collection patternConditions = new ArrayList();
+	patternConditions.addAll(patternConditions());
+	patternConditions.addAll(f.patternConditions());
+	if ( Program.hasMutualExclusiveConditions(patternConditions, uniMap))
+	    return true;
+	
+	// if signature can unify, they are still unique if the host types
+	// are different.
+	return hostType() != f.hostType();
+    }
+
     /**
      * This method is unique from m if
      * 1. their signatures (method name + parameters) do not unify  OR
@@ -33,18 +63,7 @@ aspect MJTypeCheckCore {
 	Collection patternConditions = new ArrayList();
 	patternConditions.addAll(patternConditions());
 	patternConditions.addAll(m.patternConditions());
-	/*
-	if ( isReflectiveDecl()) 
-	    patternConditions.addAll(refIterator().getPatternConditions());
-	else {
-	    // a statically defined method has one positive condition associated
-	    // with it.
-	}
-	if ( m.isReflectiveDecl()) {
-	    patternConditions.addAll(m.refIterator().getPatternConditions());
-	}
-	*/
-	if ( hasMutualExclusiveConditions(patternConditions, uniMap))
+	if ( Program.hasMutualExclusiveConditions(patternConditions, uniMap))
 	    return true;
 
 	if ( !hostType().subtype(m.hostType()) &&
@@ -223,6 +242,8 @@ aspect MJTypeCheckCore {
 	if ( !fd.canUnifySignature(patternFd, map,
 				   patternTypeVariables(),
 				   patternNameVariables()) ||
+	     !fd.type().unifiesWith(patternFd.type(), map, 
+				    patternTypeVariables()) ||
 	     // check modifiers.
 	     !fd.getModifiers().unifiesWith(patternFd.getModifiers()))
 	    return false;
@@ -245,7 +266,25 @@ aspect MJTypeCheckCore {
 				      patternNameVariables()) &&
 		 md.type().unifiesWith(pmd.type(),
 				       uniMap,patternTypeVariables()) &&
-		 md.getModifiers().unifiesWith(pmd.getModifiers()))
+		 pmd.getModifiers().unifiesWith(md.getModifiers()))
+		matched++;
+	}
+	return (getIsPositive() && matched > 0) ||
+	    (!getIsPositive() && matched == 0 );
+    }
+    eq NestedFieldPattern.satisfiedBy(Map uniMap) {
+	NestedFieldPattern subed = substitute(uniMap);
+
+	// expand the fields in the pattern after substitution.
+	SimpleSet fields = subed.getBaseSet().type().unrestrictedFields();
+	int matched = 0;
+	PatternFieldDeclaration pfd = subed.patternFieldDeclaration();
+	for ( Iterator fIt = fields.iterator(); fIt.hasNext(); ) {
+	    FieldDeclaration fd = (FieldDeclaration) fIt.next();
+	    if ( fd.canUnifySignature(pfd, uniMap, patternTypeVariables(),
+				      patternNameVariables()) &&
+		 fd.type().unifiesWith(pfd.type(), uniMap, patternTypeVariables()) &&
+		 pfd.getModifiers().unifiesWith(fd.getModifiers()))
 		matched++;
 	}
 	return (getIsPositive() && matched > 0) ||
@@ -253,7 +292,7 @@ aspect MJTypeCheckCore {
     }
     eq TrueNestedPattern.satisfiedBy(Map uniMap) = true;
 
-    public boolean MethodDecl.hasMutualExclusiveConditions(Collection patternConditions, Map uniMap) {
+    public static boolean Program.hasMutualExclusiveConditions(Collection patternConditions, Map uniMap) {
 	for ( Iterator outerIt = patternConditions.iterator(); outerIt.hasNext(); ) {
 	    Pattern p1 = (Pattern) outerIt.next();
 	    // apply substitution first.
@@ -275,13 +314,28 @@ aspect MJTypeCheckCore {
     eq MethodPattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = p2.isMutuallyExclusiveFromMethodPattern(this, uniMap);
     eq FieldPattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = p2.isMutuallyExclusiveFromFieldPattern(this, uniMap);
     
-    syn lazy boolean Pattern.isMutuallyExclusiveFromFieldPattern(FieldPattern p2, Map uniMap) = false;
+    syn lazy boolean Pattern.isMutuallyExclusiveFromFieldPattern(FieldPattern p2, Map uniMap) = false;	   
     eq FieldPattern.isMutuallyExclusiveFromFieldPattern(FieldPattern p2, Map uniMap) {
-	// TODO
 	if ( isPositiveCondition() && p2.isPositiveCondition()) {
+	    // this and p2 are mutually exclusive if 
+	    // - their host types are in subtyping relationships.
+	    // - their names unify,
+	    // - their types do not unify
+	    TypeDecl rb = this.reflectiveBaseType().substitute(uniMap).type();
+	    TypeDecl p2rb = p2.reflectiveBaseType().substitute(uniMap).type();
+	    if ( ! rb.subtype(p2rb) && ! p2rb.subtype(rb))
+		return false;
 
+	    Identifier thisId = new Identifier(getID(), enclosingRefIterator(), uniMap);
+	    Identifier thatId = new Identifier(p2.getID(), p2.enclosingRefIterator(), uniMap);
+	    
+	    return thisId.substitutedName().equals(thatId.substitutedName()) &&
+		!getTypeAccess().type().substitute(uniMap).type().equals(p2.getTypeAccess().type().substitute(uniMap).type());
+	} else if ( isPositiveCondition() ) {
+	    return p2.subsumes(this, uniMap);
+	} else if ( p2.isPositiveCondition()) {
+	    return this.subsumes(p2, uniMap);
 	}
-
 	return false;
     }
 
@@ -301,9 +355,11 @@ aspect MJTypeCheckCore {
 
 	    if ( !sameParameterLists(p1params,p2params))
 		return false;
+
+	    // name?
+
 	    if ( !getTypeAccess().type().substitute(uniMap).type().equals(p2.getTypeAccess().type().substitute(uniMap).type()))
 		return true;
-	    
 	} else if ( isPositiveCondition() ) {
 	    // If this is +, p2 is -, and p2 subsumes this, then 
 	    // this and p2 are mutually exclusive
@@ -353,6 +409,7 @@ aspect MJTypeCheckCore {
 	while ( p != null ) {
 	    if ( p instanceof Pattern ) return true;
 	    else if ( p instanceof PatternMethodDecl) return true;
+	    else if ( p instanceof PatternFieldDeclaration) return true;
 	    p = p.parent;
 	}
 	return false;
@@ -362,11 +419,35 @@ aspect MJTypeCheckCore {
     syn lazy boolean Modifiers.unifiesWith(Modifiers mods) {
 	for ( int i=0; i<getNumModifier(); i++) {
 	    int r = mods.unifiesWith(getModifier(i));
-	    if ( r > 0 ) continue;
-	    else if ( r < 0 ) return false;
-	    else if ( !declaredFromPattern() &&
-		      !mods.declaredFromPattern()) return false;
+	    if ( r > 0 ) continue; // match found.
+	    else if ( r < 0 ) return false; // modifier(i) is definitely excluded
+	    else {
+		// no match was found, but nothing excluded, either.
+		// if getModifier(i) is not declared in a pattern, 
+		// or the other is declared from a pattern, then this
+		// definitely do not unify
+		/*
+		if ( !declaredFromPattern() &&
+		     !mods.declaredFromPattern()) return false;
+		*/
+		
+		/**
+		 * - if this is declared from a pattern,
+		 *   - but mods is not declared from a pattern,
+		 *     - this should be rejected because mods must have at least
+		 *      one modifier that matches.
+		 *   - mods is declared from a pattern, as well,
+		 *     then reject.
+		 * - if this is not declared from a pattern,
+		 *   - mods is not dcleared from a pattern., then NO
+		 *   - mods is declared from a pattern, then it is okay.
+		 **/
+		if ( mods.declaredFromPattern() && declaredFromPattern())
+		    return false;
+	    }
 	}
+	if ( getNumModifier() == 0 && mods.getNumModifier() > 0)
+	    return mods.unifiesWith(this);
 	return true;
     }
 
@@ -388,7 +469,8 @@ aspect MJTypeCheckCore {
 	    if ( getModifier(i).unifiesWith(m)) 
 		foundUniMod = true;
 	    // if a preclude modifier is found, immediately return.
-	    if ( getModifier(i).precludes(m)) return -1;
+	    if ( getModifier(i).precludes(m)) 
+		return -1;
 	}
 	return foundUniMod ? 1 : 0;
     }
@@ -446,7 +528,15 @@ aspect MJTypeCheckCore {
 	} else if ( isNameVariable(getID()) &&
 		    getID().equals(p.getID()))
 	    return true;
-	return false;
+
+	// check that types can be unified.
+	if (!p.getTypeAccess().type().unifiesWith(getTypeAccess().type(), uniMap, p.patternTypeVariables()))
+	    return false;
+
+	// check modifiers unify.
+	return p.getModifiers().unifiesWith(getModifiers());
+
+	//	return false;
     }
     syn lazy boolean Pattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) = false;
     eq MethodPattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) {

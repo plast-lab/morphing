@@ -19,10 +19,8 @@ aspect MJUnification {
 						      Collection uniNameVars) {
 	if ( this == f ) return true;
 
-	if ( !canUnifyName(getID(), f.getID(), f, uniMap, uniNameVars))
-	    return false; 
-	// unify type.
-	return type().unifiesWith(f.type(), uniMap, uniTypeVars);
+	return canUnifyName(getID(), f.getID(), f, uniMap, uniNameVars);
+	//	return type().unifiesWith(f.type(), uniMap, uniTypeVars);
     }
 
     public boolean BodyDecl.canUnifyName(String thisName, String thatName, 
@@ -31,13 +29,9 @@ aspect MJUnification {
 	// first parse out the real name variable parts of both names.
 	Identifier thisId = new Identifier(thisName, this.refIterator(),
 					   uniMap, uniNameVars);
-	Identifier thatId = new Identifier(thatName, that.refIterator(),
+	Identifier thatId = new Identifier(thatName,that.refIterator(),
 					   uniMap, uniNameVars);
 	return thisId.mapsTo(thatId, uniMap) || thatId.mapsTo(thisId, uniMap);
-	/*
-	return thisNameMapsToThatName(thisName, thatName, that, uniMap, uniNameVars) 
-	    || that.thisNameMapsToThatName(thatName, thisName, this, uniMap, uniNameVars);
-	*/
     }
 
     /**

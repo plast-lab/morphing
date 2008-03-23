@@ -328,7 +328,8 @@ aspect MJPattern {
 	return l;
     }
 
-    syn Collection MethodDecl.patternConditions() {
+    syn Collection BodyDecl.patternConditions() = Collections.EMPTY_LIST;
+    eq MethodDecl.patternConditions() {
 	Collection l = new ArrayList();
 
 	ArrayList params = parameterTypes();
@@ -358,6 +359,16 @@ aspect MJPattern {
     eq StaticForMethodDecl.patternConditions() {
 	// TODO: nested patterns have more conditions.
 	return refIterator().getPatternConditions();
+    }
+    eq StaticForFieldDeclaration.patternConditions() = refIterator().getPatternConditions();
+    eq FieldDeclaration.patternConditions() {
+	Collection l = new ArrayList();
+	l.add(new StaticFieldPattern(new BaseSet(hostType().createBoundAccess(),
+						 new RefElmt("fields")),
+				     (Modifiers) getModifiers().fullCopy(),
+				     type().createBoundAccess(),
+				     getID(), new Opt(), new List()));
+	return l;
     }
 
     syn lazy boolean Pattern.isPositiveCondition() = true;

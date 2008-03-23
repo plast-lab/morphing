@@ -236,6 +236,19 @@ aspect MJAttributes {
 					getIteratorDecl().signature()));
 	return c;
     }
+    eq StaticForConstructorDecl.attributes() {
+	Collection c = super.attributes();
+	// add attribute about the iterator decl.
+	c.add(new IteratorDeclAttribute(hostType().constantPool(), 
+					getIteratorDecl().signature()));
+	return c;
+    }
+    eq StaticForFieldDeclaration.attributes() {
+	Collection c = super.attributes();
+	c.add(new IteratorDeclAttribute(hostType().constantPool(),
+					getIteratorDecl().signature()));
+	return c;
+    }
 
     class IteratorDeclAttribute extends Attribute {
 	public IteratorDeclAttribute(ConstantPool cp, String iteratorSig) {

@@ -1,6 +1,8 @@
 aspect MJSubstitution {
 
     protected StaticForMethodDecl StaticForMethodDecl.original;
+    protected StaticForFieldDeclaration StaticForFieldDeclaration.original;
+
     syn StaticForMethodDecl StaticForMethodDecl.original() = original != null ? original : this;
 
     HashMap StaticForMethodDecl.parMethodDeclMap = new HashMap();
@@ -34,6 +36,24 @@ aspect MJSubstitution {
 	parMethodDeclMap.put(parTypeDecl, m);
 
 	return m;
+    }
+
+    HashMap StaticForFieldDeclaration.parFieldDeclMap = new HashMap();
+    public BodyDecl StaticForFieldDeclaration.p(ParTypeDecl parTypeDecl) {
+	if ( parFieldDeclMap.get(parTypeDecl) != null )
+	    return (BodyDecl) parFieldDeclMap.get(parTypeDecl);
+
+	ParStaticForFieldDeclaration f =
+	    new ParStaticForFieldDeclaration((Modifiers) getModifiers().fullCopy(),
+					     getTypeAccess().type().substitute(parTypeDecl),
+					     getID(), new Opt(),
+					     getIteratorDecl().substitute(parTypeDecl),
+					     new List());
+	f.original = this;
+	f.is$Final = true;
+	((TypeDecl) parTypeDecl).addBodyDecl(f);
+	parFieldDeclMap.put(parTypeDecl, f);
+	return f;
     }
 
     public IteratorDecl IteratorDecl.substitute(ParTypeDecl parTypeDecl) {
