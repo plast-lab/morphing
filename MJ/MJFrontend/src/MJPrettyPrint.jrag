@@ -45,6 +45,16 @@ aspect MJPrettyPrint {
 	return buf.toString();
     }
 
+    public void StaticForFieldDeclaration.toString(StringBuffer buf) {
+	getIteratorDecl().toString(buf);
+	super.toString(buf);
+    }
+
+    public String FieldDeclaration.infoSignature() { 
+	StringBuffer sb = new StringBuffer();
+	toString(sb);
+	return sb.toString();
+    }
 
     public void StaticForMethodDecl.toString(StringBuffer buf) {
 	getIteratorDecl().toString(buf);
@@ -100,6 +110,7 @@ aspect MJPrettyPrint {
 	buf.append(getID());
     }
     public void MethodPattern.toString(StringBuffer buf) {
+	getModifiers().toString(buf);
 	if ( !getTypeAccess().addedByPatternRewrite()) {
 	    getTypeAccess().toString(buf);
 	    buf.append(" ");
@@ -135,6 +146,7 @@ aspect MJPrettyPrint {
 	if ( getIsPositive()) buf.append("some ");
 	else buf.append("no ");
 
+	getModifiers().toString(buf);
 	if ( !getTypeAccess().addedByPatternRewrite()) {
 	    getTypeAccess().toString(buf);
 	    buf.append(" ");
@@ -167,6 +179,7 @@ aspect MJPrettyPrint {
 	buf.append(";");
     }
     public void FieldPattern.toString(StringBuffer buf) {
+	getModifiers().toString(buf);
 	if ( !getTypeAccess().addedByPatternRewrite()) {
 	    getTypeAccess().toString(buf);
 	    buf.append(" ");
@@ -180,6 +193,7 @@ aspect MJPrettyPrint {
 	if ( getIsPositive()) buf.append("some ");
 	else buf.append("no ");
 
+	getModifiers().toString(buf);
 	if ( !getTypeAccess().addedByPatternRewrite()) {
 	    getTypeAccess().toString(buf);
 	    buf.append(" ");

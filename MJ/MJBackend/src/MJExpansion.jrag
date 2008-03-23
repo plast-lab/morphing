@@ -128,6 +128,20 @@ aspect MJExpansion {
 	return nodesMap;
     }
 
+    protected MemberNode FieldDeclaration.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
+	FieldNode newNode = NodeCopier.copyFieldNode((FieldNode) mn);
+
+	// see if need to change name.
+	newNode.name = getID();
+	
+	// modify descriptor.
+	newNode.desc = type().typeDescriptor();
+
+	newNode.signature = null;
+
+	return newNode;
+    }
+
     protected MemberNode MethodDecl.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
 	MethodNode newNode = NodeCopier.copyMethodNode((MethodNode)mn);
 	
@@ -257,32 +271,37 @@ aspect MJExpansion {
 	return opcode;
     }
 
-    protected MemberNode FieldDeclaration.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
-	// TODO: take care of reflectively declared fields.
-	
-	FieldNode newNode = NodeCopier.copyFieldNode((FieldNode) mn);
-
-	// change desc.
-	newNode.desc = type().typeDescriptor();
-	
-	// take away signature.
-	newNode.signature = null;
-	
-	return newNode;
-    }
-
     protected void ParClassDecl.expandFields(ClassNode cn) {
 	java.util.List fields = cn.fields;
 	java.util.List newFields = new ArrayList();
 
 	for ( Iterator fIt = fields.iterator(); fIt.hasNext(); ) {
 	    FieldNode fn = (FieldNode) fIt.next();
-	    FieldDeclaration fd = findField(fn);
-	    
-	    // TODO: take care of reflectively declared fields.
-	    
-	    FieldNode newNode = (FieldNode) fd.transformMemberNode(fn, this);
-	    newFields.add(newNode);
+	    if ( reflectiveMemberNode(fn) ) {
+		StaticForFieldDeclaration fd = genericDecl().reflectiveField(fn);
+		if ( fd != null ) {
+		    ParStaticForFieldDeclaration parfd = 
+			(ParStaticForFieldDeclaration) fd.p(this);
+		    List expandedFields = parfd.expandedFields();
+		    for ( int i=0; i<expandedFields.getNumChild(); i++) {
+			ExpandedFieldDeclaration expandedFd =
+			    (ExpandedFieldDeclaration) expandedFields.getChild(i);
+			
+			FieldNode newNode = 
+			    (FieldNode) expandedFd.transformMemberNode(fn, this);
+			newFields.add(newNode);
+		    }
+		} else {
+		    // something is seriously wrong.
+		    throw new Error("Cannot find the definition for " +
+				    "reflectively declared field " +
+				    fn.name);
+		}
+	    } else {
+		FieldDeclaration fd = findField(fn);
+		FieldNode newfn = (FieldNode) fd.transformMemberNode(fn, this);
+		newFields.add(newfn);
+	    }
 	}
 
 	cn.fields = newFields;
@@ -343,7 +362,10 @@ aspect MJExpansion {
 	}
 	return null;
     }
+
     public FieldDeclaration TypeDecl.findField(FieldNode fn) {
+	// if fn is a reflectively declared one, we need to iterate reflective
+	// fields.
 	for ( Iterator fIt = fields(fn.name).iterator(); fIt.hasNext(); ) {
 	    FieldDeclaration f = (FieldDeclaration) fIt.next();
 	    if ( f.getID().equals(fn.name))
@@ -351,6 +373,7 @@ aspect MJExpansion {
 	}
 	return null;
     }
+
 
     public boolean ConstructorDecl.isSameMethod(MethodNode mn) {
 	return mn.name.equals("<init>")
@@ -367,6 +390,23 @@ aspect MJExpansion {
     }
     public boolean MethodDeclSubstituted.isSameMethod(MethodNode mn) {
 	return ((MethodDecl) getOriginal()).isSameMethod(mn);
+    }
+
+    public boolean FieldDeclaration.isSameField(FieldNode fn) {
+	return fn.name.equals(getID());
+    }
+    public boolean FieldDeclarationSubstituted.isSameField(FieldNode fn) {
+	return ((FieldDeclaration) getOriginal()).isSameField(fn);
+    }
+
+    public StaticForFieldDeclaration TypeDecl.reflectiveField(FieldNode fn) {
+	Collection rfields = reflectiveFields();
+	for ( Iterator rfIt = rfields.iterator(); rfIt.hasNext(); ) {
+	    StaticForFieldDeclaration fd = (StaticForFieldDeclaration) rfIt.next();
+	    if ( fd.getIteratorDecl().signature().equals(iteratorDeclAttribute(fn)) && fn.name.equals(fd.getID()))
+		return fd;
+	}
+	return null;
     }
 
     public StaticForMethodDecl TypeDecl.reflectiveMethod(MethodNode mn) {

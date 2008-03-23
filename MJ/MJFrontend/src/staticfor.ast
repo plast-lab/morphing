@@ -37,6 +37,7 @@ OptNestedFieldPattern : OptFieldPattern ::= <IsPositive:boolean>;
 MethodPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* Exception:Access*  [PatternMethodDecl] SubMethodPattern:MethodPattern*;
 
 StaticMethodPattern : MethodPattern;
+StaticFieldPattern : FieldPattern;
 
 FieldPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String> [PatternFieldDeclaration] SubFieldPattern:FieldPattern*;
 

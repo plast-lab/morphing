@@ -184,6 +184,14 @@ aspect MJFields {
 	}
 	return set;
     }
+    eq ClassDecl.reflectiveFields() {
+	Collection<StaticForFieldDeclaration> fields = super.reflectiveFields();
+	if ( hasSuperclass()) 
+	    fields.addAll(superclass().reflectiveFields());
+	for ( Iterator ifIt = interfacesIterator(); ifIt.hasNext(); )
+	    fields.addAll(((TypeDecl) ifIt.next()).reflectiveFields());
+	return fields;
+    }
     eq TypeVariable.reflectiveFields () {
 	Set set = new HashSet();
 	for ( int i=0; i<getNumTypeBound(); i++) {
@@ -256,6 +264,22 @@ aspect MJFields {
 	    }
 	}
 	return set;
+    }
+
+    refine LookupVariable eq TypeDecl.localFieldsMap() {
+	// exclude reflectively declared fields.
+	HashMap map = new HashMap();
+	for(int i = 0; i < getNumBodyDecl(); i++) {
+	    if(getBodyDecl(i) instanceof FieldDeclaration &&
+	       !getBodyDecl(i).isReflectiveDecl()) {
+		FieldDeclaration decl = (FieldDeclaration)getBodyDecl(i);
+		SimpleSet fields = (SimpleSet)map.get(decl.name());
+		if(fields == null) fields = SimpleSet.emptySet;
+		fields = fields.add(decl);
+		map.put(decl.name(), fields);
+	    }
+	}
+	return map;	
     }
 
     eq ParTypeDecl.localFieldsMap() {
@@ -389,70 +413,4 @@ aspect MJFields {
 	}
 	return fields;
     }
-
-    /*
-    syn lazy SimpleSet TypeDecl.memberFields(PatternNameVariable name) = fields(name);
-    
-    syn SimpleSet TypeDecl.localFields(PatternNameVariable nv) {
-	SimpleSet fields = SimpleSet.emptySet;
-	for ( int i=0; i<getNumBodyDecl(); i++) {
-	    if ( getBodyDecl(i) instanceof StaticForFieldDeclaration) {
-		StaticForFieldDeclaration fd = (StaticForFieldDeclaration) getBodyDecl(i);
-		if ( fd.getIteratorDecl().subsumes(nv.enclosingRefIterator(), new HashMap()))
-		    fields = fields.add(fd);
-	    }
-	}
-	return fields;
-    }
-
-    syn SimpleSet TypeDecl.fields(PatternNameVariable nv) = localFields(nv);
-    eq TypeVariable.fields(PatternNameVariable nv) {
-	// if type variable is the base type of nv's iterator decl,
-	// then return the patternFieldDecl.
-	IteratorDecl nvIt = nv.enclosingRefIterator();
-	Pattern nvPattern = nvIt.getPattern();
-	if ( nvPattern.getBaseSet().type().subtype(this) &&
-	     nvPattern.isFieldPattern() &&
-	     ((FieldPattern) nvPattern).getID().equals(nv.getID())) {
-	    return ((FieldPattern) nvPattern).patternFieldDeclaration();
-	}
-	return null;
-    }
-
-    eq ClassDecl.fields(PatternNameVariable nv) {
-	SimpleSet fields = localFields(nv);
-	if ( !fields.isEmpty()) return fields;
-
-	if ( hasSuperclass()) {
-	    for(Iterator iter = superclass().fields(nv).iterator(); iter.hasNext(); ) {
-		FieldDeclaration decl = (FieldDeclaration)iter.next();
-		if(!decl.isPrivate() && decl.accessibleFrom(this))
-		    fields = fields.add(decl);
-	    }
-	}
-	for(Iterator outerIter = interfacesIterator(); outerIter.hasNext(); ) {
-	    TypeDecl type = (TypeDecl)outerIter.next();
-	    for(Iterator iter = type.fields(nv).iterator(); iter.hasNext(); ) {
-		FieldDeclaration decl = (FieldDeclaration)iter.next();
-		if(!decl.isPrivate() && decl.accessibleFrom(this))
-		    fields = fields.add(decl);
-	    }
-	}
-	return fields;
-    }
-    eq InterfaceDecl.fields(PatternNameVariable nv) {
-	SimpleSet fields = localFields(nv);
-	if (!fields.isEmpty()) return fields;
-	for (Iterator outerIter = superinterfacesIterator(); outerIter.hasNext(); ) {
-	    TypeDecl typeDecl = (TypeDecl)outerIter.next();
-	    for(Iterator iter = typeDecl.fields(nv).iterator(); iter.hasNext(); ) {
-		FieldDeclaration f = (FieldDeclaration)iter.next();
-		if(f.accessibleFrom(this) && !f.isPrivate()) {
-		    fields = fields.add(f);
-		}
-	    }
-	}
-	return fields;
-    }
-    */
 }
