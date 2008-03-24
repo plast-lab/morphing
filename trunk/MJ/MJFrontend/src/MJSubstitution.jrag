@@ -193,6 +193,13 @@ aspect MJSubstitution {
 					   substitutions);
 	return nameId.substitutedName();
     }
+    public String StaticFieldPattern.substitutedName(String name, Map substitutions) {
+	return name;
+    }
+    public String StaticMethodPattern.substitutedName(String name, Map substitutions) {
+	return name;
+    }
+
     public String BodyDecl.substitutedName(String name, Map substitutions) {
 	Identifier nameId = new Identifier(name, refIterator(), substitutions);
 	return nameId.substitutedName();
@@ -206,7 +213,6 @@ aspect MJSubstitution {
 	} 
 	return this;
     }
-
 
     public FieldPattern FieldPattern.substitute(Map substitutions) {
 	String name = substitutedName(getID(), substitutions);
@@ -235,11 +241,12 @@ aspect MJSubstitution {
 	addSubFieldPattern(nfp);
 	return nfp;
     }
-    
-    public MethodPattern StaticMethodPattern.substitute(Map substitutions) {
+    public StaticFieldPattern StaticFieldPattern.substitute(Map substitutions) {
 	return this;
     }
-
+    public StaticMethodPattern StaticMethodPattern.substitute(Map substitutions) {
+	return this;
+    }
     public MethodPattern MethodPattern.substitute(Map substitutions) {
 	String name = substitutedName(getID(), substitutions);
 	MethodPattern mp =
