@@ -30,7 +30,8 @@ aspect MJPattern {
     inh IteratorDecl IteratorDecl.enclosingRefIterator();
     inh IteratorDecl Stmt.enclosingRefIterator();
     eq StaticForStmt.getStmt(int index).enclosingRefIterator() = getIteratorDecl();
-    syn lazy IteratorDecl StaticForStmt.refIterator() = getIteratorDecl();
+    syn lazy IteratorDecl Stmt.refIterator() = null;
+    eq StaticForStmt.refIterator() = getIteratorDecl();
 
     syn lazy IteratorDecl Expr.enclosingRefIterator() = enclosingStmt().enclosingRefIterator();
 
@@ -42,6 +43,9 @@ aspect MJPattern {
     inh IteratorDecl PatternTypeVariable.enclosingRefIterator();
     eq IteratorDecl.getPatternTypeParameter(int i).enclosingRefIterator() = this;
     eq Program.getChild().enclosingRefIterator() = null;
+
+    syn IteratorDecl StaticFieldPattern.enclosingRefIterator() = null;
+    syn IteratorDecl StaticMethodPattern.enclosingRefIterator() = null;
 
     // get the enclosing reflective base type
     syn lazy TypeDecl BodyDecl.reflectiveBaseType() =
@@ -178,7 +182,13 @@ aspect MJPattern {
 	getIteratorDecl().isNameVariable(name);
     eq StaticForConstructorDecl.getBlock().isNameVariable(String name) =
 	getIteratorDecl().isNameVariable(name);
-    eq Block.getStmt(int i).isNameVariable(String name) = isNameVariable(name);
+    eq Block.getStmt(int i).isNameVariable(String name) {
+	if ( getStmt(i) instanceof StaticForStmt ) {
+	    if ( ((StaticForStmt) getStmt(i)).getIteratorDecl().isNameVariable(name))
+		return true;
+	}
+	return isNameVariable(name);
+    }
     eq Program.getChild(int i).isNameVariable(String name) = false;
 
     syn lazy boolean IteratorDecl.isLocalNameVariable(String name) {
@@ -206,7 +216,13 @@ aspect MJPattern {
 	getIteratorDecl().containsNameVariable(name);
     eq StaticForConstructorDecl.getBlock().containsNameVariable(String name) =
 	getIteratorDecl().containsNameVariable(name);
-    eq Block.getStmt(int i).containsNameVariable(String name) = containsNameVariable(name);
+    eq Block.getStmt(int i).containsNameVariable(String name) {
+	if ( getStmt(i) instanceof StaticForStmt ) {
+	    if ( ((StaticForStmt) getStmt(i)).getIteratorDecl().containsNameVariable(name))
+		return true;
+	}
+	return containsNameVariable(name);
+    }
     eq Program.getChild(int i).containsNameVariable(String name) = false;
 
     syn lazy boolean IteratorDecl.containsNameVariable(String name) {

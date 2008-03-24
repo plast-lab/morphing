@@ -1,9 +1,6 @@
 aspect MJTypeCheckCore {
 
     syn lazy boolean FieldDeclaration.isUniqueFrom(FieldDeclaration f) {
-	/**
-	 * 
-	 **/
 	if ( this == f ) return false;
 	
 	Collection uniTypeVars = f.patternTypeVariables();
@@ -17,6 +14,9 @@ aspect MJTypeCheckCore {
 	if ( !this.canUnifySignature(f, uniMap, uniTypeVars, uniNameVars))
 	    return true;
 
+	if ( !f.type().unifiesWith(this.type(), uniMap, uniTypeVars))
+	    return true;
+
 	// check whether unification mapping cause mutually exclusive
 	// pattern conditions.
 	Collection patternConditions = new ArrayList();
@@ -27,7 +27,8 @@ aspect MJTypeCheckCore {
 	
 	// if signature can unify, they are still unique if the host types
 	// are different.
-	return hostType() != f.hostType();
+	return !hostType().subtype(f.hostType()) &&
+	    !f.hostType().subtype(hostType());
     }
 
     /**
@@ -177,14 +178,29 @@ aspect MJTypeCheckCore {
 	// first check whether the primary pattern of this subsumes
 	// primary pattern of that.
 	if ( !getPattern().subsumes(that.getPattern(), uniMap))
-	    return true;
+	    return false;
 
-	// the unification causing the subsumption must make all nested
-	// patterns true.
+	// Each nested pattern of that must be implied by a nested pattern
+	// of this.
+	for ( int i=0; i<that.getNumNestedPattern(); i++) {
+	    boolean sat = false;
+	    for ( int j=0; j<getNumNestedPattern(); j++) {
+		if (getNestedPattern(j).implies(that.getNestedPattern(i), uniMap)) {
+		    sat = true;
+		    break;
+		}
+	    }
+	    if ( !sat ) return false;
+	}
+
+	/*
 	return nestedPatternSatisfiedBy(uniMap) &&
 	    that.nestedPatternSatisfiedBy(uniMap);
+	*/
+	return true;
     }
 
+    /*
     syn lazy boolean IteratorDecl.nestedPatternSatisfiedBy(HashMap uniMap) {
 	for ( int i=0; i<getNumNestedPattern(); i++ ) {
 	    if ( !getNestedPattern(i).satisfiedBy(uniMap))
@@ -192,6 +208,7 @@ aspect MJTypeCheckCore {
 	}	
 	return true;
     }
+    */
 
     syn lazy boolean BodyDecl.isSubsumedBy(IteratorDecl id, HashMap map) {
 	// 2. BodyDecl must be within range of the primary pattern.
@@ -254,6 +271,7 @@ aspect MJTypeCheckCore {
     eq NestedMethodPattern.satisfiedBy(Map uniMap) {
 	// substitute pattern.
 	NestedMethodPattern subed = substitute(uniMap);
+	PatternMethodDecl nmd = subed.patternMethodDecl();
 
 	// expand the methods in the pattern after substitution.
 	Map methods = subed.getBaseSet().type().unrestrictedMethodsSignatureMap();	
@@ -261,6 +279,18 @@ aspect MJTypeCheckCore {
 	PatternMethodDecl pmd = subed.patternMethodDecl();
 	for ( Iterator mIt = methods.values().iterator(); mIt.hasNext(); ) {
 	    MethodDecl md = (MethodDecl) mIt.next();
+
+	    if ( md.isSubsumedBy(subed, (HashMap) uniMap)) {
+		// this md is in the range of the pattern,
+		// - if the pattern is a positive one, then it is satisfied.
+		// - if the pattern is negative, then it is definitely not sat.
+		return isPositiveCondition();
+	    } else if ( !isPositiveCondition() && !md.isUniqueFrom(nmd))
+		// if the pattern is negative and the method is
+		// not definitely unique from the pattern, 
+		// then the condition is not satisfied.
+		return false;
+	    /*
 	    if ( md.canUnifySignature(pmd, uniMap, 
 				      patternTypeVariables(),
 				      patternNameVariables()) &&
@@ -268,28 +298,36 @@ aspect MJTypeCheckCore {
 				       uniMap,patternTypeVariables()) &&
 		 pmd.getModifiers().unifiesWith(md.getModifiers()))
 		matched++;
+	    */
+
 	}
+	/*
 	return (getIsPositive() && matched > 0) ||
 	    (!getIsPositive() && matched == 0 );
+	*/
+	return !getIsPositive();
     }
     eq NestedFieldPattern.satisfiedBy(Map uniMap) {
 	NestedFieldPattern subed = substitute(uniMap);
 
 	// expand the fields in the pattern after substitution.
 	SimpleSet fields = subed.getBaseSet().type().unrestrictedFields();
-	int matched = 0;
 	PatternFieldDeclaration pfd = subed.patternFieldDeclaration();
 	for ( Iterator fIt = fields.iterator(); fIt.hasNext(); ) {
 	    FieldDeclaration fd = (FieldDeclaration) fIt.next();
-	    if ( fd.canUnifySignature(pfd, uniMap, patternTypeVariables(),
-				      patternNameVariables()) &&
-		 fd.type().unifiesWith(pfd.type(), uniMap, patternTypeVariables()) &&
-		 pfd.getModifiers().unifiesWith(fd.getModifiers()))
-		matched++;
+	    if ( fd.isSubsumedBy(subed, (HashMap) uniMap)) {
+		return isPositiveCondition();
+	    } else if (!isPositiveCondition() &&
+			// if condition is negative and fd is not absolutely
+			// excluded by the pattern, then return false.
+			!fd.isUniqueFrom(subed.patternFieldDeclaration()))
+		return false;
 	}
-	return (getIsPositive() && matched > 0) ||
-	    (!getIsPositive() && matched == 0 );
+
+	// if we're here, if it's a negative pattern, this return true;
+	return !isPositive();
     }
+
     eq TrueNestedPattern.satisfiedBy(Map uniMap) = true;
 
     public static boolean Program.hasMutualExclusiveConditions(Collection patternConditions, Map uniMap) {
@@ -442,7 +480,7 @@ aspect MJTypeCheckCore {
 		 *   - mods is not dcleared from a pattern., then NO
 		 *   - mods is declared from a pattern, then it is okay.
 		 **/
-		if ( mods.declaredFromPattern() && declaredFromPattern())
+		if ( !mods.declaredFromPattern() && declaredFromPattern())
 		    return false;
 	    }
 	}
@@ -517,22 +555,16 @@ aspect MJTypeCheckCore {
 	if ( !p.reflectiveBaseType().subtype(reflectiveBaseType()))
 	    return false;
 
-	// check that name can be unified.
-	Collection uniNameVars = p.patternNameVariables();
-	if ( enclosingRefIterator().isNameVariable(p.getID(), uniNameVars)) {
-	    if ( isNameVariable(getID()) )
-		uniMap.put(enclosingRefIterator().getNameVariable(p.getID(), uniNameVars),
-			   getNameVariable(getID()));
-	    else uniMap.put(enclosingRefIterator().getNameVariable(p.getID(), uniNameVars),getID());
-	    return true;
-	} else if ( isNameVariable(getID()) &&
-		    getID().equals(p.getID()))
-	    return true;
+	PatternFieldDeclaration thisFd = this.patternFieldDeclaration();
+	PatternFieldDeclaration pFd = p.patternFieldDeclaration();
+
+	if ( !thisFd.canUnifySignature(pFd, uniMap, p.patternTypeVariables(), p.patternNameVariables()))
+	    return false;
 
 	// check that types can be unified.
 	if (!p.getTypeAccess().type().unifiesWith(getTypeAccess().type(), uniMap, p.patternTypeVariables()))
 	    return false;
-
+	
 	// check modifiers unify.
 	return p.getModifiers().unifiesWith(getModifiers());
 
@@ -558,7 +590,6 @@ aspect MJTypeCheckCore {
 	    return false;
 
 	// return types unify
-	//	if ( !getTypeAccess().type().unifiesWith(pMd.type(), uniMap, p.patternTypeVariables()))
 	if ( !pMd.type().unifiesWith(getTypeAccess().type(), uniMap, p.patternTypeVariables()))
 	    return false;
 

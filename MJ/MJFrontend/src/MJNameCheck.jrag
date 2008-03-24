@@ -142,6 +142,7 @@ aspect MJNameCheck {
 	// all statically declared fields.
 	SimpleSet fields = hostType().unrestrictedFields();
 	Collection refFields = hostType().reflectiveFields();
+
 	for ( Iterator fIt = fields.iterator(); fIt.hasNext(); )
 	    refFields.add(fIt.next());
 
@@ -155,6 +156,7 @@ aspect MJNameCheck {
 		      "    in type " + field.hostType().typeName());
 	    }
 	}
+
     }
 
     refine NameCheck public void MethodDecl.nameCheck() {
@@ -193,22 +195,6 @@ aspect MJNameCheck {
 			  ".");
 		}
 	    }
-	    
-	    // if the superclass is a type variable, then special treatment
-	    // is needed: this method needs to be disjoint from a staticfor
-	    // declaration representing all methods in the type variable.
-	    if ( hostType().isClassDecl() && 
-		 ((ClassDecl) hostType()).hasSuperclass() &&
-		 ((ClassDecl) hostType()).superclass().isTypeVariable()) {
-		MethodDecl md = ((ClassDecl) hostType()).superclass().everyMethod();
-		if ( !isUniqueFrom(md) )
-		    // check whether this and md are overriding methods.
-		    error("method with signature \n" + 
-			  "       " + infoSignature() + 
-			  "\n    conflicts with method\n" + 
-			  "       " + md.infoSignature() +
-			  "\n    in type " + md.hostType().typeName() + ".");
-	    }
 	} else {
 	    // static method. But still needs to make sure it does
 	    // not conflict with reflectively declared methods in this
@@ -228,6 +214,22 @@ aspect MJNameCheck {
 			      " in type " + hostType().typeName() + ".");
 		}
 	    }
+	}
+	    
+	// if the superclass is a type variable, then special treatment
+	// is needed: this method needs to be disjoint from a staticfor
+	// declaration representing all methods in the type variable.
+	if ( hostType().isClassDecl() && 
+	     ((ClassDecl) hostType()).hasSuperclass() &&
+	     ((ClassDecl) hostType()).superclass().isTypeVariable()) {
+	    MethodDecl md = ((ClassDecl) hostType()).superclass().everyMethod();
+	    if ( !isUniqueFrom(md) )
+		// check whether this and md are overriding methods.
+		error("method with signature \n" + 
+		      "       " + infoSignature() + 
+		      "\n    conflicts with method\n" + 
+		      "       " + md.infoSignature() +
+		      "\n    in type " + md.hostType().typeName() + ".");
 	}
 	
 	// 8.4.3.4
