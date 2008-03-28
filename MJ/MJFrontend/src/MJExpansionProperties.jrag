@@ -154,7 +154,8 @@ aspect MJExpansionProperties {
 	return baseType.isTypeVariable() || 
 	    (baseType.needsExpansion() && !baseType.grounded());
     }
-    
+    eq EmptyPrimaryPattern.needsExpansion() = false;
+
     eq Block.needsExpansion() {
 	// check all statements.
 	for ( int i=0; i<getNumStmt(); i++) {
@@ -179,6 +180,6 @@ aspect MJExpansionProperties {
     }
     syn lazy boolean Pattern.expandable() = getBaseSet().type().grounded();
     eq TrueNestedPattern.expandable() = true;
-    
+    eq EmptyPrimaryPattern.expandable() = true;
 }
 

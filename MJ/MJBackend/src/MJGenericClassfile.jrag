@@ -45,6 +45,69 @@ aspect MJGenerateClassfile {
 
     }
 
+    public class ASMStaticForStmtsAttribute extends org.objectweb.asm.Attribute {
+
+	Collection<StaticForStmtsAttribute> staticForStmts;
+	
+	class StaticForStmtsAttribute {
+	    int begin_instr;
+	    int end_instr;
+	    String iterator_sig;
+
+	    StaticForStmtsAttribute(int b, int e, String s) {
+		begin_instr = b;
+		end_instr = e;
+		iterator_sig = s;
+	    }
+	}
+
+	public ASMStaticForStmtsAttribute(Collection stmtAttrs) {
+	    super("StaticForStmts");
+	    staticForStmts = stmtAttrs;
+	}
+
+	public boolean isUnknown() { return false; }    
+
+	public boolean isCodeAttribute() { return true; }
+
+	protected org.objectweb.asm.Attribute read(ClassReader cr, int off, int len,
+				 char[] buf, int codeOff, Label[] labels) {
+	    // read number of entries.
+	    Collection attrs = new ArrayList();
+
+	    int entries=  cr.readUnsignedShort(off);
+	    int w = off+2;
+	    for( int i=0; i<entries; i++) { 
+		// first read two numbers.
+		int begin = cr.readUnsignedShort(w);;
+		int end   = cr.readUnsignedShort(w+2);
+		String iterator_sig = cr.readUTF8(w+4, new char[100]);
+
+		w += 6;
+		attrs.add(new StaticForStmtsAttribute(begin, end, iterator_sig));
+	    }
+	    return new ASMStaticForStmtsAttribute(attrs);
+	}
+
+	protected ByteVector write(ClassWriter cw, byte[] code, int len,
+				   int maxStack, int maxLocals) {
+	    ByteVector bv = new ByteVector();
+	    bv.putShort(staticForStmts.size());
+	    for ( Iterator<StaticForStmtsAttribute> i = staticForStmts.iterator();
+		  i.hasNext(); ) {
+		StaticForStmtsAttribute a = i.next();
+		/*
+		bv.putShort(a.begin_pos);
+		bv.putShort(a.end_pos);
+		bv.putUTF8(iteratorDecl);
+		return bv;
+		*/
+	    }
+	    return bv;
+	}	
+	
+    }
+
     protected String ParClassDecl.sourceFile() {
 	TypeDecl gt = genericDecl();
 
@@ -94,27 +157,22 @@ aspect MJGenerateClassfile {
 
 	    // Check that all type arguments can be accessed from this
 	    // package. If not, 
-	    // - warn user.
 	    // - increase visibility of type argument.
 	    for ( int i=0; i<getNumArgument(); i++) {
 		TypeDecl at = getArgument(i).type();
 		if ( !at.accessibleFrom(this)) {
-		    // warn user.
-		    System.out.println("WARNING: " + at.fullName() + 
-				       " cannot be accessed from " +
-				       nameWithArgs() + ". Increasing " +
-				       "visibility of " + 
-				       at.fullName() + " to public.");
-		    at.makePublic();
+		    at.makeAccessibleFrom(this);
 
+		    /*	
 		    // if type is used as superclass, then must changed
 		    // the visibility of constructors, transitively.
 		    if ( hasSuperclass() && superclass() == at ) {
 			for ( int j=0; j<getNumBodyDecl(); j++) {
-			    if ( getBodyDecl(j) instanceof ConstructorDecl)
+			    if (getBodyDecl(j) instanceof ConstructorDecl)
 				((ConstructorDecl) getBodyDecl(j)).makeSuperConstructorPublic((ClassDecl) at);
 			}
 		    }
+		    */
 		}
 	    }
 
@@ -135,7 +193,9 @@ aspect MJGenerateClassfile {
 	    ClassNode cn = new ClassNode();
 
 	    cr.accept(cn, 
-		      new org.objectweb.asm.Attribute[] { new ASMIteratorDeclAttribute("") }, 
+		      new org.objectweb.asm.Attribute[] { 
+			  new ASMIteratorDeclAttribute(""),
+			  new ASMStaticForStmtsAttribute(null) },
 		      0);
 	    
 	    // transform ClassNode cn.
@@ -158,6 +218,23 @@ aspect MJGenerateClassfile {
 	} catch (IOException e) {
 	    e.printStackTrace();
 	}
+    }
+
+    refine StaticImportsCodegen protected TypeDecl VarAccess.fieldQualifierType() {
+	// from CreateBCode.
+	TypeDecl typeDecl = hostType();
+	if(hasPrevExpr())
+	    typeDecl = prevExpr().type();
+
+	while(typeDecl != null && !typeDecl.hasField(name()))
+	    typeDecl = typeDecl.enclosingType();
+
+	if ( typeDecl == null )				
+	    return decl().hostType();
+
+	if ( typeDecl.shouldErase())
+	    return typeDecl.erasure();
+	return typeDecl;
     }
 
     refine StaticImportsCodegen protected TypeDecl MethodAccess.methodQualifierType() {
@@ -226,127 +303,56 @@ aspect MJGenerateClassfile {
 	    gen.emit(Bytecode.INVOKESPECIAL, size).add2(index);
 	}
     }
-}
 
-aspect MJAttributes {
-    eq StaticForMethodDecl.attributes() {
-	Collection c = super.attributes();
-	// add attribute about the iterator decl.
-	c.add(new IteratorDeclAttribute(hostType().constantPool(), 
-					getIteratorDecl().signature()));
-	return c;
-    }
-    eq StaticForConstructorDecl.attributes() {
-	Collection c = super.attributes();
-	// add attribute about the iterator decl.
-	c.add(new IteratorDeclAttribute(hostType().constantPool(), 
-					getIteratorDecl().signature()));
-	return c;
-    }
-    eq StaticForFieldDeclaration.attributes() {
-	Collection c = super.attributes();
-	c.add(new IteratorDeclAttribute(hostType().constantPool(),
-					getIteratorDecl().signature()));
-	return c;
-    }
-
-    class IteratorDeclAttribute extends Attribute {
-	public IteratorDeclAttribute(ConstantPool cp, String iteratorSig) {
-	    super(cp, "IteratorDecl");
-	    u2(cp.addUtf8(iteratorSig));
-	}
-    }
     
-    syn String IteratorDecl.signature() {
-	// <R;..>[m;..] (A)R;[m]T;methods; -(A)R;[m]T;methods;+(A)R[m]T;methods 
-	StringBuffer buf = new StringBuffer();
-	buf.append("<");
-	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
-	    buf.append(getPatternTypeParameter(i).classTypeSignature());
-	}  
-	buf.append(">");
-	buf.append("[");
-	for ( int i=0; i<getNumPatternNameParameter(); i++) {
-	    buf.append(getPatternNameParameter(i).getID() + ";");
-	}
-	buf.append("]");
-	buf.append(getPattern().signature());
-	for ( int i=0; i<getNumNestedPattern(); i++) {
-	    buf.append(getNestedPattern(i).signature());
-	}
-	return buf.toString();
-    }
-    syn String Pattern.signature() { 
-	throw new Error("signature() unsupported by " + getClass().getName());
-    }
-    syn String FieldPattern.signature() {
-	// field pattern: type[name]	
-	StringBuffer buf = new StringBuffer(getTypeAccess().type().classTypeSignature());
-	// append field name.
-	buf.append("[");
-	buf.append(getID());
-	buf.append("]");
-
-	// append base set signature.
-	buf.append(getBaseSet().signature());
-	return buf.toString();
-    }
-    syn String MethodPattern.signature() {
-	PatternMethodDecl md = patternMethodDecl();
-	StringBuffer buf = new StringBuffer(md.methodTypeSignature());
-	// append method name.
-	buf.append("[");
-	buf.append(getID());
-	buf.append("]");
-
-	// append modifiers.
-	buf.append("(");
-	buf.append(md.getModifiers().signature());
-	buf.append(")");
-
-	// append base set signature.
-	buf.append(getBaseSet().signature());
-	return buf.toString();
-    }
-    syn String NestedMethodPattern.signature() {
-	StringBuffer buf = new StringBuffer();
-	if ( getIsPositive()) buf.append("+");
-	else buf.append("-");
-	buf.append(super.signature());
-	return buf.toString();
-    }
-    syn String TrueNestedPattern.signature() { return ""; }
-
-    syn String BaseSet.signature() {
-	StringBuffer buf = new StringBuffer(getTypeAccess().type().classTypeSignature());
-	buf.append(getRefElmt().signature());
-	return buf.toString();
-    }
-
-    syn String RefElmt.signature() {
-	return getElmtName() + ";";
-    }
-
-    syn String Modifiers.signature() {
-	StringBuffer buf = new StringBuffer();
-	for ( int i=0; i<getNumModifier(); i++) 
-	    buf.append(getModifier(i).signature());
-	return buf.toString();
-    }
-    syn String Modifier.signature() = getID() + ";";
-    eq NegativeModifier.signature() = "-" + super.signature();
-    eq NoModifier.signature() = "NOMOD";
 }
 
 aspect FixJastadd {
     // add signature attribute to constructors.
     refine AnnotationsCodegen eq ConstructorDecl.attributes() {
-	Collection c = AnnotationsCodegen.ConstructorDecl.attributes();
+	//	Collection c = AnnotationsCodegen.ConstructorDecl.attributes();
+	// from AnnotationsCodegen
+	// change CodeAttribute -> MJCodeAttribute
+	ArrayList l = new ArrayList();
+	l.add(new MJCodeAttribute(bytecodes(hostType().constantPool()), null));
+	l.add(new ExceptionsAttribute(bytecodes(hostType().constantPool()), this));
+	if(getModifiers().isSynthetic())
+	    l.add(new SyntheticAttribute(hostType().constantPool()));
+	
 	if (needsSignatureAttribute())
-	    c.add(new SignatureAttribute(hostType().constantPool(),
+	    l.add(new SignatureAttribute(hostType().constantPool(),
 					 constructorTypeSignature()));
-	return c;
+	return l;
     }
+    
+    refine GenericsCodegen eq MethodDecl.attributes() {
+	// from Attributes.jrag
+	ArrayList l = new ArrayList();
+	l.add(new ExceptionsAttribute(bytecodes(hostType().constantPool()), this));
+	if(isAbstract() || isNative()) return l;
+	l.add(new MJCodeAttribute(bytecodes(hostType().constantPool()), this));
+	if(getModifiers().isSynthetic())
+	    l.add(new SyntheticAttribute(hostType().constantPool()));
+
+	// from AnnotationsCodegen
+	getModifiers().addRuntimeVisibleAnnotationsAttribute(l);
+	getModifiers().addRuntimeInvisibleAnnotationsAttribute(l);
+	addRuntimeVisibleParameterAnnotationsAttribute(l);
+	addRuntimeInvisibleParameterAnnotationsAttribute(l);
+
+	// from GenericsCodegen.
+	if(needsSignatureAttribute())
+	    l.add(new SignatureAttribute(hostType().constantPool(), methodTypeSignature()));
+	
+	return l;
+    }
+
+    refine Attributes eq TypeDecl.clinit_attributes() {
+    ArrayList l = new ArrayList();
+    l.add(new MJCodeAttribute(bytecodes(constantPool()), null));
+    return l;
+    }
+
     syn String ConstructorDecl.constructorTypeSignature() {
 	StringBuffer buf = new StringBuffer();
 	buf.append("(");

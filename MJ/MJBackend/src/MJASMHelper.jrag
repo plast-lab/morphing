@@ -66,10 +66,28 @@ aspect MJASMHelper {
 		newList.add(copyInsnNode(insArr[i]));
 	    return newList;
 	}
+	// copy instructions from instruction beginning at begin, ending at end
+	// exclusive.
+	public static InsnList copyInsnList(InsnList instructions, int begin, int end) {
+	    InsnList newList = new InsnList();
+	    for ( int i = begin; i< end; i++)
+		newList.add(copyInsnNode(instructions.get(i)));
+	    return newList;
+	}
 	public static AbstractInsnNode copyInsnNode(AbstractInsnNode n) {
 	    return n.clone(SelfMap.s);
 	}
 	
+	public static void removeInsns(InsnList instructions, int begin, int end) {
+	    org.objectweb.asm.tree.AbstractInsnNode curr = instructions.get(begin);
+	    org.objectweb.asm.tree.AbstractInsnNode next = null;
+	    for ( int i=begin; i < end; i++) {
+	    	next = curr.getNext();
+		instructions.remove(curr);
+		curr = next;
+	    }
+	}
+
 	static class SelfMap extends HashMap {
 	    static SelfMap s = new SelfMap();
 	    public Object get(Object key) { 

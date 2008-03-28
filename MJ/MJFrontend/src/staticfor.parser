@@ -1,9 +1,17 @@
 BodyDecl class_member_declaration =
     staticfor_declaration.b {: return b; :}
+  | staticif_declaration.b  {: return b; :}
   ;
 
+// static for body decl.
 BodyDecl staticfor_declaration = 
     staticfor_header.i staticfor_body.l
+  {: return new StaticForDecl(i, l); :}
+  ;
+
+// static if.
+BodyDecl staticif_declaration =
+    staticif_header.i staticfor_body.l
   {: return new StaticForDecl(i, l); :}
   ;
 
@@ -13,7 +21,7 @@ List staticfor_stmts =
   ;
 
 Stmt block_statement =
-    staticfor_stmt_header.i staticfor_stmts.s {: return new StaticForStmt(i, s); :}
+    staticfor_stmt_header.i staticfor_stmts.s {: return new StaticForStmt(i, s, new List()); :}
 	
   ;
 
@@ -48,6 +56,11 @@ IteratorDecl staticfor_header =
     pattern_type_parameter_list.l? pattern_name_parameter_list.n? FOR LPAREN pattern.p nested_patterns.np? RPAREN 
     {: return new IteratorDecl(l, n, p, np); :}
   ;  
+
+IteratorDecl staticif_header =
+    pattern_type_parameter_list.l? pattern_name_parameter_list.n? IF LPAREN nested_patterns_2.np? RPAREN
+    {: return new IteratorDecl(l, n, new EmptyPrimaryPattern(), np); :}
+  ;
 
 List pattern_type_parameter_list =
     LT pattern_type_parameter_list_1.l {: return l; :}
@@ -102,6 +115,11 @@ Pattern pattern =
 
 List nested_patterns =
     SEMICOLON nested_pattern.p {: return new List().add(p); :}
+  | nested_patterns.l SEMICOLON nested_pattern.p {: return l.add(p); :}
+  ;
+
+List nested_patterns_2 = 
+    nested_pattern.p {: return new List().add(p); :}
   | nested_patterns.l SEMICOLON nested_pattern.p {: return l.add(p); :}
   ;
 

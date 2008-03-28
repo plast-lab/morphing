@@ -87,7 +87,7 @@ aspect MJTypeHierarchyCheck {
 
 	Collection refMethods = reflectiveMethods();
 	for ( Iterator refIt = refMethods.iterator();refIt.hasNext(); ) {
-	    StaticForMethodDecl refM = (StaticForMethodDecl) refIt;
+	    StaticForMethodDecl refM = (StaticForMethodDecl) refIt.next();
 	    
 	    // expandable static for methods are already included
 	    // in the method signature maps.

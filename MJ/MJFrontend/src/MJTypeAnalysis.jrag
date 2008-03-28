@@ -89,10 +89,10 @@ aspect MJCircularity {
 	    BodyDecl bd = getBodyDecl(i);
 	    if ( bd.isReflectiveDecl()) {
 		StaticForDeclaration sfd = (StaticForDeclaration) bd;
-		if ( (bd instanceof MethodDecl &&
-		      sfd.getIteratorDecl().getPattern().getBaseSet().iterateMethods()) ||
+		if ( (bd instanceof MethodDecl && 
+		      sfd.getIteratorDecl().iterateMethods()) ||
 		     (bd instanceof FieldDeclaration &&
-		      sfd.getIteratorDecl().getPattern().getBaseSet().iterateFields()))
+		      sfd.getIteratorDecl().iterateFields()))
 		    if ( sfd.getIteratorDecl().baseType().isCircular()) {
 			bd.circularlyDefined = true;
 			return true;			

@@ -462,7 +462,8 @@ aspect MJLookupMethod {
     // the element.
     syn lazy Map IteratorDecl.reflectiveElmts() {
 	// in order to call this, base type must be fully grounded.
-	if ( !getPattern().getBaseSet().getTypeAccess().type().grounded())
+	//	if ( !getPattern().getBaseSet().getTypeAccess().type().grounded())
+	if (!expandable())
 	    // this should never happen.
 	    throw new Error("Cannot return the reflective elements of a " +
 			    "reflective iterator when the base type is " +
@@ -479,8 +480,9 @@ aspect MJLookupMethod {
 	}
 	
 	Map refElmtsMap = new HashMap();
-
-	if ( getPattern().getBaseSet().iterateMethods()) {
+	if ( getPattern() instanceof EmptyPrimaryPattern ) {
+	    refElmtsMap.put(getPattern(), new HashMap(ptMap));
+	} else if ( getPattern().getBaseSet().iterateMethods()) {
 	    Map methods = getPattern().getBaseSet().type().unrestrictedMethodsSignatureMap();
 	    // find all methods that fall into the range of this
 	    // iterator decl.
@@ -509,9 +511,6 @@ aspect MJLookupMethod {
 
 	return refElmtsMap;
     }
-
-    syn lazy boolean BaseSet.iterateMethods () = getRefElmt().getElmtName().equals("methods");
-    syn lazy boolean BaseSet.iterateFields () = getRefElmt().getElmtName().equals("fields");
 
 }
 

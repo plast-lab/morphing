@@ -7,8 +7,10 @@ NonVoidType : TypeDecl;
 
 PatternNameVariable ::= <ID:String>;
 
+// StaticFor and StaticIf class member declarations before normalization.
 StaticForDecl : MemberDecl ::= IteratorDecl BodyDecl*;
 
+// Normalized, Parameterized, and Expanded StaticFor constructor declarations
 StaticForConstructorDecl : ConstructorDecl ::= IteratorDecl;
 ParStaticForConstructorDecl : StaticForConstructorDecl ::= ExpandedConstructorDecl*;
 ExpandedConstructorDecl : ConstructorDecl;
@@ -21,7 +23,9 @@ StaticForFieldDeclaration : FieldDeclaration ::=  IteratorDecl;
 ParStaticForFieldDeclaration : StaticForFieldDeclaration ::= ExpandedFieldDeclaration*;
 ExpandedFieldDeclaration : FieldDeclaration;
 
-StaticForStmt : Stmt ::= IteratorDecl Stmt*;
+StaticForStmt : Stmt ::= IteratorDecl Stmt* SubstitutedStaticForStmt*;
+SubstitutedStaticForStmt : StaticForStmt;
+//ExpandedStaticForStmt : Stmt;
 
 IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern:Pattern*;
 ParIteratorDecl : IteratorDecl;
@@ -45,6 +49,12 @@ NestedMethodPattern : MethodPattern ::= <IsPositive:boolean>;
 NestedFieldPattern : FieldPattern ::= <IsPositive:boolean>;
 
 TrueNestedPattern : Pattern;
+
+// Pattern used for IteratorDecl with empty primary, just nested patterns.
+// This pattern has the following property:
+// - subsumes every pattern and subsumed by nothing but itself.
+// - has the range of exactly one. binds no pattern variables.
+EmptyPrimaryPattern : Pattern;
 
 BaseSet ::= TypeAccess:Access RefElmt;
 
