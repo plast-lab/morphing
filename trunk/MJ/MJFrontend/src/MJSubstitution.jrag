@@ -56,8 +56,76 @@ aspect MJSubstitution {
 	return f;
     }
 
+    StaticForStmt SubstitutedStaticForStmt.original = null;
+    
+    // StaticForStmt can be parameterized when the enclosing generic type
+    // is parameterized.
+    public SubstitutedStaticForStmt StaticForStmt.substitute(ParTypeDecl parTypeDecl) {
+	SubstitutedStaticForStmt p = new SubstitutedStaticForStmt(getIteratorDecl().substitute(parTypeDecl), new List(), new List());
+	p.original = this;
+	p.is$Final = true;
+
+	addSubstitutedStaticForStmt(p);
+	
+	return p;
+    }
+
+    Map SubstitutedStaticForStmt.substitutions = null;
+
+    // StaticForStmt can also be substituted with a unification mapping from
+    // either the enclosing static method being substituted with the mapping,
+    // or from a mapping resulted from unifying with another StaticForStmt.
+    public StaticForStmt StaticForStmt.substitute(Map substitutions) {
+	SubstitutedStaticForStmt p = new SubstitutedStaticForStmt(getIteratorDecl().substitute(substitutions), new List(), new List());
+	p.original = this;
+	p.is$Final = true;
+	p.substitutions = substitutions;
+
+	addSubstitutedStaticForStmt(p);
+	
+	return p;
+    }
+
+    /*
+    ParStaticForStmt ExpandedStaticForStmt.original = null;
+    Map ExpandedStaticForStmt.expansionSubstitutions = null;
+    public ExpandedStaticForStmt SubstitutedStaticForStmt.substitute(Map substitutions) {
+	ExpandedStaticForStmt s = new ExpandedStaticForStmt(getIteratorDecl().substitute(substitutions));
+	s.original = this;
+	s.expansionSubstitutions = substitutions;
+	s.is$Final = true;
+
+	addExpandedStaticForStmt(s);
+
+	return s;
+    }
+    */
+
+    public IteratorDecl IteratorDecl.substitute(Map substitutions) {
+	ParIteratorDecl pid = new ParIteratorDecl();
+	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
+	    TypeVariable t = getPatternTypeParameter(i).fullCopy();
+	    pid.addPatternTypeParameter((PatternTypeVariable)t.substitute(substitutions).type());
+	}
+	pid.setPatternNameParameterList(getPatternNameParameterList().fullCopy());
+
+	// create the mapping to be used for pattern and nested pattern
+	// substitution.
+	HashMap map = new HashMap();
+	for ( int i=0; i<getNumPatternTypeParameter(); i++)
+	    map.put(getPatternTypeParameter(i), pid.getPatternTypeParameter(i));
+
+	pid.setPattern(getPattern().substitute(map).substitute(substitutions));
+
+	for ( int i=0; i<getNumNestedPattern(); i++)
+	    pid.addNestedPattern(getNestedPattern(i).substitute(map).substitute(substitutions));
+	
+	pid.original = this;
+	return pid;
+    }
+
     public IteratorDecl IteratorDecl.substitute(ParTypeDecl parTypeDecl) {
-	ParIteratorDecl pid =     new ParIteratorDecl();
+	ParIteratorDecl pid = new ParIteratorDecl();
 
 	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
 	    TypeVariable t = getPatternTypeParameter(i).fullCopy();
@@ -72,11 +140,9 @@ aspect MJSubstitution {
 	    map.put(getPatternTypeParameter(i), pid.getPatternTypeParameter(i));
 
 	pid.setPattern(getPattern().substitute(map).substitute(parTypeDecl));
-	//	pid.setPattern(getPattern().substitute(parTypeDecl));
 
 	for ( int i=0; i<getNumNestedPattern(); i++)
 	    pid.addNestedPattern(getNestedPattern(i).substitute(map).substitute(parTypeDecl));
-	// pid.addNestedPattern(getNestedPattern(i).substitute(parTypeDecl));
 	
 	pid.original = this;
 	return pid;
@@ -97,6 +163,7 @@ aspect MJSubstitution {
 	throw new Error("substitute(ParTypeDecl) unsupported by " +
 			getClass().getName());
     }
+    public EmptyPrimaryPattern EmptyPrimaryPattern.substitute(ParTypeDecl parTypeDecl) { return new EmptyPrimaryPattern(); }
 
     // TODO: need to recycle these substituted patterns. Might become
     // a memory sucker.
@@ -164,6 +231,7 @@ aspect MJSubstitution {
 	return new BaseSet(getTypeAccess().type().substitute(parTypeDecl),
 			   (RefElmt) getRefElmt().fullCopy());
     }
+    
 
     public MethodDecl MethodDecl.substitute(Map substitutions) {
 	return (MethodDecl) fullCopy();
@@ -188,6 +256,10 @@ aspect MJSubstitution {
 	throw new Error("substitute(Map) unsupported by " +
 			getClass().getName());
     }
+    public EmptyPrimaryPattern EmptyPrimaryPattern.substitute(Map substitutions) {
+	return new EmptyPrimaryPattern();
+    }
+
     public String Pattern.substitutedName(String name, Map substitutions) {
 	Identifier nameId = new Identifier(name, enclosingRefIterator(),
 					   substitutions);
@@ -201,6 +273,10 @@ aspect MJSubstitution {
     }
 
     public String BodyDecl.substitutedName(String name, Map substitutions) {
+	Identifier nameId = new Identifier(name, refIterator(), substitutions);
+	return nameId.substitutedName();
+    }
+    public String StaticForStmt.substitutedName(String name, Map substitutions) {
 	Identifier nameId = new Identifier(name, refIterator(), substitutions);
 	return nameId.substitutedName();
     }

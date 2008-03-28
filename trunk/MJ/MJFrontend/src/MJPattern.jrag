@@ -95,6 +95,7 @@ aspect MJPattern {
     public void FieldPattern.removeBoundNameVariables(Collection unbound) {
 	unbound.remove(getNameVariable(getID()));
     }
+    public void EmptyPrimaryPattern.removeBoundNameVariables(Collection unbound) {}
 
     eq IteratorDecl.getPattern().unboundNameVariables() = unboundNameVariables();
     eq IteratorDecl.getNestedPattern(int i).unboundNameVariables() = unboundNameVariables();
@@ -115,6 +116,7 @@ aspect MJPattern {
 	throw new Error("Unsupported method removeBoundTypeVariables by " +
 			getClass().getName());
     }
+    public void EmptyPrimaryPattern.removeBoundTypeVariables(Collection unbound) {}
     public void MethodPattern.removeBoundTypeVariables(Collection unbound) {
 	getTypeAccess().type().removeBoundTypeVariables(unbound);
 	for ( int i=0; i<getNumParameter(); i++) {
@@ -279,7 +281,6 @@ aspect MJPattern {
     syn lazy PatternMethodDecl Pattern.patternMethodDecl() {
 	throw new Error("patternMethodDecl can only be retrieve for MethodPatterns");
     }
-
     // returns a "fake" MethodDecl determined by the pattern of the iterator.
     eq MethodPattern.patternMethodDecl() {
 	List<TypeAccess> paramTypes = getParameterList();
@@ -456,4 +457,17 @@ aspect MJPattern {
     public void NestedFieldPattern.flipSign() {
 	setIsPositive(!getIsPositive());
     }
+
+    syn lazy boolean IteratorDecl.iterateMethods() = getPattern().iterateMethods();
+    syn lazy boolean IteratorDecl.iterateFields() = getPattern().iterateFields();
+    syn lazy boolean Pattern.iterateMethods() = getBaseSet().iterateMethods();
+    eq EmptyPrimaryPattern.iterateMethods() = false;
+
+    syn lazy boolean Pattern.iterateFields() = getBaseSet().iterateFields();
+    eq EmptyPrimaryPattern.iterateFields() = false;
+
+    syn lazy boolean BaseSet.iterateMethods () = getRefElmt().getElmtName().equals("methods");
+    syn lazy boolean BaseSet.iterateFields () = getRefElmt().getElmtName().equals("fields");
+
+    public void EmptyPrimaryPattern.collectErrors() {}
 }

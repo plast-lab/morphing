@@ -142,6 +142,84 @@ aspect MJExpansion {
 	return newNode;
     }
 
+    syn lazy java.util.List MethodDecl.retrieveStaticForStmts(MethodNode mn) {
+	java.util.List staticForStmts = new ArrayList();
+
+	// read StaticForStmtsAttribute.
+	ASMStaticForStmtsAttribute staticForStmtsAttr = null;
+	for ( int i=0; i<mn.attrs.size(); i++ ) {
+	    if ( ((org.objectweb.asm.Attribute) mn.attrs.get(i)).type.equals("StaticForStmts")) {
+		staticForStmtsAttr = 
+		    (ASMStaticForStmtsAttribute) mn.attrs.get(i);
+		break;
+	    }
+	}
+
+	if ( staticForStmtsAttr == null )  return staticForStmts;
+	if ( !hostType().compilationUnit().fromSource() &&
+	     !hasBlock()) {
+	    setBlock(new Block());
+	}
+
+	for ( Iterator<ASMStaticForStmtsAttribute.StaticForStmtsAttribute> it = staticForStmtsAttr.staticForStmts.iterator(); 
+	      it.hasNext();) {
+	    ASMStaticForStmtsAttribute.StaticForStmtsAttribute stmtsAttr = it.next();
+	    if (hostType().compilationUnit().fromSource()) {
+		// we don't have to create statements. just find them.
+		for ( int i=0; i<getBlock().getNumStmt(); i++) {
+		    if ( getBlock().getStmt(i) instanceof StaticForStmt ) {
+			StaticForStmt s = (StaticForStmt) getBlock().getStmt(i);
+			if ( s.getIteratorDecl().signature().equals(stmtsAttr.iterator_sig)) {
+			    staticForStmts.add(s);
+			    s.staticForStmtAttr = stmtsAttr;
+			    break;
+			}
+		    }
+		}
+	    } else {
+		Signatures.IteratorDeclSignature idSig = new Signatures.IteratorDeclSignature(stmtsAttr.iterator_sig);
+		IteratorDecl itDecl = 
+		    new IteratorDecl(idSig.patternTypeParameters(), 
+				     idSig.patternNameParameters(), 
+				     idSig.pattern(), idSig.nestedPatterns());
+		// add a statement to block.
+		StaticForStmt s = new StaticForStmt(itDecl, new List(), new List());
+		s.staticForStmtAttr = stmtsAttr;
+		getBlock().addStmt(s);
+		staticForStmts.add(s);
+	    }
+	}
+	return staticForStmts;
+    }
+    
+    public ASMStaticForStmtsAttribute.StaticForStmtsAttribute StaticForStmt.staticForStmtAttr = null;
+    
+    eq ExpandedMethodDecl.retrieveStaticForStmts(MethodNode mn) {
+	java.util.List stmts = original.retrieveStaticForStmts(mn);
+	// apply substitution.
+	java.util.List newStmts = new ArrayList();
+	for ( Iterator sIt = stmts.iterator(); sIt.hasNext(); ) {
+	    StaticForStmt s = (StaticForStmt) sIt.next();
+	    StaticForStmt news = s.substitute(expansionSubstitutions);
+	    news.staticForStmtAttr = s.staticForStmtAttr;
+
+	    newStmts.add(news);
+	}
+	return newStmts;
+    }
+    eq ParStaticForMethodDecl.retrieveStaticForStmts(MethodNode mn) {
+	java.util.List stmts = original.retrieveStaticForStmts(mn);
+	// apply substitution.
+	java.util.List newStmts = new ArrayList();
+	for ( Iterator sIt = stmts.iterator(); sIt.hasNext(); ) {
+	    StaticForStmt s = (StaticForStmt) sIt.next();
+	    StaticForStmt news = s.substitute((ParTypeDecl) hostType());
+	    news.staticForStmtAttr = s.staticForStmtAttr;
+	    newStmts.add(news);
+	}
+	return newStmts;
+    }
+
     protected MemberNode MethodDecl.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
 	MethodNode newNode = NodeCopier.copyMethodNode((MethodNode)mn);
 	
@@ -200,8 +278,51 @@ aspect MJExpansion {
 		newNode.instructions.remove(inode);
 	    }
 	}
-	
-	// transform instructions.
+
+	// find all static for stmts.
+	java.util.List staticForStmts = retrieveStaticForStmts(newNode);
+
+	//	int stmtOffset = 0;
+
+	for ( Iterator sit = staticForStmts.iterator(); sit.hasNext(); ) {
+	    StaticForStmt s = (StaticForStmt) sit.next();
+
+	    // get the corresponding iterator decl stmt.
+	    ASMStaticForStmtsAttribute.StaticForStmtsAttribute staticForStmtAttr = s.staticForStmtAttr;
+	    int begin = staticForStmtAttr.begin_instr;
+	    int end = staticForStmtAttr.end_instr;
+
+	    //	    if ( stmtOffset == 0 ) stmtOffset = begin;
+
+	    InsnList replicatedInsns = new InsnList();
+
+	    // get the mappings for each element in the iterator decl's range. 
+	    for ( Iterator subMaps = s.getIteratorDecl().reflectiveElmts().values().iterator();
+		  subMaps.hasNext(); ) {
+		Map substitutions = (Map) subMaps.next();
+		substitutions.putAll(expansionSubstitutions);
+
+		// create a copy of the instructions to be replicated.
+		InsnList toReplicate = NodeCopier.copyInsnList(newNode.instructions,
+							       begin, end);
+
+		// create replicated instructions.
+		InsnTransformVisitor iv = 
+		    new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), 
+					     parClass, this, substitutions, s);
+		toReplicate.accept(iv);
+		replicatedInsns.add(iv.instructions);
+	    }
+
+	    newNode.instructions.insert(newNode.instructions.get(end-1), replicatedInsns);
+
+	    // remove instructions used for replication.
+	    NodeCopier.removeInsns(newNode.instructions, begin, end);
+
+	    // inscrease offset.
+	    //	    stmtOffset += replicatedInsn.size();
+	}
+
 	InsnTransformVisitor insnVisitor = new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), parClass, this, expansionSubstitutions);
 
 	newNode.accept(insnVisitor);
@@ -415,7 +536,8 @@ aspect MJExpansion {
 	    StaticForMethodDecl md = (StaticForMethodDecl) rmIt.next();
 	    if ( md.getIteratorDecl().signature().equals(iteratorDeclAttribute(mn)) && mn.name.equals(md.getID()) && 
 		 mn.desc.equals(md.descName()) &&
-		 mn.signature.equals( md.methodTypeSignature()))
+		 ( mn.signature == null || 
+		   mn.signature.equals( md.methodTypeSignature())))
 		return md;
 	}
 	return null;
@@ -547,6 +669,21 @@ aspect MJExpansion {
 	this.numChildren = numChildren-1;
 	return t;
     }
+    syn lazy TypeDecl StaticForStmt.retrieveType(Access ta) {
+	// TODO: total hack! getting around JastAdd's tree-based type lookup
+	// ta must be coming from a statement child of StaticForStmt.
+	this.addStmt(new ExprStmt(ta));
+	TypeDecl t = ta.type();
+
+	/*	
+	this.stmtschildren[numChildren-1] = null;
+	this.numChildren = numChildren-1;
+	*/
+	this.getStmtList().removeChild(getNumStmt()-1);
+	return t;
+    }
+    //    eq ParStaticForStmt.retrieveType(Access ta) = original.retrieveType(ta);
+    //    syn lazy TypeDecl SubstitutedStaticForStmt.retrieveType(Access ta) = original.retrieveType(ta);
 
     eq ConstructorDeclSubstituted.retrieveType(Access ta) = getOriginal().retrieveType(ta);
     eq MethodDeclSubstituted.retrieveType(Access ta) = getOriginal().retrieveType(ta);

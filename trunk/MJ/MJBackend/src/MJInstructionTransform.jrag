@@ -14,6 +14,9 @@ aspect MJInstructionTransform {
 	ParClassDecl parClass;
 	Map substitutions;
 
+	// this variable is set if we are visiting instructions to be replicated for
+	// staticForStmt, within md.
+	StaticForStmt staticForStmt;
 	public InsnTransformVisitor(MethodVisitor mv, 
 				    ParClassDecl parClass,
 				    BodyDecl md,
@@ -22,6 +25,15 @@ aspect MJInstructionTransform {
 	    this.md = md;
 	    this.parClass = parClass;
 	    this.substitutions = substitutions;
+	}
+
+	public InsnTransformVisitor(MethodVisitor mv, 
+				    ParClassDecl parClass,
+				    BodyDecl md,
+				    Map substitutions, 
+				    StaticForStmt staticForStmt) {
+	    this(mv, parClass, md, substitutions);
+	    this.staticForStmt = staticForStmt;
 	}
 
 	void changeMaxStack(int opcode) {
@@ -91,6 +103,8 @@ aspect MJInstructionTransform {
 	}
 
 	protected String retrieveName(String name) {
+	    if ( staticForStmt != null )
+		return staticForStmt.substitutedName(name, substitutions);
 	    return md.substitutedName(name, substitutions);
 	    /*
 	    if ( md.isNameVariable(name)) 
@@ -99,10 +113,13 @@ aspect MJInstructionTransform {
 	    */
 	}
 
+
 	protected TypeDecl retrieveTypeFromDesc(String desc) {
 	    Signatures s = new Signatures(desc);
 	    Access ta = s.typeSignature();
-	    TypeDecl t = md.retrieveType(ta);
+	    
+	    TypeDecl t = retrieveTypeFromContext(ta);
+	    //	    TypeDecl t = md.retrieveType(ta);
 	    return t.substitute(substitutions).type();
 	}
 
@@ -115,6 +132,15 @@ aspect MJInstructionTransform {
 	    return t.typeDescriptor();
 	}
 
+	protected TypeDecl retrieveTypeFromContext(Access ta) {
+	    TypeDecl t = null;
+	    if ( staticForStmt != null )
+		t = staticForStmt.retrieveType(ta);
+	    else t = md.retrieveType(ta);
+
+	    return t.substitute(substitutions).type();
+	}
+
 	protected String retrieveMethodDesc(String desc) {
 	    // parse desc name.
 	    Signatures.MethodSignature ms = new Signatures.MethodSignature(desc);
@@ -123,8 +149,11 @@ aspect MJInstructionTransform {
 	    buf.append("(");
 	    for ( Iterator ptIt = ms.parameterTypes().iterator(); ptIt.hasNext(); ) {
 		TypeAccess ta = (TypeAccess) ptIt.next();
-		List argList = md.retrieveType(ta).expandAccessList(substitutions);
-		//		Access newTa = md.retrieveType(ta).substitute(parClass);
+
+		//		List argList = md.retrieveType(ta).expandAccessList(substitutions);
+		TypeDecl t = retrieveTypeFromContext(ta);
+		List argList = t.expandAccessList(substitutions);
+
 		for ( int i=0; i<argList.getNumChild(); i++)
 		    buf.append(((Access) argList.getChild(i)).type().typeDescriptor());
 	    }
@@ -132,8 +161,10 @@ aspect MJInstructionTransform {
 
 	    // return type
 	    TypeAccess rt = (TypeAccess) ms.returnType();
-	    Access newRt = md.retrieveType(rt).substitute(substitutions);
-	    buf.append(newRt.type().typeDescriptor());
+	    //	    Access newRt = md.retrieveType(rt).substitute(substitutions);
+	    //     buf.append(newRt.type().typeDescriptor());
+	    TypeDecl newRt = retrieveTypeFromContext(rt);
+	    buf.append(newRt.typeDescriptor());
 
 	    // exceptions.
 	    /*

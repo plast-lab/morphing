@@ -41,6 +41,7 @@ aspect MJTypeVariableUse {
 
     syn lazy boolean Pattern.boundByPattern(TypeVariable tv) = refersTo(tv);
     syn lazy boolean Pattern.refersTo(TypeVariable tv) = false;
+    eq EmptyPrimaryPattern.refersTo(TypeVariable tv) = false;
     eq MethodPattern.refersTo(TypeVariable tv) {
 	if ( getTypeAccess().type().refersTo(tv)) return true;
 	for ( int i=0; i<getNumParameter(); i++) 
@@ -80,6 +81,8 @@ aspect MJTypeVariableUse {
     }
 
     syn lazy boolean Pattern.exactlyRangeOfOne () = false;
+
+    eq EmptyPrimaryPattern.exactlyRangeOfOne() = true;
 
     eq MethodPattern.exactlyRangeOfOne() {
 	// a method pattern has exactly range of one if its 
@@ -195,8 +198,34 @@ aspect MJTypeVariableUse {
 	return false;
     }
 
-    // check that there's no nested primary patterns.
+    // TODO: check that there's no nested primary patterns.
 
     
+    eq StaticForMethodDecl.usesTypeVariable() = 
+	super.usesTypeVariable() ||
+	getIteratorDecl().usesTypeVariable();
+    
+    // return true if iterator decl uses type variable that are NOT
+    // pattern matching type variables.
+    syn lazy boolean IteratorDecl.usesTypeVariable () {
+	TypeDecl host = hostBodyDecl().hostType();
+	if ( host.isGenericType()) {
+	    GenericTypeDecl gh = (GenericTypeDecl) host;
+	    for ( int i=0; i<gh.getNumTypeParameter(); i++ ) {
+		TypeVariable tv = gh.getTypeParameter(i);
+		if ( getPattern().usesTypeVariable(tv))
+		    return true;
 
+		for ( int j=0; j<getNumNestedPattern(); j++)
+		    if ( getNestedPattern(j).usesTypeVariable(tv))
+			return true;
+	    }
+	}
+	return false;
+    }
+
+    syn lazy boolean Pattern.usesTypeVariable(TypeVariable tv ) = 
+	refersTo(tv) || getBaseSet().type().refersTo(tv);
+    eq EmptyPrimaryPattern.usesTypeVariable(TypeVariable tv) = false;
+	
 }

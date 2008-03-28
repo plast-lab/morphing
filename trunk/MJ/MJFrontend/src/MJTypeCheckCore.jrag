@@ -642,6 +642,8 @@ aspect MJTypeCheckCore {
     refine Generics public void ParTypeAccess.typeCheck() {
 	Generics.ParTypeAccess.typeCheck();
 
+	// Check that types used for instantiation conforms to 
+	// interface/class requirement.
 	TypeDecl td = genericDecl();
 	if ( td instanceof GenericTypeDecl ) {
 	    GenericTypeDecl decl = (GenericTypeDecl) td;
@@ -659,7 +661,20 @@ aspect MJTypeCheckCore {
 			error("type argument " + i + " is not an interface.");
 		}
 	    }
+	}
 
+	// Check whether the instantiation would cause visibility of
+	// type arguments or their members to be changed.
+	for ( int i=0; i<getNumTypeArgument(); i++) {
+	    TypeDecl at = getTypeArgument(i).type();
+	    if ( !at.accessibleFrom(this.type())) {
+		// warn user.
+		warning(at.fullName() + 
+			" cannot be accessed from " +
+			toString() + ". Increasing " +
+			"visibility of " + at.fullName() + " to public, " +
+			"and package-protected members to protected.");
+	    }
 	}
     }
 

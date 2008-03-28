@@ -565,7 +565,8 @@ aspect BytecodeReader {
 
     public String identifier() {
       int i = pos;
-      while(Character.isJavaIdentifierPart(data.charAt(i)))
+      while(Character.isJavaIdentifierPart(data.charAt(i)) ||
+	    data.charAt(i) == '#')
         i++;
       String result = data.substring(pos, i);
       pos = i;
@@ -658,8 +659,13 @@ aspect BytecodeReader {
 	  }
       
 	  Pattern parsePattern() {
+	      if ( next(";"))  {
+		  eat(";");
+		  return new EmptyPrimaryPattern();
+	      }
 	      if ( next("(")) 
 		  return parseMethodPattern();
+
 	      return parseFieldPattern();
 	  }
 
@@ -681,11 +687,13 @@ aspect BytecodeReader {
 	  Modifiers parseModifiers() {
 	      // parse modifiers.
 	      Modifiers mods = new Modifiers();
-	      eat("(");
-	      while (!next(")")) {
-		  mods.addModifier(modifiersSignature());
+	      if ( next("(")) {
+		  eat("(");
+		  while (!next(")")) {
+		      mods.addModifier(modifiersSignature());
+		  }
+		  eat(")");
 	      }
-	      eat(")");
 	      return mods;
 	  }
 
