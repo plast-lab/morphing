@@ -1,14 +1,4 @@
 aspect MJSubstitution {
-    /*
-    public interface SubstitutedPattern;
-    SubstitutedMethodPattern implements SubstitutedPattern;
-    SubstitutedFieldPattern implements SubstitutedPattern;
-    SubstitutedNestedMethodPattern implements SubstitutedPattern;
-    SubstitutedNestedFieldPattern implements SubstitutedPattern;
-
-    public Pattern SubstitutedPattern.original;
-    public Map SubstitutedPattern.substutions;
-    */
 
     protected StaticForMethodDecl StaticForMethodDecl.original;
     protected StaticForFieldDeclaration StaticForFieldDeclaration.original;
@@ -18,13 +8,14 @@ aspect MJSubstitution {
     public int ParTypeDecl.getNumBodyDecl();
     public BodyDecl ParTypeDecl.getBodyDecl(int i);
 
-
-    HashMap StaticForMethodDecl.parMethodDeclMap = new HashMap();
-
     public BodyDecl StaticForMethodDecl.p(ParTypeDecl parTypeDecl) {
-	// check that this substitution doesn't already exist.
-	if ( parMethodDeclMap.get(parTypeDecl) != null)
-	    return (BodyDecl) parMethodDeclMap.get(parTypeDecl);
+	// check whether parTypeDecl already has this substituted.
+	for ( int i=0; i<parTypeDecl.getNumBodyDecl(); i++ ) {
+	    BodyDecl b = parTypeDecl.getBodyDecl(i);
+	    if ( b instanceof StaticForMethodDeclSubstituted &&
+		 ((StaticForMethodDeclSubstituted) b).original == this)
+		return b;
+	}
 	
 	// TODO: this is not good enough for generic methods.
 	// Might need a StaticForGenericMethodDecl...
@@ -32,22 +23,20 @@ aspect MJSubstitution {
 	// the underlying MethodDecl. But it is simply too hard to duplicate
 	// all the functionalities in MethodDecl.
 	// May be a nice functionality for JastAdd.
-	ParStaticForMethodDecl m = 
-	    new ParStaticForMethodDecl((Modifiers)getModifiers().fullCopy(), 
-				       getTypeAccess().type().substituteReturnType(parTypeDecl),
-				       getID(),
-				       // TODO: this list needs to be substituted with whatever IteratorDecl's substitutions are.
-				       getParameterList().substitute(parTypeDecl),
-				       getExceptionList().substitute(parTypeDecl),
-				       new Opt(),
-				       getIteratorDecl().substitute(parTypeDecl),
-				       new List(), new List());
-	m.original = this;
+	StaticForMethodDeclSubstituted m = 
+	    new StaticForMethodDeclSubstituted((Modifiers)getModifiers().fullCopy(), 
+					       getTypeAccess().type().substituteReturnType(parTypeDecl),
+					       getID(),
+					       // TODO: this list needs to be substituted with whatever IteratorDecl's substitutions are.
+					       getParameterList().substitute(parTypeDecl),
+					       getExceptionList().substitute(parTypeDecl),
+					       new Opt(),
+					       getIteratorDecl().substitute(parTypeDecl),
+					       new List(), new List());
 
+	m.original = this;
 	m.is$Final = true;
 	((TypeDecl)parTypeDecl).addBodyDecl(m);
-
-	parMethodDeclMap.put(parTypeDecl, m);
 
 	return m;
     }
@@ -72,6 +61,28 @@ aspect MJSubstitution {
 	return f;
     }
 
+    public StaticForMethodDeclSubstituted StaticForMethodDecl.substitute(Map substitutions) {
+	StaticForMethodDeclSubstituted m = 
+	    new StaticForMethodDeclSubstituted((Modifiers) getModifiers().fullCopy(),
+					       getTypeAccess().type().substitute(substitutions),
+					       substitutedName(substitutions),
+					       getParameterList().expandParameterList(substitutions),
+					       getExceptionList().expandAccessList(substitutions),
+					       new Opt(),
+					       getIteratorDecl().substitute(substitutions),
+					       new List(), new List());
+	m.original = this;
+	m.is$Final = true;
+	m.expansionSubstitutions = substitutions;
+
+	this.addStaticForMethodDeclSubstituted(m);
+	
+	m.identifier().namevariable = 
+	    identifier().substitutedNameVariable(substitutions);
+
+	return m;
+    }
+
     public StaticForFieldDeclarationSubstituted StaticForFieldDeclaration.substitute(Map substitutions) {
 	StaticForFieldDeclarationSubstituted f =
 	    new StaticForFieldDeclarationSubstituted((Modifiers) getModifiers().fullCopy(),
@@ -82,6 +93,7 @@ aspect MJSubstitution {
 
 	f.original = this;
 	f.is$Final = true;
+	f.expansionSubstitutions = substitutions;
 
 	this.addStaticForFieldDeclarationSubstituted(f);
 
@@ -269,16 +281,6 @@ aspect MJSubstitution {
     public MethodDecl MethodDecl.substitute(Map substitutions) {
 	return (MethodDecl) fullCopy();
     }
-
-    public ExpandedMethodDecl StaticForMethodDecl.substitute(Map substitution) {
-	return new ExpandedMethodDecl((Modifiers) getModifiers().fullCopy(),
-				      getTypeAccess().type().substitute(substitution),
-				      substitutedName(substitution),
-				      getParameterList().expandParameterList(substitution),
-				      getExceptionList().expandAccessList(substitution),
-				      new Opt());
-    }
-
     public Pattern Pattern.substitute(Map substitutions) {
 	throw new Error("substitute(Map) unsupported by " +
 			getClass().getName());

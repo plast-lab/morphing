@@ -13,7 +13,8 @@ aspect MJPattern {
     eq StaticForMethodDecl.refIterator() = getIteratorDecl();
     eq StaticForConstructorDecl.refIterator() = getIteratorDecl();
     eq StaticForFieldDeclaration.refIterator() = getIteratorDecl();
-    eq ExpandedMethodDecl.refIterator() = original.refIterator();
+    //    eq ExpandedMethodDecl.refIterator() = original.refIterator();
+    //    eq StaticForMethodDeclSubstituted.refIterator() = original.refIterator();
 
     eq StaticForMethodDecl.getBlock().enclosingRefIterator() = getIteratorDecl();
     eq StaticForMethodDecl.getTypeAccess().enclosingRefIterator() = getIteratorDecl();
@@ -182,7 +183,8 @@ aspect MJPattern {
 	}
 	return false;
     }
-    eq ExpandedMethodDecl.isNameVariable(String name) = original.isNameVariable(name);
+    //    eq ExpandedMethodDecl.isNameVariable(String name) = original.isNameVariable(name);
+    // eq StaticForMethodDeclSubstituted.isNameVariable(String name) = original.isNameVariable(name);
 
     inh boolean Stmt.isNameVariable(String name);
     eq StaticForStmt.getStmt(int index).isNameVariable(String name) =
@@ -217,7 +219,9 @@ aspect MJPattern {
 	Identifier id = new Identifier(name, refIterator());
 	return id.isNameVariable();
     }
-    eq ExpandedMethodDecl.containsNameVariable(String name) = original.containsNameVariable(name);
+    //    eq ExpandedMethodDecl.containsNameVariable(String name) = original.containsNameVariable(name);
+    //    eq StaticForMethodDeclSubstituted.containsNameVariable(String name) = original.containsNameVariable(name);
+
     inh boolean Stmt.containsNameVariable(String name);
     eq StaticForStmt.getStmt(int index).containsNameVariable(String name) =
 	getIteratorDecl().isLocalNameVariable(name) || containsNameVariable(name);
@@ -252,7 +256,8 @@ aspect MJPattern {
 	}
 	return null;
     }
-    eq ExpandedMethodDecl.getNameVariable(String name) = original.getNameVariable(name);
+    //    eq ExpandedMethodDecl.getNameVariable(String name) = original.getNameVariable(name);
+    eq StaticForMethodDecl.getNameVariable(String name) = original.getNameVariable(name);
 
     syn lazy PatternNameVariable Expr.getNameVariable(String name) = enclosingStmt().getNameVariable(name);
 

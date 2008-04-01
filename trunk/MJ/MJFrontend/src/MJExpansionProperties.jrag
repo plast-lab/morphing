@@ -1,9 +1,25 @@
 aspect MJExpansionProperties {
     public Map BodyDecl.expansionSubstitutions = null;
-    public StaticForMethodDecl ExpandedMethodDecl.original = null;
-    public StaticForConstructorDecl ExpandedConstructorDecl.original = null;
-    public StaticForFieldDeclaration StaticForFieldDeclarationSubstituted.original = null;
 
+    public StaticForConstructorDecl StaticForConstructorDeclSubstituted.original = null;
+    public StaticForFieldDeclaration StaticForFieldDeclarationSubstituted.original = null;
+    public StaticForMethodDecl StaticForMethodDeclSubstituted.original = null;
+
+    public interface SubstitutedStaticForDeclaration {
+	StaticForDeclaration getOriginal();
+    }
+    public StaticForDeclaration StaticForMethodDeclSubstituted.getOriginal() { return original; }
+    public StaticForDeclaration StaticForConstructorDeclSubstituted.getOriginal() { return original; }
+    public StaticForDeclaration StaticForFieldDeclarationSubstituted.getOriginal() { return original; }
+    public StaticForDeclaration SubstitutedStaticForStmt.getOriginal() { return original; }
+
+    syn lazy boolean BodyDecl.isSubstitutedStaticForDecl() { return false; }
+    public boolean SubstitutedStaticForDeclaration.isSubstitutedStaticForDecl() { return true; }
+    
+    StaticForMethodDeclSubstituted implements SubstitutedStaticForDeclaration;
+    StaticForConstructorDeclSubstituted implements SubstitutedStaticForDeclaration;
+    StaticForFieldDeclarationSubstituted implements SubstitutedStaticForDeclaration;
+    SubstitutedStaticForStmt implements SubstitutedStaticForDeclaration;
 
     //    public boolean TypeDecl.expansionAttribute = false;
 

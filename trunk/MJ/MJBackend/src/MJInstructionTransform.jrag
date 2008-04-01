@@ -105,6 +105,9 @@ aspect MJInstructionTransform {
 	protected String retrieveName(String name) {
 	    if ( staticForStmt != null )
 		return new Identifier(name, staticForStmt.refIterator()).substitutedName(substitutions);
+	    else if ( md.isSubstitutedStaticForDecl()) 
+		return new Identifier(name, ((SubstitutedStaticForDeclaration) md).getOriginal().getIteratorDecl()).substitutedName(substitutions);
+
 	    return new Identifier(name, md.refIterator()).substitutedName(substitutions);
 	    /*
 	      if ( md.isNameVariable(name)) 

@@ -67,7 +67,7 @@ aspect MJNameCheck {
 				    new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
 				    new List().add(E.createQualifiedAccess()),
 				    new Opt(),
-				    id, new List());
+				    id, new List(), new List());
 	sfd.is$Final = true;
 	addBodyDecl(sfd);
 	sfd.bypassErrorChecking = true;
@@ -110,7 +110,7 @@ aspect MJNameCheck {
 				    new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
 				    new List().add(E.createQualifiedAccess()),
 				    new Opt(),
-				    id, new List());
+				    id, new List(), new List());
 
 	sfd.is$Final = true;
 	addBodyDecl(sfd);

@@ -30,6 +30,8 @@
 
 <!-- "tools" is the directory where generators and libraries are located. -->
 <property name="tools" value="${Java1.4Frontend}/tools"/>
+
+<property name="thirdparty" value="../thirdparty"/>
 	
 <!-- "jflex" is an ant task class for the scanner generator in JFlex.jar -->
 <taskdef name="jflex" classname="JFlex.anttask.JFlexTask" classpath="${tools}/JFlex.jar"/>
@@ -40,8 +42,8 @@
 
 <!-- compile sources -->
 <target name="build" depends="gen">
-	<javac debug="true" nowarn="true" srcdir="." includes="**/*.java" excludes="test/**" 
-         classpath=".:${tools}/beaver-rt.jar:${tools}/junit.jar"/> 
+	<javac debug="true" nowarn="true" srcdir="." includes="**/*.java" excludes="testcases/**" 
+         classpath=".:${tools}/beaver-rt.jar:${tools}/junit.jar:${thirdparty}/asm-3.1/bin"/>
 </target>
 
 <!-- generate compiler source files -->
@@ -195,7 +197,10 @@
 
 <!-- build binaries -->
 <target name="jar" depends="build">
-  <jar destfile="MJCompiler.jar" basedir="." includes="**/*.class" excludes="test/**">
+  <jar destfile="MJCompiler.jar" basedir=".">
+    <fileset dir="." includes="**/*.class" excludes="testcases/**"/>
+    <zipfileset src="${thirdparty}/asm-all-3.1.jar" />
+<!--    <fileset dir="${thirdparty}/asm-3.1" includes="**/*.class"/> -->
     <manifest>
       <attribute name="Main-Class" value="MJCompiler"/>
     </manifest>
@@ -214,6 +219,7 @@
         <!-- include buildfile used to build the backend -->
 				<include name="MJBackend/src/build.xml"/>
 			</fileset>
+         <zipfileset src="${thirdparty}/asm-all-3.1.jar"/>
       <manifest>
       </manifest>
   </jar>
