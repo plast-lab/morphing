@@ -193,7 +193,8 @@ aspect MJExpansion {
     }
     
     public ASMStaticForStmtsAttribute.StaticForStmtsAttribute StaticForStmt.staticForStmtAttr = null;
-    
+
+    /*    
     eq ExpandedMethodDecl.retrieveStaticForStmts(MethodNode mn) {
 	java.util.List stmts = original.retrieveStaticForStmts(mn);
 	// apply substitution.
@@ -207,7 +208,8 @@ aspect MJExpansion {
 	}
 	return newStmts;
     }
-    eq ParStaticForMethodDecl.retrieveStaticForStmts(MethodNode mn) {
+    */
+    eq StaticForMethodDeclSubstituted.retrieveStaticForStmts(MethodNode mn) {
 	java.util.List stmts = original.retrieveStaticForStmts(mn);
 	// apply substitution.
 	java.util.List newStmts = new ArrayList();
@@ -432,13 +434,13 @@ aspect MJExpansion {
 		StaticForMethodDecl md = genericDecl().reflectiveMethod(mn);
 		
 		if ( md != null ) {
-		    ParStaticForMethodDecl subMd = 
-			(ParStaticForMethodDecl) md.p(this);
+		    StaticForMethodDeclSubstituted subMd = 
+			(StaticForMethodDeclSubstituted) md.p(this);
 		    List expandedMethods = subMd.expandedMethods();
 
 		    for ( int i=0; i<expandedMethods.getNumChild(); i++) {
-			ExpandedMethodDecl expandedMd = 
-			    (ExpandedMethodDecl) expandedMethods.getChild(i);
+			MethodDecl expandedMd = 
+			    (MethodDecl) expandedMethods.getChild(i);
 
 			MethodNode newNode = 
 			    (MethodNode) expandedMd.transformMemberNode(mn, this);
@@ -645,10 +647,10 @@ aspect MJExpansion {
 
 	return t;
     }
-    eq ParStaticForMethodDecl.parseConstantPoolName(String n) = original.parseConstantPoolName(n);
+    eq StaticForMethodDeclSubstituted.parseConstantPoolName(String n) = original.parseConstantPoolName(n);
     eq FieldDeclarationSubstituted.parseConstantPoolName(String n) = getOriginal().parseConstantPoolName(n);
     eq MethodDeclSubstituted.parseConstantPoolName(String n) = getOriginal().parseConstantPoolName(n);
-    eq ExpandedMethodDecl.parseConstantPoolName(String n) = original.parseConstantPoolName(n);
+    //    eq ExpandedMethodDecl.parseConstantPoolName(String n) = original.parseConstantPoolName(n);
     eq ConstructorDeclSubstituted.parseConstantPoolName(String n) = getOriginal().parseConstantPoolName(n);
     
     syn lazy TypeDecl BodyDecl.retrieveType(Access ta) {
@@ -665,21 +667,15 @@ aspect MJExpansion {
 	this.addStmt(new ExprStmt(ta));
 	TypeDecl t = ta.type();
 
-	/*	
-	this.stmtschildren[numChildren-1] = null;
-	this.numChildren = numChildren-1;
-	*/
 	this.getStmtList().removeChild(getNumStmt()-1);
 	return t;
     }
-    //    eq ParStaticForStmt.retrieveType(Access ta) = original.retrieveType(ta);
-    //    syn lazy TypeDecl SubstitutedStaticForStmt.retrieveType(Access ta) = original.retrieveType(ta);
 
     eq ConstructorDeclSubstituted.retrieveType(Access ta) = getOriginal().retrieveType(ta);
     eq MethodDeclSubstituted.retrieveType(Access ta) = getOriginal().retrieveType(ta);
-    eq ExpandedMethodDecl.retrieveType(Access ta) = original.retrieveType(ta);
+    //    eq ExpandedMethodDecl.retrieveType(Access ta) = original.retrieveType(ta);
     eq FieldDeclarationSubstituted.retrieveType(Access ta) = getOriginal().retrieveType(ta);
-    eq ParStaticForMethodDecl.retrieveType(Access ta) = original.retrieveType(ta);
+    eq StaticForMethodDeclSubstituted.retrieveType(Access ta) = original.retrieveType(ta);
 
     syn lazy boolean BodyDecl.isSubstitutedDecl() = false;
     eq FieldDeclarationSubstituted.isSubstitutedDecl() = true;

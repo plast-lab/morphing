@@ -12,6 +12,7 @@ aspect StaticFor {
     StaticForMethodDecl implements StaticForDeclaration;
     StaticForFieldDeclaration implements StaticForDeclaration;
     StaticForConstructorDecl implements StaticForDeclaration;
+    StaticForStmt implements StaticForDeclaration;
 
     // StaticForDecl may have multiple body decl's. Rewrite to a list
     // of StaticForDeclaration
@@ -69,10 +70,10 @@ aspect StaticFor {
 			getClass().getName());
     }
     public StaticForDeclaration ConstructorDecl.createStaticForDeclarationFrom(IteratorDecl id) {
-	return new StaticForConstructorDecl(getModifiers(), getID(), getParameterList(), getExceptionList(), getConstructorInvocationOpt(), getBlock(), id);
+	return new StaticForConstructorDecl(getModifiers(), getID(), getParameterList(), getExceptionList(), getConstructorInvocationOpt(), getBlock(), id, new List());
     }
     public StaticForDeclaration MethodDecl.createStaticForDeclarationFrom(IteratorDecl id) {
-	return new StaticForMethodDecl(getModifiers(), getTypeAccess(), getID(), getParameterList(), getExceptionList(), getBlockOpt(), id, new List());
+	return new StaticForMethodDecl(getModifiers(), getTypeAccess(), getID(), getParameterList(), getExceptionList(), getBlockOpt(), id, new List(), new List());
     }
     public StaticForDeclaration FieldDeclaration.createStaticForDeclarationFrom(IteratorDecl id) {
 	return new StaticForFieldDeclaration(getModifiers(), getTypeAccess(), getID(), getInitOpt(), id, new List());

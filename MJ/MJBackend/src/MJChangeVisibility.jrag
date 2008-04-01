@@ -213,8 +213,11 @@ aspect MJChangeVisibility {
 	    // write class.
 	    ClassWriter cw = new ClassWriter(0);
 	    cn.accept(cw);
-	    
-	    FileOutputStream f = new FileOutputStream(cn.sourceFile);
+
+	    String source = destinationPath() + File.separator + 
+		constantPoolName() + ".class";	    	    
+
+	    FileOutputStream f = new FileOutputStream(source);
 	    DataOutputStream out = new DataOutputStream(new BufferedOutputStream(f));
 	    
 	    out.write(cw.toByteArray());
