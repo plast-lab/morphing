@@ -12,7 +12,6 @@ public class BasicTest3 extends TestCase {
 	assertTrue(gs.getf1() == 0);
 	//	assertTrue(gs.foo() == 0 ); // ERROR
     }
-
     @Test public void testGetterSetter2() {
 	assertTrue(gs.getf2() == null);
     }
@@ -30,6 +29,12 @@ public class BasicTest3 extends TestCase {
 	gs.setf2(new HashMap());
 	assertTrue(gs.getf2().get("foo").equals("bar"));
     }
+    
+    @Test public void testGetterSetter6() {
+	gs.setf5(7.78d);
+	assertTrue(gs.getf5() == 7.78);
+    }
+
 }
 
 class MyBeanClass {
@@ -37,6 +42,7 @@ class MyBeanClass {
     protected HashMap f2;
     private List f3;
     HashMap f4;
+    public double f5;
 
     public List getf3() { return new ArrayList(); }
     public void setf2(HashMap m) {
@@ -46,7 +52,10 @@ class MyBeanClass {
 }
 
 class GetterSetterMyBeanClass extends MyBeanClass {
+    /*
     public List getf3() { return super.getf3(); }
-
     public void setf1(int i) { this.f1 = i; }
+    */
+    public double getf5 () { return super.f5; }
+    public void setf5 ( double d ) { f5 = d; }
 }
