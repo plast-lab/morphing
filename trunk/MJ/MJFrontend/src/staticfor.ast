@@ -19,9 +19,9 @@ StaticForMethodDecl : MethodDecl ::= IteratorDecl DecompiledAccess:Access* ;
 ParStaticForMethodDecl : StaticForMethodDecl ::= ExpandedMethodDecl*; 
 ExpandedMethodDecl : MethodDecl;
 
-StaticForFieldDeclaration : FieldDeclaration ::=  IteratorDecl;
-ParStaticForFieldDeclaration : StaticForFieldDeclaration ::= ExpandedFieldDeclaration*;
-ExpandedFieldDeclaration : FieldDeclaration;
+StaticForFieldDeclaration : FieldDeclaration ::=  IteratorDecl StaticForFieldDeclarationSubstituted*;
+StaticForFieldDeclarationSubstituted : StaticForFieldDeclaration; // ::= ExpandedFieldDeclaration*;
+//ExpandedFieldDeclaration : FieldDeclaration;
 
 StaticForStmt : Stmt ::= IteratorDecl Stmt* SubstitutedStaticForStmt*;
 SubstitutedStaticForStmt : StaticForStmt;
@@ -39,14 +39,20 @@ OptFieldPattern : Pattern ::= Modifiers [TypeAccess:Access] <ID:String>;
 OptNestedFieldPattern : OptFieldPattern ::= <IsPositive:boolean>;
 
 MethodPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* Exception:Access*  [PatternMethodDecl] SubMethodPattern:MethodPattern*;
+//SubstitutedMethodPattern : MethodPattern;
 
 StaticMethodPattern : MethodPattern;
 StaticFieldPattern : FieldPattern;
 
 FieldPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String> [PatternFieldDeclaration] SubFieldPattern:FieldPattern*;
+//SubstitutedFieldPattern : FieldPattern;
 
 NestedMethodPattern : MethodPattern ::= <IsPositive:boolean>;
 NestedFieldPattern : FieldPattern ::= <IsPositive:boolean>;
+/*
+SubstitutedNestedMethodPattern : NestedMethodPattern;
+SubstitutedNestedFieldPattern : NestedFieldPattern;
+*/
 
 TrueNestedPattern : Pattern;
 

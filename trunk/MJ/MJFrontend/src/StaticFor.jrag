@@ -75,7 +75,7 @@ aspect StaticFor {
 	return new StaticForMethodDecl(getModifiers(), getTypeAccess(), getID(), getParameterList(), getExceptionList(), getBlockOpt(), id, new List());
     }
     public StaticForDeclaration FieldDeclaration.createStaticForDeclarationFrom(IteratorDecl id) {
-	return new StaticForFieldDeclaration(getModifiers(), getTypeAccess(), getID(), getInitOpt(), id);
+	return new StaticForFieldDeclaration(getModifiers(), getTypeAccess(), getID(), getInitOpt(), id, new List());
     }
 
     // TODO: MemberClassDecl, MemberInterfaceDecl, StaticInitializer

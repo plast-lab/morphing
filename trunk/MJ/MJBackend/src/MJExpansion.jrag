@@ -281,9 +281,6 @@ aspect MJExpansion {
 
 	// find all static for stmts.
 	java.util.List staticForStmts = retrieveStaticForStmts(newNode);
-
-	//	int stmtOffset = 0;
-
 	for ( Iterator sit = staticForStmts.iterator(); sit.hasNext(); ) {
 	    StaticForStmt s = (StaticForStmt) sit.next();
 
@@ -291,8 +288,6 @@ aspect MJExpansion {
 	    ASMStaticForStmtsAttribute.StaticForStmtsAttribute staticForStmtAttr = s.staticForStmtAttr;
 	    int begin = staticForStmtAttr.begin_instr;
 	    int end = staticForStmtAttr.end_instr;
-
-	    //	    if ( stmtOffset == 0 ) stmtOffset = begin;
 
 	    InsnList replicatedInsns = new InsnList();
 
@@ -318,9 +313,6 @@ aspect MJExpansion {
 
 	    // remove instructions used for replication.
 	    NodeCopier.removeInsns(newNode.instructions, begin, end);
-
-	    // inscrease offset.
-	    //	    stmtOffset += replicatedInsn.size();
 	}
 
 	InsnTransformVisitor insnVisitor = new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), parClass, this, expansionSubstitutions);
@@ -330,11 +322,9 @@ aspect MJExpansion {
 	newNode.localVariables = insnVisitor.localVariables;
 	newNode.tryCatchBlocks = insnVisitor.tryCatchBlocks;
 	newNode.maxStack = insnVisitor.maxStack;
-	newNode.maxLocals = newNode.localVariables.size();
-
-	// reset new max_local.
 	//	newNode.maxLocals = newNode.localVariables.size();
-	
+	newNode.maxLocals = insnVisitor.maxLocals;
+
 	// remove IteratorDecl attribute.
 	if ( newNode.attrs != null ) {
 	    for ( int j=0; j<newNode.attrs.size(); j++) {
@@ -344,7 +334,7 @@ aspect MJExpansion {
 	}
 	return newNode;
     }
-
+    
     protected int BodyDecl.transformOpcode(int opcode, LocalVariableNode lv) {
 	// retrieve type of local variable node
 	Signatures s = new Signatures(lv.desc);
@@ -401,12 +391,12 @@ aspect MJExpansion {
 	    if ( reflectiveMemberNode(fn) ) {
 		StaticForFieldDeclaration fd = genericDecl().reflectiveField(fn);
 		if ( fd != null ) {
-		    ParStaticForFieldDeclaration parfd = 
-			(ParStaticForFieldDeclaration) fd.p(this);
+		    StaticForFieldDeclarationSubstituted parfd = 
+			(StaticForFieldDeclarationSubstituted) fd.p(this);
 		    List expandedFields = parfd.expandedFields();
 		    for ( int i=0; i<expandedFields.getNumChild(); i++) {
-			ExpandedFieldDeclaration expandedFd =
-			    (ExpandedFieldDeclaration) expandedFields.getChild(i);
+			FieldDeclaration expandedFd =
+			    (FieldDeclaration) expandedFields.getChild(i);
 			
 			FieldNode newNode = 
 			    (FieldNode) expandedFd.transformMemberNode(fn, this);

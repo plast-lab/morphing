@@ -104,10 +104,10 @@ aspect MJInstructionTransform {
 
 	protected String retrieveName(String name) {
 	    if ( staticForStmt != null )
-		return staticForStmt.substitutedName(name, substitutions);
-	    return md.substitutedName(name, substitutions);
+		return new Identifier(name, staticForStmt.refIterator()).substitutedName(substitutions);
+	    return new Identifier(name, md.refIterator()).substitutedName(substitutions);
 	    /*
-	    if ( md.isNameVariable(name)) 
+	      if ( md.isNameVariable(name)) 
 		return (String) substitutions.get(md.getNameVariable(name));
 	    return name;
 	    */
@@ -180,6 +180,15 @@ aspect MJInstructionTransform {
 
 
 	public void visitFieldInsn(int opcode, String owner, String name, String desc) {
+	    // if this is a GET instruction,
+	    // change stack according to field type.
+	    if ( opcode == org.objectweb.asm.Opcodes.GETFIELD ) {
+		TypeDecl ft = retrieveTypeFromDesc(desc);
+		if ( ft.isDouble() || ft.isLong())
+		    maxStack += 2;
+		else maxStack += 1;
+	    }
+
 	    instructions.add(new FieldInsnNode(opcode, 
 					       retrieveOwner(owner), 
 					       retrieveName(name), 
@@ -224,6 +233,12 @@ aspect MJInstructionTransform {
 	}
 
 	public void visitLocalVariable(String name,String desc,String signature,Label start,Label end,int index) {
+	    // change local variable size.
+	    TypeDecl lt = retrieveTypeFromDesc(desc);
+	    if ( lt.isDouble() || lt.isLong())
+		maxLocals += 2;
+	    else maxLocals += 1;
+
 	    localVariables.add(new LocalVariableNode(retrieveName(name), 
 						     name.equals("this")? 
 						     parClass.expandedTypeDescriptor()

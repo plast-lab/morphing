@@ -2,7 +2,7 @@ aspect MJExpansionProperties {
     public Map BodyDecl.expansionSubstitutions = null;
     public StaticForMethodDecl ExpandedMethodDecl.original = null;
     public StaticForConstructorDecl ExpandedConstructorDecl.original = null;
-    public StaticForFieldDeclaration ExpandedFieldDeclaration.original = null;
+    public StaticForFieldDeclaration StaticForFieldDeclarationSubstituted.original = null;
 
 
     //    public boolean TypeDecl.expansionAttribute = false;
