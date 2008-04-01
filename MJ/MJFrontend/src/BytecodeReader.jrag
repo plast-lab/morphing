@@ -649,8 +649,14 @@ aspect BytecodeReader {
 
 	      boolean isPositive = true;
 	      while ( !eof()) {
-		  if ( next("-")) isPositive = false;
-		  if ( next("+")) isPositive = true;
+		  if ( next("-")) {
+		      eat("-");
+		      isPositive = false;
+		  }
+		  if ( next("+")) {
+		      eat("+");
+		      isPositive = true;
+		  }
 
 		  Pattern p = parsePattern();
 		  

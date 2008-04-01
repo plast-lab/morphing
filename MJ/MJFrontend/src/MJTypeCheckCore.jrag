@@ -341,7 +341,7 @@ aspect MJTypeCheckCore {
 		if ( p1 == p2) continue;
 		
 		Pattern p2sub = p2.substitute(uniMap);
-		if (p1sub.isMutuallyExclusiveFrom(p2sub, uniMap))
+		if (p1sub.isMutuallyExclusiveFrom(p2sub, new HashMap())) // uniMap))
 		    return true;
 	    }
 	}
@@ -353,6 +353,7 @@ aspect MJTypeCheckCore {
     eq FieldPattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = p2.isMutuallyExclusiveFromFieldPattern(this, uniMap);
     
     syn lazy boolean Pattern.isMutuallyExclusiveFromFieldPattern(FieldPattern p2, Map uniMap) = false;	   
+
     eq FieldPattern.isMutuallyExclusiveFromFieldPattern(FieldPattern p2, Map uniMap) {
 	if ( isPositiveCondition() && p2.isPositiveCondition()) {
 	    // this and p2 are mutually exclusive if 
@@ -364,10 +365,7 @@ aspect MJTypeCheckCore {
 	    if ( ! rb.subtype(p2rb) && ! p2rb.subtype(rb))
 		return false;
 
-	    Identifier thisId = new Identifier(getID(), enclosingRefIterator(), uniMap);
-	    Identifier thatId = new Identifier(p2.getID(), p2.enclosingRefIterator(), uniMap);
-	    
-	    return thisId.substitutedName().equals(thatId.substitutedName()) &&
+	    return this.identifier().substitutedName(uniMap).equals(p2.identifier().substitutedName(uniMap)) &&
 		!getTypeAccess().type().substitute(uniMap).type().equals(p2.getTypeAccess().type().substitute(uniMap).type());
 	} else if ( isPositiveCondition() ) {
 	    return p2.subsumes(this, uniMap);
@@ -423,6 +421,7 @@ aspect MJTypeCheckCore {
 				 patternTypeVariables(),
 				 patternNameVariables());
     }
+
     public boolean IteratorDecl.isNameVariable(String name, Collection uniNameVars) {
 	for ( Iterator nameIt = uniNameVars.iterator(); nameIt.hasNext(); ) {
 	    PatternNameVariable pv = (PatternNameVariable) nameIt.next();
@@ -451,66 +450,6 @@ aspect MJTypeCheckCore {
 	    p = p.parent;
 	}
 	return false;
-    }
-
-
-    syn lazy boolean Modifiers.unifiesWith(Modifiers mods) {
-	for ( int i=0; i<getNumModifier(); i++) {
-	    int r = mods.unifiesWith(getModifier(i));
-	    if ( r > 0 ) continue; // match found.
-	    else if ( r < 0 ) return false; // modifier(i) is definitely excluded
-	    else {
-		// no match was found, but nothing excluded, either.
-		// if getModifier(i) is not declared in a pattern, 
-		// or the other is declared from a pattern, then this
-		// definitely do not unify
-		/*
-		if ( !declaredFromPattern() &&
-		     !mods.declaredFromPattern()) return false;
-		*/
-		
-		/**
-		 * - if this is declared from a pattern,
-		 *   - but mods is not declared from a pattern,
-		 *     - this should be rejected because mods must have at least
-		 *      one modifier that matches.
-		 *   - mods is declared from a pattern, as well,
-		 *     then reject.
-		 * - if this is not declared from a pattern,
-		 *   - mods is not dcleared from a pattern., then NO
-		 *   - mods is declared from a pattern, then it is okay.
-		 **/
-		if ( !mods.declaredFromPattern() && declaredFromPattern())
-		    return false;
-	    }
-	}
-	if ( getNumModifier() == 0 && mods.getNumModifier() > 0)
-	    return mods.unifiesWith(this);
-	return true;
-    }
-
-    /**
-     * returns:
-     * 1 if Modifiers has exactly a modifier that matches m
-     * 0 if Modifiers has no modifier that matches m, but no modifier that
-     *   definitely excludes m, either (i.e. no(final))
-     * -1 Modifiers definitely does not match m.
-     **/
-    syn lazy int Modifiers.unifiesWith(Modifier m) {
-	/**
-	 * m can be modifier with a list of modifiers if
-	 * 1. there is a modifier in the list that unifies with m
-	 * 2. there is not a modifier in the list that precludes m.
-	 **/
-	boolean foundUniMod = false;
-	for ( int i=0; i<getNumModifier(); i++) {
-	    if ( getModifier(i).unifiesWith(m)) 
-		foundUniMod = true;
-	    // if a preclude modifier is found, immediately return.
-	    if ( getModifier(i).precludes(m)) 
-		return -1;
-	}
-	return foundUniMod ? 1 : 0;
     }
 
     syn lazy boolean Pattern.implies(Pattern p, Map uniMap ) {

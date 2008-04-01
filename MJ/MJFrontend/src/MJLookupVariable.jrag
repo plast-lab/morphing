@@ -37,8 +37,7 @@ aspect MJLookupVariable {
 	// check whether nv is captured by the primary pattern as a variable,
 	// or captured by a nested pattern where the range is exactly one.
 	Pattern p = getIteratorDecl().getPattern();
-	if ( p.isFieldPattern() && 
-	     id.substitutedName().equals(((FieldPattern) p).getID()))
+	if ( p.isFieldPattern() && id.equals(p.identifier()))
 	    return ((FieldPattern) p).patternFieldDeclaration();
 	return lookupVariable(id);
     }
@@ -54,7 +53,8 @@ aspect MJLookupVariable {
 	    SimpleSet newSet = SimpleSet.emptySet;
 	    for(Iterator iter = list.iterator(); iter.hasNext(); ) {
 		Variable v = (Variable)iter.next();
-		if(!v.isInstanceVariable() || !typeDecl.memberFields(id).contains(v))
+		if(!v.isInstanceVariable() || 
+		   !typeDecl.memberFields(id).contains(v))
 		    newSet = newSet.add(v);
 	    }
 	    return newSet;
@@ -97,18 +97,18 @@ aspect MJLookupVariable {
     }    
     syn lazy SimpleSet MethodDecl.parameterDeclaration(Identifier id) {
 	for(int i = 0; i < getNumParameter(); i++)
-	    if(getParameter(i).name().equals(id.substitutedName()))
+	    if(getParameter(i).identifier().equals(id))
 		return (ParameterDeclaration)getParameter(i);
 	return SimpleSet.emptySet;
     }
     syn lazy SimpleSet ConstructorDecl.parameterDeclaration(Identifier id) {
 	for(int i = 0; i < getNumParameter(); i++)
-	    if(getParameter(i).name().equals(id.substitutedName()))
+	    if(getParameter(i).identifier().equals(id))
 		return (ParameterDeclaration)getParameter(i);
 	return SimpleSet.emptySet;
     }
     syn lazy SimpleSet CatchClause.parameterDeclaration(Identifier id) =
-	getParameter().name().equals(id.substitutedName()) ? (ParameterDeclaration)getParameter() : SimpleSet.emptySet;
+	getParameter().identifier().equals(id) ? (ParameterDeclaration)getParameter() : SimpleSet.emptySet;
     eq ForStmt.getStmt().lookupVariable(Identifier id) = localLookup(id);
     syn lazy SimpleSet ForStmt.localLookup(Identifier id) {
 	VariableDeclaration v = localVariableDeclaration(id);
@@ -176,7 +176,7 @@ aspect MJLookupVariable {
 
     syn boolean Stmt.declaresVariable(Identifier id) = false;
     eq VariableDeclaration.declaresVariable(Identifier id) {
-	if ( !id.substitutedName().equals(name())) return false;
+	if ( !id.name().equals(name())) return false;
 	return enclosingRefIterator() == null ? false : 
 	    enclosingRefIterator().subsumes(id.enclosingRefIterator(), new HashMap());
     }
@@ -196,6 +196,7 @@ aspect MJLookupVariable {
 	return null;
     }
     eq VariableDeclaration.getVariableDeclaration(Identifier id) {
+	// TODO: need to return substituted VariableDeclaration.
 	if ( this.declaresVariable(id)) return this;
 	return null;
     }
@@ -247,11 +248,16 @@ aspect MJFields {
 
     syn lazy List<? extends FieldDeclaration> FieldDeclaration.expandedFields() = new List().add(this);
     eq StaticForFieldDeclaration.expandedFields() = new List<FieldDeclaration>();
-    eq ParStaticForFieldDeclaration.expandedFields() {
+    eq StaticForFieldDeclarationSubstituted.expandedFields() {
+	// we can only expand fields if the iterator decl is fully grounded.
+	IteratorDecl id = getIteratorDecl();
+	if ( !id.expandable()) {
+	    throw new Error("Static for field declaration " +
+			    getID() + " is not expandable.");
+	}
+
 	ParTypeDecl ht = (ParTypeDecl) hostType();
 	GenericTypeDecl gtd = (GenericTypeDecl) ht.genericDecl();
-	    
-	IteratorDecl id = getIteratorDecl();
 
 	// get the mappings for each element in the iterator decl's range. 
 	for ( Iterator subMaps = id.reflectiveElmts().values().iterator();
@@ -264,15 +270,15 @@ aspect MJFields {
 				  ht.getArgument(i).type());
 	    }
 
-	    ExpandedFieldDeclaration fd = substitute(substitutions);
+	    StaticForFieldDeclarationSubstituted fd = substitute(substitutions);
 	    fd.expansionSubstitutions = substitutions;
-	    fd.original = this; //this.original;
+	    fd.original = this;
 
 	    fd.is$Final = true;
-	    addExpandedFieldDeclaration(fd);
+	    //	    addExpandedFieldDeclaration(fd);
 	}
 
-	return getExpandedFieldDeclarationList();
+	return getStaticForFieldDeclarationSubstitutedList();
     }
 
     refine Generics eq ParTypeDecl.fields(String name) {
@@ -281,7 +287,7 @@ aspect MJFields {
 	// find reflectively declared, expandable fields
 	for ( Iterator refIt = reflectiveFields().iterator(); 
 	      refIt.hasNext(); ) {
-	    ParStaticForFieldDeclaration fd = (ParStaticForFieldDeclaration) refIt.next();
+	    StaticForFieldDeclarationSubstituted fd = (StaticForFieldDeclarationSubstituted) refIt.next();
 	    if ( fd.expandable()) {
 		List expandedFields = fd.expandedFields();
 		for ( int i=0; i<expandedFields.getNumChild(); i++) {
@@ -316,7 +322,7 @@ aspect MJFields {
 	// find reflectively declared, expandable fields
 	for ( Iterator refIt = reflectiveFields().iterator(); 
 	      refIt.hasNext(); ) {
-	    ParStaticForFieldDeclaration fd = (ParStaticForFieldDeclaration) refIt.next();
+	    StaticForFieldDeclarationSubstituted fd = (StaticForFieldDeclarationSubstituted) refIt.next();
 	    if ( fd.expandable()) {
 		List expandedFields = fd.expandedFields();
 		for ( int i=0; i<expandedFields.getNumChild(); i++) {
@@ -349,9 +355,8 @@ aspect MJFields {
 	StaticForFieldDeclaration sfd = 
 	    new StaticForFieldDeclaration(new Modifiers(),
 					  F.createQualifiedAccess(),
-					  "f", 
-					  new Opt(),
-					  id);
+					  "f", new Opt(),
+					  id, new List());
 	sfd.is$Final = true;
 	addBodyDecl(sfd);
 	sfd.bypassErrorChecking = true;
@@ -361,11 +366,14 @@ aspect MJFields {
     syn SimpleSet TypeDecl.unrestrictedFields() {
 	SimpleSet fields = SimpleSet.emptySet;
 	for ( int i=0; i<getNumBodyDecl(); i++) {
-	    if(getBodyDecl(i) instanceof FieldDeclaration 
-	       /*
-	       &&
-	       !getBodyDecl(i).isReflectiveDecl() */ ) 
-		fields = fields.add(getBodyDecl(i));
+	    if(getBodyDecl(i) instanceof FieldDeclaration ) {
+	    	if ( getBodyDecl(i).isReflectiveDecl()) {
+		    List eFields = ((StaticForFieldDeclaration) getBodyDecl(i)).expandedFields();
+		    for ( int j=0; j<eFields.getNumChild(); j++)
+			fields = fields.add(eFields.getChild(j));
+	    	} else
+		    fields = fields.add(getBodyDecl(i));
+	    }
 	}
 	return fields;
     }
@@ -427,8 +435,15 @@ aspect MJFields {
 	for ( int i=0; i<getNumBodyDecl(); i++) {
 	    if ( getBodyDecl(i) instanceof StaticForFieldDeclaration) {
 		StaticForFieldDeclaration fd = (StaticForFieldDeclaration) getBodyDecl(i);
-		if ( fd.getIteratorDecl().subsumes(id.enclosingRefIterator(), new HashMap()))
-		    fields = fields.add(fd);
+		HashMap uniMap = new HashMap();
+
+		if ( fd.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
+		    Identifier fid = fd.identifier().substitutedIdentifier(uniMap);
+		    Identifier idid = id.substitutedIdentifier(uniMap);
+		    if ( fid.equals(idid)) {
+			fields = fields.add(fd.substitute(uniMap));
+		    }
+		}
 	    }
 	}
 	return fields;
@@ -442,7 +457,7 @@ aspect MJFields {
 	Pattern idPattern = idIt.getPattern();
 	if ( idPattern.getBaseSet().type().subtype(this) &&
 	     idPattern.isFieldPattern() &&
-	     ((FieldPattern) idPattern).getID().equals(id.substitutedName())) {
+	     ((FieldPattern) idPattern).getID().equals(id.name())) {
 	    return ((FieldPattern) idPattern).patternFieldDeclaration();
 	}
 	return SimpleSet.emptySet;

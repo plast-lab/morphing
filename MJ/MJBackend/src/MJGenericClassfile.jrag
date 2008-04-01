@@ -162,17 +162,6 @@ aspect MJGenerateClassfile {
 		TypeDecl at = getArgument(i).type();
 		if ( !at.accessibleFrom(this)) {
 		    at.makeAccessibleFrom(this);
-
-		    /*	
-		    // if type is used as superclass, then must changed
-		    // the visibility of constructors, transitively.
-		    if ( hasSuperclass() && superclass() == at ) {
-			for ( int j=0; j<getNumBodyDecl(); j++) {
-			    if (getBodyDecl(j) instanceof ConstructorDecl)
-				((ConstructorDecl) getBodyDecl(j)).makeSuperConstructorPublic((ClassDecl) at);
-			}
-		    }
-		    */
 		}
 	    }
 

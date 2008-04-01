@@ -1,4 +1,7 @@
+import org.objectweb.asm.tree.*;
+
 aspect MJASMHelper {
+
     public class NodeCopier {
 	public Object copy(Object node) { return node; }
     

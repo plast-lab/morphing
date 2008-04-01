@@ -109,6 +109,7 @@ aspect MJChangeVisibility {
 	}
 	mods.flushCache();
     }
+
     public void MethodDecl.makeAccessibleInASTNode() {
 	Modifiers mods = getModifiers();
 	if ( !mods.isPublic() && !mods.isProtected()) {
@@ -141,7 +142,7 @@ aspect MJChangeVisibility {
     public void Modifiers.removeModifier(String p) {
 	for ( int i=0; i<getNumModifier(); i++) {
 	    if ( getModifier(i).getID().equals(p)) {
-		removeChild(i);
+		getModifierList().removeChild(i);
 		break;
 	    }
 	}
@@ -160,9 +161,8 @@ aspect MJChangeVisibility {
 	if ( t instanceof ClassDecl && 
 	     ((ClassDecl) t).hasSuperclass() && 
 	     ((ClassDecl) t).superclass() == this ) {
-	    for ( int i=0; i<t.getNumBodyDecl(); i++) {
-		if (t.getBodyDecl(i) instanceof ConstructorDecl)
-		    ((ConstructorDecl) t.getBodyDecl(i)).makeSuperConstructorPublic((ClassDecl) this);
+	    for ( Iterator cIt = t.constructors().iterator(); cIt.hasNext(); ) {
+		((ConstructorDecl) cIt.next()).makeSuperConstructorPublic((ClassDecl) this);
 	    }
 	}
     }

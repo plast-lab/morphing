@@ -47,6 +47,13 @@ aspect MJPattern {
     syn IteratorDecl StaticFieldPattern.enclosingRefIterator() = null;
     syn IteratorDecl StaticMethodPattern.enclosingRefIterator() = null;
 
+    inh IteratorDecl ParameterDeclaration.enclosingRefIterator();
+    eq MethodDecl.getParameter(int i).enclosingRefIterator() = null;
+    eq CatchClause.getParameter().enclosingRefIterator() = enclosingRefIterator();
+
+    inh IteratorDecl CatchClause.enclosingRefIterator();
+    eq TryStmt.getCatchClause(int i).enclosingRefIterator() = enclosingRefIterator();
+
     // get the enclosing reflective base type
     syn lazy TypeDecl BodyDecl.reflectiveBaseType() =
 	refIterator() != null ? refIterator().getPattern().reflectiveBaseType() : null;

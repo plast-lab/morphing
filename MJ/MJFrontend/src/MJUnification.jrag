@@ -1,12 +1,13 @@
 aspect MJUnification {
     public boolean MethodDecl.canUnifySignature(MethodDecl m, 
-						  Map uniMap,
-						  Collection uniTypeVars,
-						  Collection uniNameVars ) {
+						Map uniMap,
+						Collection uniTypeVars,
+						Collection uniNameVars ) {
 	if ( this == m ) return true;
 
-	if ( !canUnifyName(getID(), m.getID(), m, uniMap, uniNameVars))
-	    return false; 
+	if ( !canUnifyName(identifier(), m.identifier(), uniMap, uniNameVars))
+	    return false;
+
 	// unify parameter types.
 	if ( !TypeDecl.typeListUnifies(parameterTypes(), m.parameterTypes(), uniMap, uniTypeVars)) return false;
 
@@ -19,23 +20,14 @@ aspect MJUnification {
 						      Collection uniNameVars) {
 	if ( this == f ) return true;
 
-	return canUnifyName(getID(), f.getID(), f, uniMap, uniNameVars);
+	//	return canUnifyName(getID(), f.getID(), f, uniMap, uniNameVars);
+	return canUnifyName(identifier(), f.identifier(), uniMap, uniNameVars); 
     }
 
-    public boolean BodyDecl.canUnifyName(String thisName, String thatName, 
-					 BodyDecl that,
+    public boolean BodyDecl.canUnifyName(Identifier thisId, Identifier thatId,
 					 Map uniMap, Collection uniNameVars) {
-	// first parse out the real name variable parts of both names.
-	Identifier thisId = new Identifier(thisName, this.refIterator(),
-					   uniMap, uniNameVars);
-	Identifier thatId = new Identifier(thatName,that.refIterator(),
-					   uniMap, uniNameVars);
-
-	// both mappings must be tried.
-	boolean a = thisId.mapsTo(thatId, uniMap);
-	boolean b = thatId.mapsTo(thisId, uniMap);
-
-	return a || b;
+	return thisId.mapsTo(thatId, uniMap, uniNameVars) ||
+	    thatId.mapsTo(thisId, uniMap, uniNameVars);
     }
 
     /**
@@ -157,7 +149,6 @@ aspect MJUnification {
 		    // put into uniTypeVars
 		    uniTypeVars.add(tv);
 
-		    //		    TypeDecl t2 = (TypeDecl) typeList.get(0);
 		    TypeDecl t2 = ((TypeDecl) typeList.get(0)).substitute(uniMap).type();
 		    if (!tv.unifiesWith(t2,uniMap,uniTypeVars)) {
 			uniTypeVars.remove(tv);
@@ -501,6 +492,53 @@ aspect MJUnification {
 }
 
 aspect ModifierUnification {
+
+    syn lazy boolean Modifiers.unifiesWith(Modifiers mods) {
+	return this.unifiesWithHelp(mods) &&
+	    mods.unifiesWithHelp(this);
+    }
+
+    syn lazy boolean Modifiers.unifiesWithHelp(Modifiers mods) {
+	for ( int i=0; i<getNumModifier(); i++) {
+	    int r = mods.unifiesWith(getModifier(i));
+	    if ( r > 0 ) continue; // match found.
+	    else if ( r < 0 ) 
+		return false; // modifier(i) is definitely excluded
+	    else {
+		if ( !mods.declaredFromPattern() && declaredFromPattern())
+		    return false;
+	    }
+	}
+	/*
+	if ( getNumModifier() == 0 && mods.getNumModifier() > 0)
+	    return mods.unifiesWith(this);
+	*/
+	return true;
+    }
+
+    /**
+     * returns:
+     * 1 if Modifiers has exactly a modifier that matches m
+     * 0 if Modifiers has no modifier that matches m, but no modifier that
+     *   definitely excludes m, either (i.e. no(final))
+     * -1 Modifiers definitely does not match m.
+     **/
+    syn lazy int Modifiers.unifiesWith(Modifier m) {
+	/**
+	 * m can be modifier with a list of modifiers if
+	 * 1. there is a modifier in the list that unifies with m
+	 * 2. there is not a modifier in the list that precludes m.
+	 **/
+	boolean foundUniMod = false;
+	for ( int i=0; i<getNumModifier(); i++) {
+	    if ( getModifier(i).unifiesWith(m)) 
+		foundUniMod = true;
+	    // if a preclude modifier is found, immediately return.
+	    if ( getModifier(i).precludes(m)) 
+		return -1;
+	}
+	return foundUniMod ? 1 : 0;
+    }
 
     syn lazy boolean Modifier.unifiesWith(Modifier m) = m.unifiesWithRegularModifier(this);
     // TODO: annotations are also modifiers. handle annotation matching.

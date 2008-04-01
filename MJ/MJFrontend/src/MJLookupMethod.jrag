@@ -201,7 +201,8 @@ aspect MJLookupMethod {
 	    HashMap uniMap = new HashMap();
 	    if ( md.getIteratorDecl().subsumes(name.enclosingRefIterator(), uniMap)) {
 		// 2. the name it maps to is used in declaring method.
-		if ( md.substitute(uniMap).getID().equals(name.substitutedName()))
+		//		if ( md.substitute(uniMap).getID().equals(name.substitutedName()))
+		if ( md.substitute(uniMap).identifier().equals(name))
 		    methods.put(md, uniMap);
 	    }
 	}
@@ -223,7 +224,8 @@ aspect MJLookupMethod {
 	    HashMap uniMap = new HashMap();
 	    if ( md.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
 		// 2. the name it maps to is used in declaring method.
-		if ( md.substitute(uniMap).getID().equals(id.substitutedName()))
+		//		if ( md.substitute(uniMap).getID().equals(id.substitutedName()))
+		if ( md.substitute(uniMap).identifier().equals(id))
 		    methods.add(md);
 	    }
 	}
