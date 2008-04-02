@@ -1,4 +1,4 @@
-package testcases;
+package examples;
 
 import java.util.*;
 

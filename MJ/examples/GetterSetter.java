@@ -1,4 +1,4 @@
-package testcases;
+package examples;
 
 public class GetterSetter<class X> extends X {
     // TODO: inherit default constructors

@@ -1,4 +1,4 @@
-package testcases;
+package examples;
 
 public class DefaultImplementation<X, interface I> implements I {
     X x;

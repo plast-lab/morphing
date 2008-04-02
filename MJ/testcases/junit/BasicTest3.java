@@ -3,7 +3,7 @@ package testcases.junit;
 import junit.framework.TestCase;
 import org.junit.Test;
 import java.util.*;
-import testcases.*;
+import examples.*;
 
 public class BasicTest3 extends TestCase {
     GetterSetter<MyBeanClass> gs = new GetterSetter<MyBeanClass>();
