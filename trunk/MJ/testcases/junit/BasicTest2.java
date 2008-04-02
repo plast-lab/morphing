@@ -6,7 +6,7 @@ import java.util.*;
 import testcases.*;
 
 public class BasicTest2 extends TestCase {
-
+    /*
     @Test public void testSynchronizedList () {
 	List myList = new ArrayList();
 	SynchronizeMe<List> synchronizedList = 
@@ -70,7 +70,7 @@ public class BasicTest2 extends TestCase {
 
 	assertTrue(l.indexOf(null) == 0);
     }
-
+    */
     @Test public void testDefaultImplementation6() {
 	IncompleteList il = new IncompleteList();
 

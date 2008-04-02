@@ -25,4 +25,19 @@ public class BasicTest extends TestCase {
 	assertTrue(myList.size() == 0 );
     }
 
+
+    @Test public void testSynchronizedObject() {
+	SynchMe s = new SynchMe();
+	SynchronizeMe<NeedSynch> synchObj = new SynchronizeMe<NeedSynch>(s);
+    }
+}
+
+interface NeedSynch {
+    public int foo();
+    public void bar ( Object o ) ; 
+}
+
+class SynchMe implements NeedSynch {
+    public int foo () { return 1; }
+    public void bar (Object o) {}
 }

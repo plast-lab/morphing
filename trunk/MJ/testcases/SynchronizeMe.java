@@ -11,13 +11,13 @@ public class SynchronizeMe<interface T> implements T {
 	mutex = this;
     }
 
-    <R,A*,E*>[m] for ( !final R m (A) throws E : T.methods) 
-    public R m (A args) throws E {
-	return me.m(args);
+    <R1,A1*,E1*>[m1] for ( !final R1 m1 (A1) throws E1 : T.methods) 
+    public R1 m1 (A1 args) throws E1 {
+	return me.m1(args);
     }
 
-    <A*,E*>[m] for ( !final void m (A) throws E : T.methods )
-    public void m (A args) throws E {
-	me.m(args);
+    <A2*,E2*>[m2] for ( !final void m2 (A2) throws E2 : T.methods )
+    public void m2 (A2 args) throws E2 {
+	me.m2(args);
     }
 }
