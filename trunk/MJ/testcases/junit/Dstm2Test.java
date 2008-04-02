@@ -3,8 +3,8 @@ package testcases.junit;
 import junit.framework.TestCase;
 import org.junit.Test;
 import java.util.*;
-import testcases.dstm2.*;
-import testcases.GetterSetter;
+import examples.dstm2.*;
+import examples.GetterSetter;
 
 public class Dstm2Test extends TestCase {
     GetterSetter<Recoverable<NonAtomicBean>> atomicbean = 
