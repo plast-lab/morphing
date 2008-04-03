@@ -2,8 +2,9 @@ import java.io.FileNotFoundException;
 
 aspect BytecodeAttributes {
   class Attributes {
-    protected BytecodeParser p;
-    protected boolean isSynthetic;
+      protected BytecodeParser p;
+      protected boolean isSynthetic;
+      public Signatures.IteratorDeclSignature iteratorSignature;
 
     protected Attributes(BytecodeParser parser) {
       p = parser;
@@ -13,7 +14,43 @@ aspect BytecodeAttributes {
     protected void processAttribute(String attribute_name, int attribute_length) {
       if(attribute_name.equals("Synthetic")) {
         isSynthetic = true;
-      } else {
+      }	
+      // -- Added for MJFrontend - SSH
+      else if (attribute_name.equals("IteratorDecl")) {
+	  int signature_index = p.u2();
+	  String sig = p.getCONSTANT_Utf8_Info(signature_index).string();
+	  iteratorSignature = new Signatures.IteratorDeclSignature(sig);
+	  
+	  int attrCount = p.u2();
+	  if ( attrCount > 0 ) {
+	      // read constraint type variable attribute.
+	      // first read off attribute name and size.
+	      int tv_name_index = p.u2();
+	      int tv_attr_size = p.u4();
+	      
+	      int tvCount = p.u2();
+	      for ( int i=0; i<tvCount; i++) {
+		  // type constraint index.
+		  int tcIndex = p.u2();
+		  String constraint = 
+		      p.getCONSTANT_Utf8_Info(tcIndex).string();
+		  
+		  Signatures s = new Signatures(constraint);
+		  TypeAccess ta = (TypeAccess) s.typeSignature();
+		  if ( s.next("C")) { // class
+		      iteratorSignature.addConstraintTo(ta, "class");
+		      s.eat("C");
+		  } else if ( s.next("I")) { // interface
+		      iteratorSignature.addConstraintTo(ta, "interface");
+		      s.eat("I");
+		  } else if ( s.next("ALL")) { // all matching
+		      iteratorSignature.makeAllMatching(ta);
+		      s.eat("ALL");
+		  }		
+	      }
+	  }
+      }
+      else {
         this.p.skip(attribute_length);
       }
     }
@@ -85,9 +122,19 @@ aspect BytecodeAttributes {
       return new Annotation("Annotation", typeAccess, list);
     }
 
+      public static class ASMAttributesHelper extends Attributes {
+	  public ASMAttributesHelper(BytecodeParser p,
+				     String attribute_name,
+				     int attribute_length) {
+	      super(p);
+	      processAttribute(attribute_name, attribute_length);
+	  }
+      }
+
     public static class FieldAttributes extends Attributes {
       protected CONSTANT_Info constantValue;
       public java.util.ArrayList annotations;
+
       public FieldAttributes(BytecodeParser p) {
         super(p);
         attributes();
@@ -112,6 +159,42 @@ aspect BytecodeAttributes {
           for(int j = 0; j < num_annotations; j++)
             annotations.add(readAnnotation());
         }
+	// -- Added for MJFrontend - SSH
+	/*
+	else if (attribute_name.equals("IteratorDecl")) {
+	    int signature_index = p.u2();
+	    String sig = p.getCONSTANT_Utf8_Info(signature_index).string();
+	    iteratorSignature = new Signatures.IteratorDeclSignature(sig);
+
+	    int attrCount = p.u2();
+	    if ( attrCount > 0 ) {
+		// read constraint type variable attribute.
+		int tv_name_index = p.u2();
+		int tv_attr_size = p.u4();
+
+		int tvCount = p.u2();
+		for ( int i=0; i<tvCount; i++) {
+		    // type constraint index.
+		    int tcIndex = p.u2();
+		    String constraint = 
+			p.getCONSTANT_Utf8_Info(tcIndex).string();
+		    
+		    Signatures s = new Signatures(constraint);
+		    TypeAccess ta = (TypeAccess) s.typeSignature();
+		    if ( s.next("C")) { // class
+			iteratorSignature.addConstraintTo(ta, "class");
+			s.eat("C");
+		    } else if ( s.next("I")) { // interface
+			iteratorSignature.addConstraintTo(ta, "interface");
+			s.eat("I");
+		    } else if ( s.next("ALL")) { // all matching
+			iteratorSignature.makeAllMatching(ta);
+			s.eat("ALL");
+		    }		
+		}
+	    }
+	}
+	*/
         else {
           super.processAttribute(attribute_name, attribute_length);
         }
@@ -128,7 +211,6 @@ aspect BytecodeAttributes {
       public Signatures.MethodSignature methodSignature;
       public java.util.ArrayList annotations;
       public java.util.ArrayList[] parameterAnnotations;
-      public Signatures.IteratorDeclSignature iteratorSignature;
 
       public MethodAttributes(BytecodeParser p) {
         super(p);
@@ -186,11 +268,42 @@ aspect BytecodeAttributes {
           }
         }
 	// -- Added for MJFrontend - SSH
+	/*
 	else if (attribute_name.equals("IteratorDecl")) {
 	    int signature_index = p.u2();
-	    String s = p.getCONSTANT_Utf8_Info(signature_index).string();
-	    iteratorSignature = new Signatures.IteratorDeclSignature(s);
+	    String sig = p.getCONSTANT_Utf8_Info(signature_index).string();
+	    iteratorSignature = new Signatures.IteratorDeclSignature(sig);
+
+	    int attrCount = p.u2();
+	    if ( attrCount > 0 ) {
+		// read constraint type variable attribute.
+		// first read off attribute name and size.
+		int tv_name_index = p.u2();
+		int tv_attr_size = p.u4();
+
+		int tvCount = p.u2();
+		for ( int i=0; i<tvCount; i++) {
+		    // type constraint index.
+		    int tcIndex = p.u2();
+		    String constraint = 
+			p.getCONSTANT_Utf8_Info(tcIndex).string();
+		    
+		    Signatures s = new Signatures(constraint);
+		    TypeAccess ta = (TypeAccess) s.typeSignature();
+		    if ( s.next("C")) { // class
+			iteratorSignature.addConstraintTo(ta, "class");
+			s.eat("C");
+		    } else if ( s.next("I")) { // interface
+			iteratorSignature.addConstraintTo(ta, "interface");
+			s.eat("I");
+		    } else if ( s.next("ALL")) { // all matching
+			iteratorSignature.makeAllMatching(ta);
+			s.eat("ALL");
+		    }		
+		}
+	    }
 	}
+	*/
         /*
         else if(attribute_name.equals("RuntimeVisibleExtendedAnnotations")) {
           int num_annotations = p.u2();
@@ -296,6 +409,26 @@ aspect BytecodeAttributes {
 	    typeDecl.expansionAttribute = true;
 	}
 	*/
+	else if ( attribute_name.equals("TypeVariableConstraints")) {
+	    // typeDecl must be GenericClassDecl or GenericInterfaceDecl
+	    int tvCount = p.u2();
+	    for ( int i=0; i<tvCount; i++) {
+		// type constraint index.
+		int tcIndex = p.u2();
+		String constraint = 
+		    p.getCONSTANT_Utf8_Info(tcIndex).string();
+		
+		Signatures s = new Signatures(constraint);
+		TypeAccess ta = (TypeAccess) s.typeSignature();
+		if ( s.next("C")) { // class
+		    ((GenericTypeDecl) typeDecl).addConstraintTo(ta, "class");
+		    s.eat("C");
+		} else if ( s.next("I")) { // interface
+		    ((GenericTypeDecl) typeDecl).addConstraintTo(ta, "interface");
+		    s.eat("I");
+		}
+	    }
+	}
         else {
           super.processAttribute(attribute_name, attribute_length);
         }
@@ -380,10 +513,6 @@ aspect BytecodeAttributes {
         if(BytecodeParser.VERBOSE)
           p.println("    end");
       }
-
-
-
-
     }
 
   }

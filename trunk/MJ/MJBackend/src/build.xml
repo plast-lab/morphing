@@ -207,6 +207,19 @@
   </jar>
 </target>
 
+<!-- build binary distribution with examples and testcases. -->
+<target name="binary" depends="jar">
+  <tar destfile="mj-binary-0_1.tar">
+  <tarfileset dir="../../examples">
+    <include name="**/*.java"/>
+  </tarfileset>
+  <tarfileset dir="../../testcases">
+    <include name="**/*.java"/>
+  </tarfileset>
+  </tar>
+  <gzip zipfile="mj-binary-0_1.tar.gz" src="mj-binary-0_1.tar"/>
+</target>
+
 <!-- build a source distribution -->
 <target name="source" depends="build">
   <jar destfile="MJBackend-src.jar">

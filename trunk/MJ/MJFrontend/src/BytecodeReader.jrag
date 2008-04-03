@@ -629,6 +629,28 @@ aspect BytecodeReader {
 	      iteratorDeclSignature();
 	  }
 
+	  public void addConstraintTo(TypeAccess ta, String cons) {
+	      for ( int i=0; i<patternTypeParameters.getNumChildNoTransform();
+		    i++) {
+		  TypeVariable tv = (TypeVariable) patternTypeParameters.getChildNoTransform(i);
+		  if ( tv.getID().equals(ta.getID())) {
+		      patternTypeParameters.setChild(new ConstrainedTypeVariable(tv.getModifiersNoTransform(), tv.getID(), tv.getBodyDeclListNoTransform(), tv.getTypeBoundListNoTransform(), cons), i);
+		      break;
+		  }
+	      }
+	  }
+
+	  public void makeAllMatching(TypeAccess ta) {
+	      for ( int i=0; i<patternTypeParameters.getNumChildNoTransform();
+		    i++) {
+		  TypeVariable tv = (TypeVariable) patternTypeParameters.getChildNoTransform(i);
+		  if ( tv.getID().equals(ta.getID())) {
+		      patternTypeParameters.setChild(new AllMatchingTypeVariable(tv.getModifiersNoTransform(), tv.getID(), tv.getBodyDeclListNoTransform(), tv.getTypeBoundListNoTransform()), i);
+		      break;
+		  }
+	      }
+	  }
+
 	  public List patternTypeParameters() { return patternTypeParameters; }
 	  public List patternNameParameters() { return patternNameParameters; }
 	  public Pattern pattern() { return pattern; }
@@ -771,9 +793,9 @@ aspect BytecodeReader {
 	  void parsePatternNameParameters() {
 	      eat("[");
 	      patternNameParameters = new List();
-	      do {
+	      while (!next("]")) {
 		  patternNameParameters.add(patternNameParameter());
-	      } while (!next("]"));
+	      } 
 	      eat("]");
 	  }
 
@@ -798,6 +820,7 @@ aspect BytecodeReader {
 	      String id = identifier();
 
 	      // may have *
+	      // * : vector
 	      boolean isVector = false;
 	      if ( data.charAt(pos) == '*') {
 		  isVector = true;
@@ -811,7 +834,8 @@ aspect BytecodeReader {
 	      if ( bounds.getNumChild() == 0) eat(";");
 	      if ( isVector )
 		  return new VectorTypeVariable(new Modifiers(new List()), id, new List(), bounds, new List());
-	      else return new PatternTypeVariable(new Modifiers(new List()), id, new List(), bounds);
+	      else 
+		  return new PatternTypeVariable(new Modifiers(new List()), id, new List(), bounds);
 	  }
 	  
       }
@@ -1103,7 +1127,7 @@ aspect BytecodeReader {
       return new ArrayTypeAccess(typeSignature());
     }
 
-    Access typeSignature() {
+      public Access typeSignature() {
       if(nextIsFieldTypeSignature()) {
         return fieldTypeSignature();
       }

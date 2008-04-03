@@ -15,7 +15,7 @@ class MJChecker extends Frontend {
 						return new parser.JavaParser().parse(is, fileName);
 					}
 				});
-
+/*
 		if (b) {
 			// generate the expanded classes.
 			for (java.util.Iterator iter = checker.program
@@ -37,11 +37,13 @@ class MJChecker extends Frontend {
 							// exist
 							if (parTypeDecl.grounded())
 								System.out.println("Expand: " + parTypeDecl.name());
+								
 						}
 					}
 				}
 			}
 		}
+		*/
 		return b;
 	}
 

@@ -1,5 +1,20 @@
 aspect MJRewrites {
 
+    public void GenericTypeDecl.addConstraintTo(TypeAccess ta, String cons ) {
+	// find the type parameter with the name ta.
+	// make it a ConstrainedTypeVariable, constrained to be "cons"
+	// which could be  "class" or "interface"
+	for ( int i=0; i<getNumTypeParameter(); i++) {
+	    if ( getTypeParameter(i).getID().equals(ta.getID())) {
+		TypeVariable tv = getTypeParameter(i);
+		TypeVariable newTv = new ConstrainedTypeVariable(tv.getModifiers(), ta.getID(), tv.getBodyDeclList(), tv.getTypeBoundList(), cons);
+		this.setTypeParameter(newTv, i);
+		break;
+	    }
+	}
+	return;
+    }
+    
     public static int Program.generatedTypeVariableCount = 0;
     
     public static String Program.generateFreshTypeVariableName() {

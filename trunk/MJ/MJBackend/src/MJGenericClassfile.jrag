@@ -19,93 +19,33 @@ aspect MJGenerateClassfile {
 	}
     }
 
-    public class ASMIteratorDeclAttribute extends org.objectweb.asm.Attribute {
-	String signature = null;
-	
-	public ASMIteratorDeclAttribute(final String sig) {
-	    super("IteratorDecl");
-	    signature = sig;
-	}
+    public class ASMConstrainedTypeVariableAttribute extends org.objectweb.asm.Attribute {
+	Collection typesConstraints = new ArrayList();
 
-	public String signature() {
-	    return signature;
+	public ASMConstrainedTypeVariableAttribute(Collection c) {
+	    super("TypeVariableConstraints");
+	    typesConstraints = c;
 	}
-
-	public boolean isUnknown() { return false; }
 
 	protected org.objectweb.asm.Attribute read(ClassReader cr, int off, int len,
-				 char[] buf, int codeOff, Label[] labels) {
-	    return new ASMIteratorDeclAttribute(cr.readUTF8(off, buf));
-	}
-
-	protected ByteVector write(ClassWriter cw, byte[] code, int len,
-				   int maxStack, int maxLocals) {
-	    return new ByteVector().putShort(cw.newUTF8(signature));
-	}
-
-    }
-
-    public class ASMStaticForStmtsAttribute extends org.objectweb.asm.Attribute {
-
-	Collection<StaticForStmtsAttribute> staticForStmts;
+						   char[] buf, int codeOff, Label[] labels) {
+	    Collection typesConstraints = new ArrayList();
 	
-	class StaticForStmtsAttribute {
-	    int begin_instr;
-	    int end_instr;
-	    String iterator_sig;
+	    // first read how many there are.
+	    int types = cr.readUnsignedShort(off);
 
-	    StaticForStmtsAttribute(int b, int e, String s) {
-		begin_instr = b;
-		end_instr = e;
-		iterator_sig = s;
-	    }
-	}
-
-	public ASMStaticForStmtsAttribute(Collection stmtAttrs) {
-	    super("StaticForStmts");
-	    staticForStmts = stmtAttrs;
-	}
-
-	public boolean isUnknown() { return false; }    
-
-	public boolean isCodeAttribute() { return true; }
-
-	protected org.objectweb.asm.Attribute read(ClassReader cr, int off, int len,
-				 char[] buf, int codeOff, Label[] labels) {
-	    // read number of entries.
-	    Collection attrs = new ArrayList();
-
-	    int entries=  cr.readUnsignedShort(off);
 	    int w = off+2;
-	    for( int i=0; i<entries; i++) { 
-		// first read two numbers.
-		int begin = cr.readUnsignedShort(w);;
-		int end   = cr.readUnsignedShort(w+2);
-		String iterator_sig = cr.readUTF8(w+4, new char[100]);
+	    for ( int i=0; i<types; i++) {
+		// each type attribute is just a utf8
+		int utf8index = cr.readUnsignedShort(w);
+		String typeSig = cr.readUTF8(utf8index, new char[buf.length]);
+		typesConstraints.add(typeSig);
 
-		w += 6;
-		attrs.add(new StaticForStmtsAttribute(begin, end, iterator_sig));
+		w += 2;
 	    }
-	    return new ASMStaticForStmtsAttribute(attrs);
+
+	    return new ASMConstrainedTypeVariableAttribute(typesConstraints);
 	}
-
-	protected ByteVector write(ClassWriter cw, byte[] code, int len,
-				   int maxStack, int maxLocals) {
-	    ByteVector bv = new ByteVector();
-	    bv.putShort(staticForStmts.size());
-	    for ( Iterator<StaticForStmtsAttribute> i = staticForStmts.iterator();
-		  i.hasNext(); ) {
-		StaticForStmtsAttribute a = i.next();
-		/*
-		bv.putShort(a.begin_pos);
-		bv.putShort(a.end_pos);
-		bv.putUTF8(iteratorDecl);
-		return bv;
-		*/
-	    }
-	    return bv;
-	}	
-	
     }
 
     protected String ParClassDecl.sourceFile() {
@@ -183,7 +123,7 @@ aspect MJGenerateClassfile {
 
 	    cr.accept(cn, 
 		      new org.objectweb.asm.Attribute[] { 
-			  new ASMIteratorDeclAttribute(""),
+			  new ASMIteratorDeclAttribute(null, null),
 			  new ASMStaticForStmtsAttribute(null) },
 		      0);
 	    

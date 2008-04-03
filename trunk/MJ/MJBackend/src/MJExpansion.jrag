@@ -169,7 +169,7 @@ aspect MJExpansion {
 		for ( int i=0; i<getBlock().getNumStmt(); i++) {
 		    if ( getBlock().getStmt(i) instanceof StaticForStmt ) {
 			StaticForStmt s = (StaticForStmt) getBlock().getStmt(i);
-			if ( s.getIteratorDecl().signature().equals(stmtsAttr.iterator_sig)) {
+			if ( s.getIteratorDecl().signature().equals(stmtsAttr.iterator_attr.signature())) {
 			    staticForStmts.add(s);
 			    s.staticForStmtAttr = stmtsAttr;
 			    break;
@@ -177,7 +177,7 @@ aspect MJExpansion {
 		    }
 		}
 	    } else {
-		Signatures.IteratorDeclSignature idSig = new Signatures.IteratorDeclSignature(stmtsAttr.iterator_sig);
+		Signatures.IteratorDeclSignature idSig = new Signatures.IteratorDeclSignature(stmtsAttr.iterator_attr.signature());
 		IteratorDecl itDecl = 
 		    new IteratorDecl(idSig.patternTypeParameters(), 
 				     idSig.patternNameParameters(), 

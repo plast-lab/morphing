@@ -36,10 +36,11 @@ aspect MJAttributes {
 
     public java.util.List CodeGeneration.staticForStmtEntries = new ArrayList();
 
-    public void CodeGeneration.addStaticForStmtBegin(String iteratorSig) {
+    public void CodeGeneration.addStaticForStmtBegin(IteratorDecl id)  {
 	StaticForStmtEntry e = new StaticForStmtEntry();
 	e.start_instr = pos()+1;
-	e.iterator_sig = constantPool().addUtf8(iteratorSig);
+	//	e.iterator_sig = constantPool().addUtf8(iteratorSig);
+	e.iterator_decl = id;
 	staticForStmtEntries.add(e);
     }
     
@@ -53,7 +54,7 @@ aspect MJAttributes {
     class StaticForStmtEntry {
 	int start_instr;
 	int end_instr;
-	int iterator_sig;
+	IteratorDecl iterator_decl; //int iterator_sig;
     }
     
     class StaticForStmtAttribute extends Attribute {
@@ -65,46 +66,109 @@ aspect MJAttributes {
 		StaticForStmtEntry s = (StaticForStmtEntry) iter.next();
 		u2(s.start_instr);
 		u2(s.end_instr);
-		u2(s.iterator_sig);
+
+		append(new IteratorDeclAttribute(gen.constantPool(),
+						 s.iterator_decl.signature(),
+						 s.iterator_decl.constrainedTypeVariables()));
+
+		//		u2(gen.constantPool().addUtf8(s.iterator_decl.signature()));
 	    }
 	}
     }
 
+    public Collection IteratorDecl.constrainedTypeVariables() {
+	Collection consTypes = new ArrayList();
+	for ( int i=0; i<getNumPatternTypeParameter(); i++) 
+	    if ( getPatternTypeParameter(i).isConstrainedTypeVariable() ||
+		 getPatternTypeParameter(i) instanceof AllMatchingTypeVariable)
+		consTypes.add(getPatternTypeParameter(i));
+	return consTypes;
+    }
     eq StaticForMethodDecl.attributes() {
 	Collection c = super.attributes();
+	
 	// add attribute about the iterator decl.
 	c.add(new IteratorDeclAttribute(hostType().constantPool(), 
-					getIteratorDecl().signature()));
+					getIteratorDecl().signature(),
+					getIteratorDecl().constrainedTypeVariables()));
 	return c;
     }
     eq StaticForConstructorDecl.attributes() {
 	Collection c = super.attributes();
 	// add attribute about the iterator decl.
 	c.add(new IteratorDeclAttribute(hostType().constantPool(), 
-					getIteratorDecl().signature()));
+					getIteratorDecl().signature(),
+					getIteratorDecl().constrainedTypeVariables()));
 	return c;
     }
     eq StaticForFieldDeclaration.attributes() {
 	Collection c = super.attributes();
 	c.add(new IteratorDeclAttribute(hostType().constantPool(),
-					getIteratorDecl().signature()));
+					getIteratorDecl().signature(),
+					getIteratorDecl().constrainedTypeVariables()));
+	
 	return c;
     }
 
     class IteratorDeclAttribute extends Attribute {
-	public IteratorDeclAttribute(ConstantPool cp, String iteratorSig) {
+	public IteratorDeclAttribute(ConstantPool cp, String iteratorSig, 
+				     Collection consTypes) {
 	    super(cp, "IteratorDecl");
 	    u2(cp.addUtf8(iteratorSig));
+
+	    if ( consTypes.size() > 0 ) {
+		// attribute count.
+		u2(1);
+		append(new TypeVariableConstraintsAttribute(cp, consTypes));
+	    } else { u2(0); }
 	}
     }
     
+    class TypeVariableConstraintsAttribute extends Attribute {
+	public TypeVariableConstraintsAttribute(ConstantPool cp, 
+						Collection tvs) {
+	    super(cp, "TypeVariableConstraints");
+	    u2(tvs.size());
+	    for ( Iterator tIt = tvs.iterator(); tIt.hasNext(); )
+		((TypeDecl) tIt.next()).appendAsAttributeTo(this, cp);
+	}
+    }
+
+    public void TypeDecl.appendAsAttributeTo(TypeVariableConstraintsAttribute attr, ConstantPool cp) {}
+
+    public void ConstrainedTypeVariable.appendAsAttributeTo(TypeVariableConstraintsAttribute attr, ConstantPool cp) {
+	// append classTypeSignature.
+	// followed by "I" for interface, or "C" for class.
+	attr.u2(cp.addUtf8(classTypeSignature() + 
+			   (mustbeClass() ? "C" : "I")));
+    }
+    public void AllMatchingTypeVariable.appendAsAttributeTo(TypeVariableConstraintsAttribute attr, ConstantPool cp) {
+	attr.u2(cp.addUtf8(classTypeSignature() + "ALL"));
+    }
+
+    eq GenericTypeDecl.attributes() {
+	Collection c = super.attributes();
+
+	// collect the type parameters with constraints.
+	Collection tvs = new ArrayList();
+	for ( int i=0; i<getNumTypeParameter(); i++)
+	    if ( getTypeParameter(i).isConstrainedTypeVariable())
+		tvs.add(getTypeParameter(i));
+
+	if ( tvs.size() > 0 ) 
+	    c.add(new TypeVariableConstraintsAttribute(constantPool(), tvs));
+
+	return c;
+    }
+
     syn String IteratorDecl.signature() {
 	// <R;..>[m;..] (A)R;[m]T;methods; -(A)R;[m]T;methods;+(A)R[m]T;methods 
 	StringBuffer buf = new StringBuffer();
+	Collection consTypes = new ArrayList();
 	buf.append("<");
 	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
 	    buf.append(getPatternTypeParameter(i).classTypeSignature());
-	}  
+	}
 	buf.append(">");
 	buf.append("[");
 	for ( int i=0; i<getNumPatternNameParameter(); i++) {
@@ -115,6 +179,7 @@ aspect MJAttributes {
 	for ( int i=0; i<getNumNestedPattern(); i++) {
 	    buf.append(getNestedPattern(i).signature());
 	}
+
 	return buf.toString();
     }
     syn String Pattern.signature() { 
@@ -130,6 +195,11 @@ aspect MJAttributes {
 	buf.append("[");
 	buf.append(getID());
 	buf.append("]");
+
+	// append modifiers.
+	buf.append("(");
+	buf.append(getModifiers().signature());
+	buf.append(")");
 
 	// append base set signature.
 	buf.append(getBaseSet().signature());
@@ -153,6 +223,13 @@ aspect MJAttributes {
 	return buf.toString();
     }
     eq NestedMethodPattern.signature() {
+	StringBuffer buf = new StringBuffer();
+	if ( getIsPositive()) buf.append("+");
+	else buf.append("-");
+	buf.append(super.signature());
+	return buf.toString();
+    }
+    eq NestedFieldPattern.signature() {
 	StringBuffer buf = new StringBuffer();
 	if ( getIsPositive()) buf.append("+");
 	else buf.append("-");

@@ -13,11 +13,10 @@ StaticForDecl : MemberDecl ::= IteratorDecl BodyDecl*;
 // Normalized, Parameterized, and Expanded StaticFor constructor declarations
 StaticForConstructorDecl : ConstructorDecl ::= IteratorDecl StaticForConstructorDeclSubstituted*;
 StaticForConstructorDeclSubstituted : StaticForConstructorDecl;
-// ::= ExpandedConstructorDecl*;
-//ExpandedConstructorDecl : ConstructorDecl;
 
 StaticForMethodDecl : MethodDecl ::= IteratorDecl DecompiledAccess:Access* StaticForMethodDeclSubstituted*;
 StaticForMethodDeclSubstituted : StaticForMethodDecl; 
+GroundedStaticForMethodDecl : StaticForMethodDeclSubstituted;
 /*
 ParStaticForMethodDecl : StaticForMethodDecl ::= ExpandedMethodDecl*; 
 ExpandedMethodDecl : MethodDecl;
