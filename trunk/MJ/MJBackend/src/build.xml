@@ -43,7 +43,7 @@
 <!-- compile sources -->
 <target name="build" depends="gen">
 	<javac debug="true" nowarn="true" srcdir="." includes="**/*.java" excludes="testcases/**" 
-         classpath=".:${tools}/beaver-rt.jar:${tools}/junit.jar:${thirdparty}/asm-3.1/bin"/>
+         classpath=".:${tools}/beaver-rt.jar:${tools}/junit.jar:${thirdparty}/asm-all-3.1.jar"/>
 </target>
 
 <!-- generate compiler source files -->
@@ -210,32 +210,129 @@
 <!-- build binary distribution with examples and testcases. -->
 <target name="binary" depends="jar">
   <tar destfile="mj-binary-0_1.tar">
-  <tarfileset dir="../../examples">
-    <include name="**/*.java"/>
-  </tarfileset>
-  <tarfileset dir="../../testcases">
-    <include name="**/*.java"/>
-  </tarfileset>
+    <fileset dir="../../../..">
+      <include name="morphing/README"/>
+      <include name="morphing/MJ/examples/**/*.java"/>
+      <include name="morphing/MJ/testcases/**/*.java"/>
+      <include name="morphing/MJ/MJBackend/src/MJCompiler.jar"/>
+    </fileset>
+<!--
+    <tarfileset dir="../../../..">
+      <include name="morphing/MJ/examples/**/*.java"/>
+    </tarfileset>
+    <tarfileset dir="../../testcases">
+      <include name="**/*.java"/>
+    </tarfileset>
+-->
   </tar>
   <gzip zipfile="mj-binary-0_1.tar.gz" src="mj-binary-0_1.tar"/>
 </target>
 
 <!-- build a source distribution -->
 <target name="source" depends="build">
-  <jar destfile="MJBackend-src.jar">
-			<fileset dir="../..">
+  <tar destfile="mj-src-0_1.tar">
+    <fileset dir="../../../..">
+      <include name="morphing/README"/>
+      <include name="morphing/MJ/examples/**/*.java"/>
+      <include name="morphing/MJ/testcases/**/*.java"/>
+    </fileset>
+
+    <!-- inlcude MJFrontend -->
+    <fileset dir="../../../..">
+      <include name="morphing/MJ/MJFrontend/src/**/*.ast"/>
+      <include name="morphing/MJ/MJFrontend/src/**/*.jrag"/>
+      <include name="morphing/MJ/MJFrontend/src/**/*.jadd"/>
+      <!-- include parser and scanner -->
+      <include name="morphing/MJ/MJFrontend/src/*.parser"/>
+      <include name="morphing/MJ/MJFrontend/src/*.flex"/>
+      <!-- include buildfile used to build the backend -->
+      <include name="morphing/MJ/MJFrontend/src/build.xml"/>
+    </fileset>
+    
+    <!-- include MJBackend -->
+    <fileset dir="../../../..">
+      <include name="morphing/MJ/MJBackend/src/MJCompiler.java"/>
+      <include name="morphing/MJ/MJBackend/src/**/*.ast"/>
+      <include name="morphing/MJ/MJBackend/src/**/*.jrag"/>
+      <include name="morphing/MJ/MJBackend/src/**/*.jadd"/>
+      <!-- include buildfile used to build the backend -->
+      <include name="morphing/MJ/MJBackend/src/build.xml"/>
+    </fileset>
+
+    <fileset dir="../../../..">
+      <include name="morphing/MJ/MJBackend/thirdparty/*.jar"/>
+    </fileset>
+
+    <!-- include JastAdd Java1.4 Frontend -->
+    <fileset dir="../../../..">
+        <!-- include frontend source file -->
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/JavaPrettyPrinter.java"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/JavaChecker.java"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/**/*.ast"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/**/*.jrag"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/**/*.jadd"/>
+        <!-- include parser and scanner -->
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/beaver/**/*.java"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/scanner/*.flex"/>
+	<exclude name="morphing/MJ/JastAddJ/Java1.4Frontend/scanner/JavaScanner.flex"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/scanner/Unicode.java"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/parser/*.parser"/>
+        <!-- include tools and buildfile used to build the front-end -->
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/tools/*.jar"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/build.xml"/>
+        <!-- include readme and licences -->
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/README"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/licences/BSD"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/licences/CPL"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/licences/GPL"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Frontend/licences/LICENSE"/>
+    </fileset>
+
+    <!-- include Java1.4 Backend -->
+    <fileset dir="../../../..">
         <!-- include backend source file -->
-				<include name="MJBackend/src/MJCompiler.java"/>
-				<include name="MJBackend/src/**/*.ast"/>
-				<include name="MJBackend/src/**/*.jrag"/>
-				<include name="MJBackend/src/**/*.jadd"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Backend/JavaCompiler.java"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Backend/**/*.ast"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Backend/**/*.jrag"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Backend/**/*.jadd"/>
         <!-- include buildfile used to build the backend -->
-				<include name="MJBackend/src/build.xml"/>
-			</fileset>
-         <zipfileset src="${thirdparty}/asm-all-3.1.jar"/>
-      <manifest>
-      </manifest>
-  </jar>
+	<include name="morphing/MJ/JastAddJ/Java1.4Backend/build.xml"/>
+        <!-- include readme and licence -->
+	<include name="morphing/MJ/JastAddJ/Java1.4Backend/README"/>
+	<include name="morphing/MJ/JastAddJ/Java1.4Backend/licences/BSD"/>
+    </fileset>
+
+    <fileset dir="../../../..">
+      <!-- include backend source file -->
+      <include name="morphing/MJ/JastAddJ/Java1.5Backend/JavaCompiler.java"/>
+      <include name="morphing/MJ/JastAddJ/Java1.5Backend/**/*.ast"/>
+      <include name="morphing/MJ/JastAddJ/Java1.5Backend/**/*.jrag"/>
+      <include name="morphing/MJ/JastAddJ/Java1.5Backend/**/*.jadd"/>
+      <!-- include buildfile used to build the backend -->
+      <include name="morphing/MJ/JastAddJ/Java1.5Backend/build.xml"/>
+      <!-- include readme and licence -->
+      <include name="morphing/MJ/JastAddJ/Java1.5Backend/README"/>
+      <include name="morphing/MJ/JastAddJ/Java1.5Backend/licences/BSD"/>
+    </fileset>
+
+    <fileset dir="../../../..">
+      <!-- include backend source file -->
+      <include name="morphing/MJ/JastAddJ/Java1.5Frontend/JavaChecker.java"/>
+      <include name="morphing/MJ/JastAddJ/Java1.5Frontend/**/*.ast"/>
+      <include name="morphing/MJ/JastAddJ/Java1.5Frontend/**/*.jrag"/>
+      <include name="morphing/MJ/JastAddJ/Java1.5Frontend/**/*.jadd"/>
+      <!-- include parser and scanner -->
+      <include name="morphing/MJ/JastAddJ/Java1.5Frontend/**/*.parser"/>
+      <include name="morphing/MJ/JastAddJ/Java1.5Frontend/*.flex"/>
+      <!-- include buildfile used to build the backend -->
+      <include name="morphing/MJ/JastAddJ/Java1.5Frontend/build.xml"/>
+      <!-- include readme and licence -->
+      <include name="morphing/MJ/JastAddJ/Java1.5Frontend/README"/>
+      <include name="morphing/MJ/JastAddJ/Java1.5Frontend/licences/BSD"/>
+    </fileset>
+<!--    <zipfileset src="${thirdparty}/asm-all-3.1.jar"/> -->
+  </tar>
+  <gzip zipfile="mj-src-0_1.tar.gz" src="mj-src-0_1.tar"/>
 </target>
 
 </project>
