@@ -34,6 +34,7 @@ aspect MJLookupType {
     eq IteratorDecl.getNestedPattern(int i).lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);
     eq IteratorDecl.getPatternTypeParameter(int i).lookupType(String name) = localLookupType(name).isEmpty() ? lookupType(name) : localLookupType(name);
 
+    // Made-up types. TODO: move into annotations.
     syn lazy TypeDecl Program.typeNonVoid() {
 	TypeDecl t = new NonVoidType(new Modifiers(), "NonVoid", new List());
 	addCompilationUnit(new CompilationUnit("java.lang", new List(), new List().add(t)));

@@ -43,6 +43,14 @@ aspect BytecodeDescriptor {
     }
 
     public BodyDecl bodyDecl() {
+	// -- Added for MJFrontend -- ssh
+	Signatures.IteratorDeclSignature d = attributes.iteratorSignature;
+	IteratorDecl itDecl = null;
+	if ( d != null ) 
+	    itDecl = new IteratorDecl(d.patternTypeParameters(), 
+				      d.patternNameParameters(), 
+				      d.pattern(), d.nestedPatterns());
+	
       FieldDeclaration f;
       if((flags & Flags.ACC_ENUM) != 0)
         //EnumConstant : FieldDeclaration ::= Modifiers <ID:String> Arg:Expr* BodyDecl* /TypeAccess:Access/ /[Init:Expr]/;
@@ -71,15 +79,18 @@ aspect BytecodeDescriptor {
         for(Iterator iter = attributes.annotations.iterator(); iter.hasNext(); )
           f.getModifiersNoTransform().addModifier((Modifier)iter.next());
 
+
+      // -- Added for MJFrontend -- ssh
+      if ( itDecl != null ) 
+	  return (BodyDecl) f.createStaticForDeclarationFrom(itDecl);
+      
       return f;
     }
 
     public boolean isSynthetic() {
       return attributes.isSynthetic();
     }
-
   }
-
 
   class MethodDescriptor {
     private BytecodeParser p;

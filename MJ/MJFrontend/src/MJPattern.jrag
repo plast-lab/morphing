@@ -13,6 +13,7 @@ aspect MJPattern {
     eq StaticForMethodDecl.refIterator() = getIteratorDecl();
     eq StaticForConstructorDecl.refIterator() = getIteratorDecl();
     eq StaticForFieldDeclaration.refIterator() = getIteratorDecl();
+    eq GroundedStaticForMethodDecl.refIterator() = original.refIterator();
     //    eq ExpandedMethodDecl.refIterator() = original.refIterator();
     //    eq StaticForMethodDeclSubstituted.refIterator() = original.refIterator();
 

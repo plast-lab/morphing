@@ -4,7 +4,7 @@ aspect MJCreateBCode {
 	// need to put attributes in the method about which bytes
 	// to replicate.
 
-	gen.addStaticForStmtBegin(getIteratorDecl().signature());
+	gen.addStaticForStmtBegin(getIteratorDecl()); //.signature());
 
 	for ( int i=0; i<getNumStmt(); i++) {
 	    try {

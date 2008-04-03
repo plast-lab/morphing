@@ -1,94 +1,70 @@
+import org.objectweb.asm.Opcodes;
+
 aspect MJChangeVisibility {
 
     public void ConstructorDecl.makeSuperConstructorPublic(ClassDecl superclass) {
-	for ( int i=0; i<superclass.getNumBodyDecl(); i++) {
-	    if ( superclass.getBodyDecl(i) instanceof ConstructorDecl ) {
-		// check whether this constructor matches the argument types
-		// of this.
-		ConstructorDecl superCons = (ConstructorDecl)superclass.getBodyDecl(i);
-		if ( superCons.getNumParameter() != this.getNumParameter())
-		    continue;
-		boolean paramsMatch = true;
-		for ( int j=0; j<superCons.getNumParameter(); j++) {
-		    if ( !getParameter(j).type().subtype(superCons.getParameter(j).type())) {
-			paramsMatch = false;
-			break;
-		    }
-		}
-		
-		if ( paramsMatch) { 
-		    // found it.
-		    if ( superclass.generated || !superclass.compilationUnit().fromSource())
-			superCons.makePublicInClassfile();
-		    else
-			superCons.makePublicInASTNode();
-
-		    // transitively change the super call in cons.
-		    if ( superclass.hasSuperclass() && !superclass.superclass().isObject())
-			superCons.makeSuperConstructorPublic((ClassDecl) superclass.superclass());
+	for ( Iterator cIt = superclass.constructors().iterator(); cIt.hasNext(); ) {
+	    // check whether this constructor matches the argument types
+	    // of this.
+	    ConstructorDecl superCons = (ConstructorDecl)cIt.next();
+	    if ( superCons.getNumParameter() != this.getNumParameter())
+		continue;
+	    boolean paramsMatch = true;
+	    for ( int j=0; j<superCons.getNumParameter(); j++) {
+		if ( !getParameter(j).type().subtype(superCons.getParameter(j).type())) {
+		    paramsMatch = false;
 		    break;
 		}
+	    }
+	    
+	    if ( paramsMatch) { 
+		// found it.
+		if ( superclass.generated || !superclass.compilationUnit().fromSource())
+		    superCons.makePublicInClassfile();
+		else
+		    superCons.makePublicInASTNode();
+		
+		// transitively change the super call in cons.
+		if ( superclass.hasSuperclass() && !superclass.superclass().isObject())
+		    superCons.makeSuperConstructorPublic((ClassDecl) superclass.superclass());
+		break;
 	    }
 	}
     }
     
     public void ConstructorDecl.makePublicInClassfile() {
-	try {
-	    // change in classfile.
-	    String source = hostType().destinationPath() + File.separator + 
-		hostType().constantPoolName() + ".class";	    
-	    File thisFile = new File(source);
-	    FileInputStream fis = new FileInputStream(thisFile);
+	ClassNode cn  = hostType().readClassNode();
 
-	    // load class.
-	    ClassReader cr = new ClassReader(fis);
-	    ClassNode cn = new ClassNode();
-	    cr.accept(cn, 
-		      new org.objectweb.asm.Attribute[] { new ASMIteratorDeclAttribute("") }, 
-		      0);
-
-	    // find this constructor.
-	    for ( int i=0; i<cn.methods.size(); i++) {
-		MethodNode mn = (MethodNode) cn.methods.get(i);
-		if ( !mn.name.equals("<init>")) continue;
-		Signatures.MethodSignature ms = new Signatures.MethodSignature(mn.desc);		
-		if ( ms.parameterTypes().size() != getNumParameter())
-		    continue;
-
-		boolean paramsMatch = true;
-		int j=0;
-		for ( Iterator ptIt = ms.parameterTypes().iterator(); ptIt.hasNext(); ) {
-		    TypeAccess ta = (TypeAccess) ptIt.next();
-		    if ( getParameter(j).type() != ta.type() ) {
-			paramsMatch = false;
-			break;
-		    }
-		    j++;
-		}		
-		if ( !paramsMatch ) continue;
-
-		// change modifier.
-		mn.access ^= org.objectweb.asm.Opcodes.ACC_PRIVATE;
-		mn.access ^= org.objectweb.asm.Opcodes.ACC_PROTECTED;
-		mn.access |= org.objectweb.asm.Opcodes.ACC_PUBLIC;
-		break;
-	    }
-
-	    fis.close();
-
-	    // write class.
-	    ClassWriter cw = new ClassWriter(0);
-	    cn.accept(cw);
+	// find this constructor.
+	for ( int i=0; i<cn.methods.size(); i++) {
+	    MethodNode mn = (MethodNode) cn.methods.get(i);
+	    if ( !mn.name.equals("<init>")) continue;
+	    Signatures.MethodSignature ms = new Signatures.MethodSignature(mn.desc);		
+	    if ( ms.parameterTypes().size() != getNumParameter())
+		continue;
 	    
-	    FileOutputStream f = new FileOutputStream(thisFile);
-	    DataOutputStream out = new DataOutputStream(new BufferedOutputStream(f));
+	    boolean paramsMatch = true;
+	    int j=0;
+	    for ( Iterator ptIt = ms.parameterTypes().iterator(); ptIt.hasNext(); ) {
+		TypeAccess ta = (TypeAccess) ptIt.next();
+		if ( getParameter(j).type() != ta.type() ) {
+		    paramsMatch = false;
+		    break;
+		}
+		j++;
+	    }		
+	    if ( !paramsMatch ) continue;
 	    
-	    out.write(cw.toByteArray());
-	    
-	    out.close();
-	} catch (IOException e) {
-	    e.printStackTrace();
+	    // change modifier.
+	    if ( (mn.access & Opcodes.ACC_PRIVATE) == Opcodes.ACC_PRIVATE )
+		mn.access ^= Opcodes.ACC_PRIVATE;
+	    if ( (mn.access & Opcodes.ACC_PROTECTED) == Opcodes.ACC_PROTECTED )
+		mn.access ^= Opcodes.ACC_PROTECTED;
+	    mn.access |= Opcodes.ACC_PUBLIC;
+	    break;
 	}
+
+	hostType().writeClassNode(cn);
     }
 
     public void ConstructorDecl.makePublicInASTNode() {
@@ -121,9 +97,11 @@ aspect MJChangeVisibility {
 
     public void TypeDecl.makePublicInClassfile(ClassNode cn) {
 	// change modifier.
-	cn.access ^= org.objectweb.asm.Opcodes.ACC_PRIVATE;
-	cn.access ^= org.objectweb.asm.Opcodes.ACC_PROTECTED;
-	cn.access |= org.objectweb.asm.Opcodes.ACC_PUBLIC;
+	if ( (cn.access & Opcodes.ACC_PRIVATE) == Opcodes.ACC_PRIVATE )
+	    cn.access ^= Opcodes.ACC_PRIVATE;
+	if ( (cn.access & Opcodes.ACC_PROTECTED) == Opcodes.ACC_PROTECTED )
+	    cn.access ^= Opcodes.ACC_PROTECTED;
+	cn.access |= Opcodes.ACC_PUBLIC;
     }
 
     public void TypeDecl.makePublicInASTNode() {
@@ -185,7 +163,7 @@ aspect MJChangeVisibility {
 	}
     }
 
-    protected org.objectweb.asm.tree.ClassNode TypeDecl.readClassNode() {
+    public org.objectweb.asm.tree.ClassNode TypeDecl.readClassNode() {
 	try {
 	    // change in classfile.
 	    String source = destinationPath() + File.separator + 
@@ -198,7 +176,7 @@ aspect MJChangeVisibility {
 	    ClassReader cr = new ClassReader(fis);
 	    ClassNode cn = new ClassNode();
 	    cr.accept(cn, 
-		      new org.objectweb.asm.Attribute[] { new ASMIteratorDeclAttribute("") }, 
+		      new org.objectweb.asm.Attribute[] { new ASMIteratorDeclAttribute(null, null) }, 
 		      0);
 	    fis.close();
 
@@ -208,7 +186,7 @@ aspect MJChangeVisibility {
 	}	
     }
 
-    protected void TypeDecl.writeClassNode(ClassNode cn) {
+    public void TypeDecl.writeClassNode(ClassNode cn) {
 	try {
 	    // write class.
 	    ClassWriter cw = new ClassWriter(0);
@@ -245,17 +223,19 @@ aspect MJChangeVisibility {
 
     public void TypeDecl.makeMethodNodeProtected(org.objectweb.asm.tree.MethodNode mn) {
 	// change modifier.
-	if ( 0 == (mn.access & org.objectweb.asm.Opcodes.ACC_PUBLIC)) {
-	    mn.access ^= org.objectweb.asm.Opcodes.ACC_PRIVATE;
-	    mn.access |= org.objectweb.asm.Opcodes.ACC_PROTECTED;
+	if ( Opcodes.ACC_PUBLIC != (mn.access & Opcodes.ACC_PUBLIC)) {
+	    if ( (mn.access & Opcodes.ACC_PRIVATE) == Opcodes.ACC_PRIVATE )
+		mn.access ^= Opcodes.ACC_PRIVATE;
+	    mn.access |= Opcodes.ACC_PROTECTED;
 	}
     }
 
     public void TypeDecl.makeFieldNodeProtected(org.objectweb.asm.tree.FieldNode fn) {
 	// change modifier.
-	if ( 0 == (fn.access & org.objectweb.asm.Opcodes.ACC_PUBLIC)) {
-	    fn.access ^= org.objectweb.asm.Opcodes.ACC_PRIVATE;
-	    fn.access |= org.objectweb.asm.Opcodes.ACC_PROTECTED;
+	if ( Opcodes.ACC_PUBLIC != (fn.access & Opcodes.ACC_PUBLIC)) {
+	    if ( (fn.access & Opcodes.ACC_PRIVATE) == Opcodes.ACC_PRIVATE )
+		fn.access ^= Opcodes.ACC_PRIVATE;
+	    fn.access |= Opcodes.ACC_PROTECTED;
 	}
     }
 }
