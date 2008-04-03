@@ -1,0 +1,20 @@
+aspect MJCreateBCode {
+    public void StaticForStmt.createBCode(CodeGeneration gen) {
+	//	super.createBCode(gen);
+	// need to put attributes in the method about which bytes
+	// to replicate.
+
+	gen.addStaticForStmtBegin(getIteratorDecl()); //.signature());
+
+	for ( int i=0; i<getNumStmt(); i++) {
+	    try {
+		getStmt(i).createBCode(gen);
+	    } catch (Exception e) {
+		e.printStackTrace();
+		throw new Error("Error generating code for " + errorPrefix() + " " + getStmt(i));
+	    }
+	}
+
+	gen.addStaticForStmtEnd();
+    }
+}

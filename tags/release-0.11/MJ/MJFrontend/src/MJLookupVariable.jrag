@@ -1,0 +1,505 @@
+aspect MJLookupVariable {
+
+    eq StaticForStmt.getStmt(int index).lookupVariable(String name) {
+	if ( isNameVariable(name) || containsNameVariable(name)) {
+	    Identifier id = new Identifier(name, refIterator());
+
+	    SimpleSet vars = lookupVariable(id);
+	    if ( vars.size() > 0 )
+		return vars;
+
+		// TODO: check declare before use.
+		// && declaredBeforeUse(v, index))
+	}
+	return lookupVariable(name);
+    }
+
+    refine LookupVariable eq AbstractDot.getRight().lookupVariable(String name) {
+	if ( isNameVariable(name) || containsNameVariable(name))
+	    return getLeft().qualifiedLookupVariable(new Identifier(name, enclosingRefIterator()));
+	return LookupVariable.AbstractDot.getRight().lookupVariable(name);
+    }
+
+    // lookupVariable(Identifier name) shows the variables in scope named name
+    inh lazy SimpleSet TypeDecl.lookupVariable(Identifier id);
+    inh lazy SimpleSet BodyDecl.lookupVariable(Identifier id);
+    inh SimpleSet Stmt.lookupVariable(Identifier id);
+    inh lazy SimpleSet Block.lookupVariable(Identifier id);
+    inh lazy SimpleSet ForStmt.lookupVariable(Identifier id);
+    inh SimpleSet Expr.lookupVariable(Identifier id);
+    inh lazy SimpleSet CatchClause.lookupVariable(Identifier id);
+    inh SimpleSet VariableDeclaration.lookupVariable(Identifier id);
+    inh SimpleSet ParameterDeclaration.lookupVariable(Identifier id);
+    
+    eq Program.getChild().lookupVariable(Identifier id) = SimpleSet.emptySet;
+
+    eq StaticForStmt.getStmt(int index).lookupVariable(Identifier id) {
+	// check whether nv is captured by the primary pattern as a variable,
+	// or captured by a nested pattern where the range is exactly one.
+	Pattern p = getIteratorDecl().getPattern();
+	if ( p.isFieldPattern() && id.equals(p.identifier()))
+	    return ((FieldPattern) p).patternFieldDeclaration();
+	return lookupVariable(id);
+    }
+    // 6.5.6.1
+    eq TypeDecl.getBodyDecl(int i).lookupVariable(Identifier id) {
+	SimpleSet list = memberFields(id);
+	if(!list.isEmpty()) return list;
+	list = lookupVariable(id);
+	if(inStaticContext() || isStatic())
+	    list = removeInstanceVariables(list);
+	else if(isAnonymous() && inExplicitConstructorInvocation()) {
+	    TypeDecl typeDecl = enclosingType();
+	    SimpleSet newSet = SimpleSet.emptySet;
+	    for(Iterator iter = list.iterator(); iter.hasNext(); ) {
+		Variable v = (Variable)iter.next();
+		if(!v.isInstanceVariable() || 
+		   !typeDecl.memberFields(id).contains(v))
+		    newSet = newSet.add(v);
+	    }
+	    return newSet;
+	}
+	return list;
+    }
+    eq MethodDecl.getBlock().lookupVariable(Identifier id) {
+	SimpleSet set = parameterDeclaration(id);
+	if ( !set.isEmpty()) return set;
+	return lookupVariable(id);
+    }
+    eq MethodDecl.getParameter().lookupVariable(Identifier id) = parameterDeclaration(id);
+    eq ConstructorDecl.getBlock().lookupVariable(Identifier id) {
+	SimpleSet set = parameterDeclaration(id);
+	if(!set.isEmpty()) return set;
+	return lookupVariable(id);
+    }
+    eq ConstructorDecl.getConstructorInvocation().lookupVariable(Identifier id) {
+	SimpleSet set = parameterDeclaration(id);
+	if(!set.isEmpty()) return set;
+	set = hostType().memberFields(id); // search members
+	if(!set.isEmpty()) {
+	    set = removeInstanceVariables(set);
+	    return set;
+	}
+	if(hostType().isNestedType() || hostType().isAnonymous())
+	    return hostType().lookupVariable(id);
+	return SimpleSet.emptySet;
+    }
+   
+    eq ConstructorDecl.getParameter().lookupVariable(Identifier id) = parameterDeclaration(id);
+
+    // the block in which the declaration appears
+    eq Block.getStmt(int index).lookupVariable(Identifier id) {
+	VariableDeclaration v = localVariableDeclaration(id);
+	// declare before use and shadowing
+	if(v != null && declaredBeforeUse(v, index))
+	    return v;
+	return lookupVariable(id);
+    }    
+    syn lazy SimpleSet MethodDecl.parameterDeclaration(Identifier id) {
+	for(int i = 0; i < getNumParameter(); i++)
+	    if(getParameter(i).identifier().equals(id))
+		return (ParameterDeclaration)getParameter(i);
+	return SimpleSet.emptySet;
+    }
+    syn lazy SimpleSet ConstructorDecl.parameterDeclaration(Identifier id) {
+	for(int i = 0; i < getNumParameter(); i++)
+	    if(getParameter(i).identifier().equals(id))
+		return (ParameterDeclaration)getParameter(i);
+	return SimpleSet.emptySet;
+    }
+    syn lazy SimpleSet CatchClause.parameterDeclaration(Identifier id) =
+	getParameter().identifier().equals(id) ? (ParameterDeclaration)getParameter() : SimpleSet.emptySet;
+    eq ForStmt.getStmt().lookupVariable(Identifier id) = localLookup(id);
+    syn lazy SimpleSet ForStmt.localLookup(Identifier id) {
+	VariableDeclaration v = localVariableDeclaration(id);
+	if(v != null) return v;
+	return lookupVariable(id);
+    }
+
+
+    // Copied from LookupVariable, for IDentifier.
+    syn SimpleSet Expr.qualifiedLookupVariable(Identifier id) {
+	if(type().accessibleFrom(hostType()))
+	    return keepAccessibleFields(type().memberFields(id));
+	return SimpleSet.emptySet;
+    }
+    eq TypeAccess.qualifiedLookupVariable(Identifier id) {
+	if(type().accessibleFrom(hostType())) {
+	    SimpleSet c = type().memberFields(id);
+	    c = keepAccessibleFields(c);
+	    if(type().isClassDecl() && c.size() == 1)
+		c = removeInstanceVariables(c);
+	    return c;
+	}
+	return SimpleSet.emptySet;
+    }
+    
+    refine LookupVariable eq Block.getStmt(int index).lookupVariable(String name) {
+	VariableDeclaration v = null;
+	// need to figure out whether name is a name variable.
+	if ( getStmt(index).isNameVariable(name) || 
+	     getStmt(index).containsNameVariable(name)) {
+	    Identifier id =
+		getStmt(index) instanceof StaticForStmt ?
+		new Identifier(name, getStmt(index).refIterator()) :
+		new Identifier(name, getStmt(index).enclosingRefIterator());
+
+	    v = localVariableDeclaration(id);
+
+	    // declare before use and shadowing
+	    if(v != null && declaredBeforeUse(v, index))
+		return v;
+	    return lookupVariable(id);
+	} else {
+	    v = localVariableDeclaration(name);
+	    
+	    // declare before use and shadowing
+	    if(v != null && declaredBeforeUse(v, index))
+		return v;
+	    return lookupVariable(name);
+	} 
+    }
+
+    syn lazy VariableDeclaration Block.localVariableDeclaration(Identifier id) {
+	for ( int i=0; i<getNumStmt(); i++) {
+	    if ( getStmt(i).declaresVariable(id))
+		return getStmt(i).getVariableDeclaration(id);
+	}
+	return null;
+    }
+    syn lazy VariableDeclaration ForStmt.localVariableDeclaration(Identifier id) {
+	for(int i = 0; i < getNumInitStmt(); i++)
+	    if(getInitStmt(i).declaresVariable(id))
+		return (VariableDeclaration)getInitStmt(i);
+	return null;
+    }
+
+    syn boolean Stmt.declaresVariable(Identifier id) = false;
+    eq VariableDeclaration.declaresVariable(Identifier id) {
+	if ( !id.name().equals(name())) return false;
+	return enclosingRefIterator() == null ? false : 
+	    enclosingRefIterator().subsumes(id.enclosingRefIterator(), new HashMap());
+    }
+    eq StaticForStmt.declaresVariable(Identifier id) {
+	for ( int i=0; i<getNumStmt(); i++) {
+	    if ( getStmt(i).declaresVariable(id)) return true;
+	}
+	return false;
+    }
+
+    syn lazy VariableDeclaration Stmt.getVariableDeclaration(Identifier id) = null;
+    eq StaticForStmt.getVariableDeclaration(Identifier id) {
+	for ( int i=0; i<getNumStmt(); i++) {
+	    if ( getStmt(i).declaresVariable(id)) 
+		return getStmt(i).getVariableDeclaration(id);
+	}
+	return null;
+    }
+    eq VariableDeclaration.getVariableDeclaration(Identifier id) {
+	// TODO: need to return substituted VariableDeclaration.
+	if ( this.declaresVariable(id)) return this;
+	return null;
+    }
+    
+}
+
+aspect MJFields {
+    syn lazy Collection<StaticForFieldDeclaration> TypeDecl.reflectiveFields() {
+	Set set = new HashSet();
+	for ( int i=0; i<getNumBodyDecl(); i++) {
+	    if ( getBodyDecl(i).isReflectiveDecl()  &&
+		 getBodyDecl(i) instanceof FieldDeclaration )
+		set.add((StaticForFieldDeclaration)getBodyDecl(i));
+	}
+	return set;
+    }
+    eq ClassDecl.reflectiveFields() {
+	Collection<StaticForFieldDeclaration> fields = super.reflectiveFields();
+	if ( hasSuperclass()) 
+	    fields.addAll(superclass().reflectiveFields());
+	for ( Iterator ifIt = interfacesIterator(); ifIt.hasNext(); )
+	    fields.addAll(((TypeDecl) ifIt.next()).reflectiveFields());
+	return fields;
+    }
+    eq TypeVariable.reflectiveFields () {
+	Set set = new HashSet();
+	for ( int i=0; i<getNumTypeBound(); i++) {
+	    set.addAll(getTypeBound(i).type().reflectiveFields());
+	}
+	return set;
+    }
+    eq ParTypeDecl.reflectiveFields() {
+	Collection<StaticForFieldDeclaration> refFields = 
+	    genericDecl().reflectiveFields();
+	Set<StaticForFieldDeclaration> substitutedFields = new HashSet();
+	for ( Iterator<StaticForFieldDeclaration> rfIt = refFields.iterator(); 
+	      rfIt.hasNext(); ) {
+	    StaticForFieldDeclaration fd = rfIt.next();
+	    if ( fd.usesTypeVariable()) {
+		BodyDecl bd = fd.p(this);
+		bd.is$Final = true;
+		addBodyDecl((StaticForFieldDeclaration)bd);
+		substitutedFields.add((StaticForFieldDeclaration)bd);
+	    } else 
+		substitutedFields.add((StaticForFieldDeclaration)fd);
+	}
+	return substitutedFields;
+    }
+
+    syn lazy List<? extends FieldDeclaration> FieldDeclaration.expandedFields() = new List().add(this);
+    eq StaticForFieldDeclaration.expandedFields() = new List<FieldDeclaration>();
+    eq StaticForFieldDeclarationSubstituted.expandedFields() {
+	// we can only expand fields if the iterator decl is fully grounded.
+	IteratorDecl id = getIteratorDecl();
+	if ( !id.expandable()) {
+	    throw new Error("Static for field declaration " +
+			    getID() + " is not expandable.");
+	}
+
+	ParTypeDecl ht = (ParTypeDecl) hostType();
+	GenericTypeDecl gtd = (GenericTypeDecl) ht.genericDecl();
+
+	// get the mappings for each element in the iterator decl's range. 
+	for ( Iterator subMaps = id.reflectiveElmts().values().iterator();
+	      subMaps.hasNext(); ) {
+	    Map substitutions = (Map) subMaps.next();
+
+	    // put into the map the parameterization from this
+	    for ( int i=0; i<gtd.getNumTypeParameter(); i++) {
+		substitutions.put(gtd.getTypeParameter(i),
+				  ht.getArgument(i).type());
+	    }
+
+	    StaticForFieldDeclarationSubstituted fd = substitute(substitutions);
+	    fd.expansionSubstitutions = substitutions;
+	    fd.original = this;
+
+	    fd.is$Final = true;
+	    //	    addExpandedFieldDeclaration(fd);
+	}
+
+	return getStaticForFieldDeclarationSubstitutedList();
+    }
+
+    refine Generics eq ParTypeDecl.fields(String name) {
+	SimpleSet set = Generics.ParTypeDecl.fields(name);
+
+	// find reflectively declared, expandable fields
+	for ( Iterator refIt = reflectiveFields().iterator(); 
+	      refIt.hasNext(); ) {
+	    StaticForFieldDeclarationSubstituted fd = (StaticForFieldDeclarationSubstituted) refIt.next();
+	    if ( fd.expandable()) {
+		List expandedFields = fd.expandedFields();
+		for ( int i=0; i<expandedFields.getNumChild(); i++) {
+		    FieldDeclaration expandedfd = (FieldDeclaration) expandedFields.getChild(i);
+		    if ( expandedfd.name().equals(name))
+			set = set.add(expandedfd);
+		}
+	    }
+	}
+	return set;
+    }
+
+    refine LookupVariable eq TypeDecl.localFieldsMap() {
+	// exclude reflectively declared fields.
+	HashMap map = new HashMap();
+	for(int i = 0; i < getNumBodyDecl(); i++) {
+	    if(getBodyDecl(i) instanceof FieldDeclaration &&
+	       !getBodyDecl(i).isReflectiveDecl()) {
+		FieldDeclaration decl = (FieldDeclaration)getBodyDecl(i);
+		SimpleSet fields = (SimpleSet)map.get(decl.name());
+		if(fields == null) fields = SimpleSet.emptySet;
+		fields = fields.add(decl);
+		map.put(decl.name(), fields);
+	    }
+	}
+	return map;	
+    }
+
+    eq ParTypeDecl.localFieldsMap() {
+	HashMap map = super.localFieldsMap();
+	
+	// find reflectively declared, expandable fields
+	for ( Iterator refIt = reflectiveFields().iterator(); 
+	      refIt.hasNext(); ) {
+	    StaticForFieldDeclarationSubstituted fd = (StaticForFieldDeclarationSubstituted) refIt.next();
+	    if ( fd.expandable()) {
+		List expandedFields = fd.expandedFields();
+		for ( int i=0; i<expandedFields.getNumChild(); i++) {
+		    FieldDeclaration expandedfd = (FieldDeclaration) expandedFields.getChild(i);
+		    SimpleSet fields = (SimpleSet) map.get(expandedfd.name());
+		    if ( fields == null ) fields = SimpleSet.emptySet;
+		    fields.add(expandedfd);
+		    map.put(expandedfd.name(), fields);
+		}
+	    }
+	}
+	return map;
+    }
+
+    syn lazy FieldDeclaration TypeDecl.everyField() {
+	/**
+	 * pattern: F f : T.methods
+	 **/
+	PatternTypeVariable F = new PatternTypeVariable(new Modifiers(), "F", new List(), new List().add(typeNonVoid().createBoundAccess()));
+	PatternNameVariable f = new PatternNameVariable("f");
+	Pattern p = new FieldPattern(new BaseSet(createQualifiedAccess(), 
+						 new RefElmt("fields")),
+				     new Modifiers(),
+				     F.createQualifiedAccess(), "f",
+				     new Opt(), new List());
+	IteratorDecl id = new IteratorDecl(new List().add(F),
+					   new List().add(f),
+					   p, new List());
+
+	StaticForFieldDeclaration sfd = 
+	    new StaticForFieldDeclaration(new Modifiers(),
+					  F.createQualifiedAccess(),
+					  "f", new Opt(),
+					  id, new List());
+	sfd.is$Final = true;
+	addBodyDecl(sfd);
+	sfd.bypassErrorChecking = true;
+	return sfd;	
+    }
+
+    syn SimpleSet TypeDecl.unrestrictedFields() {
+	SimpleSet fields = SimpleSet.emptySet;
+	for ( int i=0; i<getNumBodyDecl(); i++) {
+	    if(getBodyDecl(i) instanceof FieldDeclaration ) {
+	    	if ( getBodyDecl(i).isReflectiveDecl()) {
+		    List eFields = ((StaticForFieldDeclaration) getBodyDecl(i)).expandedFields();
+		    for ( int j=0; j<eFields.getNumChild(); j++)
+			fields = fields.add(eFields.getChild(j));
+	    	} else
+		    fields = fields.add(getBodyDecl(i));
+	    }
+	}
+	return fields;
+    }
+    eq TypeVariable.unrestrictedFields() {
+	// create an abstraction of all fields over TypeVariable.
+	SimpleSet fields = SimpleSet.emptySet;
+	fields = fields.add(everyField());
+
+	// add fields from bounds.
+	for ( int i=0; i<getNumTypeBound(); i++) {
+	    SimpleSet fs = getTypeBound(i).type().unrestrictedFields();
+	    for ( Iterator fIt = fs.iterator(); fIt.hasNext(); )
+		fields = fields.add(fIt.next());
+	}
+	return fields;
+    }
+
+    // member fields
+    eq ClassDecl.unrestrictedFields() {
+	SimpleSet fields = super.unrestrictedFields();
+
+	if(hasSuperclass()) {
+	    for(Iterator iter = superclass().unrestrictedFields().iterator(); iter.hasNext(); ) {
+		FieldDeclaration decl = (FieldDeclaration)iter.next();
+		//		if ( !decl.isReflectiveDecl())
+		    fields = fields.add(decl);
+	    }
+	}
+	for(Iterator outerIter = interfacesIterator(); outerIter.hasNext(); ) {
+	    TypeDecl type = (TypeDecl)outerIter.next();
+	    for(Iterator iter = type.unrestrictedFields().iterator(); 
+		iter.hasNext(); ) {
+		FieldDeclaration decl = (FieldDeclaration)iter.next();
+		//		if ( !decl.isReflectiveDecl())
+		    fields = fields.add(decl);
+	    }
+	}
+	return fields;
+    }
+    
+    eq InterfaceDecl.unrestrictedFields() {
+	SimpleSet fields = super.unrestrictedFields();
+
+	for(Iterator outerIter = superinterfacesIterator(); outerIter.hasNext(); ) {
+	    TypeDecl typeDecl = (TypeDecl)outerIter.next();
+	    for(Iterator iter = typeDecl.unrestrictedFields().iterator(); 
+		iter.hasNext(); ) {
+		FieldDeclaration f = (FieldDeclaration)iter.next();
+		//		if ( !f.isReflectiveDecl())
+		    fields = fields.add(f);
+	    }
+	}
+	return fields;
+    }
+
+    syn lazy SimpleSet TypeDecl.memberFields(Identifier id) = fields(id);
+    syn SimpleSet TypeDecl.localFields(Identifier id) {
+	SimpleSet fields = SimpleSet.emptySet;
+	for ( int i=0; i<getNumBodyDecl(); i++) {
+	    if ( getBodyDecl(i) instanceof StaticForFieldDeclaration) {
+		StaticForFieldDeclaration fd = (StaticForFieldDeclaration) getBodyDecl(i);
+		HashMap uniMap = new HashMap();
+
+		if ( fd.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
+		    Identifier fid = fd.identifier().substitutedIdentifier(uniMap);
+		    Identifier idid = id.substitutedIdentifier(uniMap);
+		    if ( fid.equals(idid)) {
+			fields = fields.add(fd.substitute(uniMap));
+		    }
+		}
+	    }
+	}
+	return fields;
+    }
+
+    syn SimpleSet TypeDecl.fields(Identifier id) = localFields(id);
+    eq TypeVariable.fields(Identifier id) {
+	// if type variable is the base type of nv's iterator decl,
+	// then return the patternFieldDecl.
+	IteratorDecl idIt = id.enclosingRefIterator();
+	Pattern idPattern = idIt.getPattern();
+	if ( idPattern.getBaseSet().type().subtype(this) &&
+	     idPattern.isFieldPattern() &&
+	     ((FieldPattern) idPattern).getID().equals(id.name())) {
+	    return ((FieldPattern) idPattern).patternFieldDeclaration();
+	}
+	return SimpleSet.emptySet;
+    }
+
+    eq ClassDecl.fields(Identifier id) {
+	SimpleSet fields = localFields(id);
+	if ( !fields.isEmpty()) return fields;
+
+	if ( hasSuperclass()) {
+	    SimpleSet sfields = superclass().fields(id);
+	    if ( !sfields.isEmpty())
+		for(Iterator iter = sfields.iterator(); iter.hasNext(); ) {
+		    FieldDeclaration decl = (FieldDeclaration)iter.next();
+		    if(!decl.isPrivate() && decl.accessibleFrom(this))
+			fields = fields.add(decl);
+		}
+	}
+	for(Iterator outerIter = interfacesIterator(); outerIter.hasNext(); ) {
+	    TypeDecl type = (TypeDecl)outerIter.next();
+	    SimpleSet ifields = type.fields(id);
+	    if ( !ifields.isEmpty())
+		for(Iterator iter = ifields.iterator(); iter.hasNext(); ) {
+		    FieldDeclaration decl = (FieldDeclaration)iter.next();
+		    if(!decl.isPrivate() && decl.accessibleFrom(this))
+			fields = fields.add(decl);
+		}
+	}
+	return fields;
+    }
+    eq InterfaceDecl.fields(Identifier id) {
+	SimpleSet fields = localFields(id);
+	if (!fields.isEmpty()) return fields;
+	for (Iterator outerIter = superinterfacesIterator(); outerIter.hasNext(); ) {
+	    TypeDecl typeDecl = (TypeDecl)outerIter.next();
+	    for(Iterator iter = typeDecl.fields(id).iterator(); iter.hasNext(); ) {
+		FieldDeclaration f = (FieldDeclaration)iter.next();
+		if(f.accessibleFrom(this) && !f.isPrivate()) {
+		    fields = fields.add(f);
+		}
+	    }
+	}
+	return fields;
+    }
+}

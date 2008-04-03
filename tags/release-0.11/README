@@ -1,0 +1,42 @@
+Thank you for downloading the Code Morphing project.  Code Morphing is
+a research project being developed at Georgia Instituted of Technology
+and University of Oregon.  The current morphing language being actively 
+developed is MorphJ (or MJ), a morphing language extension for Java.
+
+Project members:
+  Shan Shan Huang (ssh@cc.gatech.edu)
+  Yannis Smaragdakis (yannis@cs.uoregon.edu)
+
+Contents of the binary download:
+
+directories
+- morphing/MJ/MJBackend/src
+    - include executable jar MJCompiler.jar
+- morphing/MJ/examples: includes some example MorphJ files
+- morphing/MJ/testcases: includes some test files.
+
+To use:
+  java -jar MJCompiler.jar [files|directories]
+
+For all available options, run:
+  java -jar MJCompiler.jar 
+
+
+Contents of the source download:
+- morphing/JastAddJ: includes the Java compiler built using JastAdd.  
+- morphing/MJ/MJFrontend: source files for MJ frontend parsing and type checking
+- morphing/MJ/MJFrontend: source files for MJ backend classfile generation.
+- morphing/MJ/examples: includes some example MorphJ files
+- morphing/MJ/testcases: includes some test files.
+
+
+RELEASE NOTES:
+
+Version 0.11 
+
+- This is the initial release and by no means perfect or well-tested.  All files
+in the examples and testcases directory runs. But there are many features not 
+yet tested or developed. Among them:
+  - modifier access checking of morphing code is not complete
+  - reflectively declared statements do not handle try/catch blocks, loops,
+    or any statements whose bytecode involve labels.
