@@ -9,15 +9,18 @@ aspect MJTypeAnalysis {
     eq StaticForFieldDeclaration.getIteratorDecl().hostBodyDecl() = this;
     eq StaticForStmt.getIteratorDecl().hostBodyDecl() = hostBodyDecl();
 
+    eq MethodPattern.getPatternMethodDecl().hostType() = getBaseSet().type();
+    eq FieldPattern.getPatternFieldDeclaration().hostType() = getBaseSet().type();
+    
+
     refine TypeAnalysis public TypeDecl ClassDecl.superclass() {
 	if(isObject())
 	    return null;
 	if(hasSuperClassAccess() && !isCircular() &&
-	   getSuperClassAccess().type().canbeSuperclass()) 
+	   getSuperClassAccess().type().isClassDecl())
 	    return getSuperClassAccess().type();
 	return typeObject();
     }
-
 
     refine TypeAnalysis public Iterator ClassDecl.interfacesIterator() {
 	return new Iterator() {
@@ -39,7 +42,7 @@ aspect MJTypeAnalysis {
 			return;
 		    while(index < getNumImplements()) {
 			TypeDecl typeDecl = getImplements(index++).type();
-			if(!typeDecl.isCircular() && typeDecl.canbeSuperinterface()) {
+			if(!typeDecl.isCircular() && typeDecl.isInterfaceDecl()) {
 			    current = typeDecl;
 			    return;
 			}
@@ -67,7 +70,7 @@ aspect MJTypeAnalysis {
 		    if(isCircular()) return;
 		    while(index < getNumSuperInterfaceId()) {
 			TypeDecl typeDecl = getSuperInterfaceId(index++).type();
-			if(!typeDecl.isCircular() && typeDecl.canbeSuperinterface()) {
+			if(!typeDecl.isCircular() && typeDecl.isInterfaceDecl()) {
 			    current = typeDecl;
 			    return;
 			}
@@ -235,7 +238,5 @@ aspect MJCircularity {
 
     public boolean NonVoidType.isNestedType() { return false; }
     public void NonVoidType.java2Transformation() {}
-
-
 
 }

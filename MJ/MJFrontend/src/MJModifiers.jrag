@@ -195,16 +195,118 @@ aspect MJModifiers {
     eq Program.getChild().possiblyPublic() = false;
     eq TypeDecl.getBodyDecl().possiblyPublic() = false;
 
+    inh boolean Modifiers.possiblyProtected();
+    eq TypeDecl.getModifiers().possiblyProtected() = getModifiers().isProtected();
+    eq FieldDeclaration.getModifiers().possiblyProtected() = getModifiers().isProtected();
+    eq MethodDecl.getModifiers().possiblyProtected() = getModifiers().isProtected();
+    eq ConstructorDecl.getModifiers().possiblyProtected() = getModifiers().isProtected();
+    eq VariableDeclaration.getModifiers().possiblyProtected() = getModifiers().isProtected();
+    eq ParameterDeclaration.getModifiers().possiblyProtected() = getModifiers().isProtected();
+    eq Program.getChild().possiblyProtected() = false;
+    eq TypeDecl.getBodyDecl().possiblyProtected() = false;
+
+
+    inh boolean Modifiers.possiblyPrivate();
+    eq TypeDecl.getModifiers().possiblyPrivate() = getModifiers().possiblyPrivate();
+    eq FieldDeclaration.getModifiers().possiblyPrivate() = getModifiers().possiblyPrivate();
+    eq MethodDecl.getModifiers().possiblyPrivate() = getModifiers().possiblyPrivate();
+    eq ConstructorDecl.getModifiers().possiblyPrivate() = getModifiers().possiblyPrivate();
+    eq VariableDeclaration.getModifiers().possiblyPrivate() = getModifiers().possiblyPrivate();
+    eq ParameterDeclaration.getModifiers().possiblyPrivate() = getModifiers().possiblyPrivate();
+    eq Program.getChild().possiblyPrivate() = false;
+    eq TypeDecl.getBodyDecl().possiblyPrivate() = false;
+
+    inh boolean Modifiers.possiblyStatic();
+    eq TypeDecl.getModifiers().possiblyStatic() = getModifiers().isStatic();
+    eq FieldDeclaration.getModifiers().possiblyStatic() = getModifiers().isStatic();
+    eq MethodDecl.getModifiers().possiblyStatic() = getModifiers().isStatic();
+    eq ConstructorDecl.getModifiers().possiblyStatic() = getModifiers().isStatic();
+    eq VariableDeclaration.getModifiers().possiblyStatic() = getModifiers().isStatic();
+    eq ParameterDeclaration.getModifiers().possiblyStatic() = getModifiers().isStatic();
+    eq Program.getChild().possiblyStatic() = false;
+    eq TypeDecl.getBodyDecl().possiblyStatic() = false;
+
+
     eq MethodPattern.getModifiers().possiblyPublic() = 
 	getModifiers().isPublic() || 
 	( !getModifiers().isPublic() && 
 	  getModifiers().numModifier("private") == 0 &&
+	  getModifiers().numModifier("protected") == 0 &&
 	  getModifiers().numNegativeModifier("public") == 0 );
     eq FieldPattern.getModifiers().possiblyPublic() = 
 	getModifiers().isPublic() || 
 	( !getModifiers().isPublic() && 
 	  getModifiers().numModifier("private") == 0 &&
+	  getModifiers().numModifier("protected") == 0 &&
 	  getModifiers().numNegativeModifier("public") == 0 );
+    eq PatternMethodDecl.getModifiers().possiblyPublic() = 
+	getModifiers().isPublic() || 
+	( !getModifiers().isPublic() && 
+	  getModifiers().numModifier("private") == 0 &&
+	  getModifiers().numModifier("protected") == 0 &&
+	  getModifiers().numNegativeModifier("public") == 0 );
+    eq PatternFieldDeclaration.getModifiers().possiblyPublic() = 
+	getModifiers().isPublic() || 
+	( !getModifiers().isPublic() && 
+	  getModifiers().numModifier("private") == 0 &&
+	  getModifiers().numModifier("protected") == 0 &&
+	  getModifiers().numNegativeModifier("public") == 0 );
+
+    eq MethodPattern.getModifiers().possiblyProtected() = 
+	getModifiers().isProtected() || 
+	( !getModifiers().isProtected() && 
+	  getModifiers().numModifier("private") == 0 &&
+	  getModifiers().numModifier("public") == 0 &&
+	  getModifiers().numNegativeModifier("protected") == 0 );
+    eq FieldPattern.getModifiers().possiblyProtected() = 
+	getModifiers().isProtected() || 
+	( !getModifiers().isProtected() && 
+	  getModifiers().numModifier("private") == 0 &&
+	  getModifiers().numModifier("public") == 0 &&
+	  getModifiers().numNegativeModifier("protected") == 0 );
+    eq PatternMethodDecl.getModifiers().possiblyProtected() = 
+	getModifiers().isProtected() || 
+	( !getModifiers().isProtected() && 
+	  getModifiers().numModifier("private") == 0 &&
+	  getModifiers().numModifier("public") == 0 &&
+	  getModifiers().numNegativeModifier("protected") == 0 );
+    eq PatternFieldDeclaration.getModifiers().possiblyProtected() = 
+	getModifiers().isProtected() || 
+	( !getModifiers().isProtected() && 
+	  getModifiers().numModifier("private") == 0 &&
+	  getModifiers().numModifier("public") == 0 &&
+	  getModifiers().numNegativeModifier("protected") == 0 );
+
+    eq MethodPattern.getModifiers().possiblyPrivate() = 
+	getModifiers().isPrivate() || 
+	( !getModifiers().isPrivate() && 
+	  getModifiers().numModifier("protected") == 0 &&
+	  getModifiers().numModifier("public") == 0 &&
+	  getModifiers().numNegativeModifier("private") == 0 );
+    eq FieldPattern.getModifiers().possiblyPrivate() = 
+	getModifiers().isPrivate() || 
+	( !getModifiers().isPrivate() && 
+	  getModifiers().numModifier("protected") == 0 &&
+	  getModifiers().numModifier("public") == 0 &&
+	  getModifiers().numNegativeModifier("private") == 0 );
+    eq PatternMethodDecl.getModifiers().possiblyPrivate() = 
+	getModifiers().isPrivate() || 
+	( !getModifiers().isPrivate() && 
+	  getModifiers().numModifier("protected") == 0 &&
+	  getModifiers().numModifier("public") == 0 &&
+	  getModifiers().numNegativeModifier("private") == 0 );
+    eq PatternFieldDeclaration.getModifiers().possiblyPrivate() = 
+	getModifiers().isPrivate() || 
+	( !getModifiers().isPrivate() && 
+	  getModifiers().numModifier("protected") == 0 &&
+	  getModifiers().numModifier("public") == 0 &&
+	  getModifiers().numNegativeModifier("private") == 0 );
+
+    eq MethodPattern.getModifiers().possiblyStatic() = getModifiers().numNegativeModifier("static") == 0;
+    eq FieldPattern.getModifiers().possiblyStatic() = getModifiers().numNegativeModifier("static") == 0;
+    eq PatternMethodDecl.getModifiers().possiblyStatic() = getModifiers().numNegativeModifier("static") == 0;
+    eq PatternFieldDeclaration.getModifiers().possiblyStatic() = getModifiers().numNegativeModifier("static") == 0;
+
     syn lazy boolean Modifier.isNegative() = false;
     eq NegativeModifier.isNegative() = true;
 
@@ -229,4 +331,22 @@ aspect MJModifiers {
 	}
 	return n;
     }
+
+    eq PatternMethodDecl.isPublic() = super.isPublic() && 
+	!getModifiers().possiblyPrivate() && 
+	!getModifiers().possiblyProtected();
+    eq PatternMethodDecl.isProtected() = super.isProtected() &&
+	!getModifiers().possiblyPrivate() && !getModifiers().possiblyPublic();
+    eq PatternMethodDecl.isPrivate() = super.isPrivate() && 
+	!getModifiers().possiblyPublic() && !getModifiers().possiblyProtected();
+
+    eq PatternFieldDeclaration.isPublic() = super.isPublic() && 
+	!getModifiers().possiblyPrivate() && 
+	!getModifiers().possiblyProtected();
+    eq PatternFieldDeclaration.isProtected() = super.isProtected() && 
+	!getModifiers().possiblyPrivate() && !getModifiers().possiblyPublic();
+    eq PatternFieldDeclaration.isPrivate() = super.isPrivate() && 
+	!getModifiers().possiblyPublic() && !getModifiers().possiblyProtected();
+    
+    
 }

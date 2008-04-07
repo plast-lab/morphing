@@ -200,7 +200,29 @@ aspect MJLookupVariable {
 	if ( this.declaresVariable(id)) return this;
 	return null;
     }
-    
+
+    refine LookupVariable eq VarAccess.decls() {
+	SimpleSet set = lookupVariable(name());
+	if(set.size() == 1) {
+	    Variable v = (Variable)set.iterator().next();
+	    
+	    if(!isQualified() && inStaticContext()) {
+		if(v.isInstanceVariable()) {
+		    if ( isNameVariable(v.name())) {
+			Identifier vid = new Identifier(getID(), enclosingRefIterator());
+			if (!hostType().memberFields(vid).isEmpty())
+			    return SimpleSet.emptySet;
+		    } else if ( !hostType().memberFields(v.name()).isEmpty())
+			return SimpleSet.emptySet;
+		}
+	    }
+	    else if(isQualified() && qualifier().staticContextQualifier()) {
+		if(v.isInstanceVariable())
+		    return SimpleSet.emptySet;
+	    }
+	}
+	return set;	
+    }
 }
 
 aspect MJFields {

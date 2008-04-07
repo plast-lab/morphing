@@ -601,20 +601,6 @@ aspect MJTypeCheckCore {
 		}
 	    }
 	}
-
-	// Check whether the instantiation would cause visibility of
-	// type arguments or their members to be changed.
-	for ( int i=0; i<getNumTypeArgument(); i++) {
-	    TypeDecl at = getTypeArgument(i).type();
-	    if ( !at.accessibleFrom(this.type())) {
-		// warn user.
-		warning(at.fullName() + 
-			" cannot be accessed from " +
-			toString() + ". Increasing " +
-			"visibility of " + at.fullName() + " to public, " +
-			"and package-protected members to protected.");
-	    }
-	}
     }
 
     public void TypeAccess.typeCheck() {
