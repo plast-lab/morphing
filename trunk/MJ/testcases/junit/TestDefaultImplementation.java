@@ -5,26 +5,8 @@ import org.junit.Test;
 import java.util.*;
 import examples.*;
 
-public class BasicTest2 extends TestCase {
+public class TestDefaultImplementation extends TestCase {
     /*
-    @Test public void testSynchronizedList () {
-	List myList = new ArrayList();
-	SynchronizeMe<List> synchronizedList = 
-	    new SynchronizeMe<List>(myList);
-	synchronizedList.add("a");
-	synchronizedList.add("b");
-
-	int lsize = synchronizedList.size();
-	assertTrue(lsize == 2);
-
-	List sublist = synchronizedList.subList(0,1);
-	int newsize = sublist.size();
-	assertTrue(newsize == 1);
-
-	myList.clear();
-	assertTrue(myList.size() == 0 );
-    }
-
     @Test public void testDefaultImplementation() {
 	IncompleteList il = new IncompleteList();
 
@@ -35,6 +17,7 @@ public class BasicTest2 extends TestCase {
 
 	assertTrue(7 == l.size());
     }
+    */
 
     @Test public void testDefaultImplementation2() {
 	IncompleteList il = new IncompleteList();
@@ -70,7 +53,7 @@ public class BasicTest2 extends TestCase {
 
 	assertTrue(l.indexOf(null) == 0);
     }
-    */
+
     @Test public void testDefaultImplementation6() {
 	IncompleteList il = new IncompleteList();
 
@@ -86,7 +69,6 @@ class IncompleteList {
     public int size() { return 7; }
     public String foo() { return "foo"; }
 }
-
 
 /*
 public class DefaultImplementationOfIncompleteList implements List {
