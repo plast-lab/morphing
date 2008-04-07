@@ -5,7 +5,7 @@ import org.junit.Test;
 import java.util.*;
 import examples.*;
 
-public class BasicTest extends TestCase {
+public class TestSynchronizeMe extends TestCase {
 
     @Test public void testSynchronizedList () {
 	List myList = new ArrayList();

@@ -5,7 +5,7 @@ import org.junit.Test;
 import java.util.*;
 import examples.*;
 
-public class BasicTest3 extends TestCase {
+public class TestGetterSetter extends TestCase {
     GetterSetter<MyBeanClass> gs = new GetterSetter<MyBeanClass>();
 
     @Test public void testGetterSetter() {
