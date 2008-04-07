@@ -168,7 +168,7 @@
 <target name="jar" depends="build">
   <jar destfile="MJChecker.jar" basedir="." includes="**/*.class" excludes="test/**">
     <manifest>
-      <attribute name="Main-Class" value="MJChecker"/>
+      <attribute name="Main-Class" value="main/MJChecker"/>
     </manifest>
   </jar>
 </target>

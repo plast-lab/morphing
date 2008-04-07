@@ -1,18 +1,23 @@
 aspect MJTypeHierarchyCheck {
     // define attribute determining which type can be a superclass.
-    syn boolean TypeDecl.canbeSuperclass() = false;
-    eq ClassDecl.canbeSuperclass() = true;
-    eq ConstrainedTypeVariable.canbeSuperclass() = getConstraint().equals("class");
+    /*
+    syn boolean TypeDecl.canbeClass() = false;
+    eq ClassDecl.canbeClass() = true;
+    eq ConstrainedTypeVariable.canbeClass() = getConstraint().equals("class");
 
     // attribute for which type can be a superinterface.
-    syn boolean TypeDecl.canbeSuperinterface() = false;
-    eq InterfaceDecl.canbeSuperinterface() = true;
-    eq ConstrainedTypeVariable.canbeSuperinterface() = getConstraint().equals("interface");
+    syn boolean TypeDecl.canbeInterface() = false;
+    eq InterfaceDecl.canbeInterface() = true;
+    eq ConstrainedTypeVariable.canbeInterface() = getConstraint().equals("interface");
+    */
+
+    eq ConstrainedTypeVariable.isInterfaceDecl() = getConstraint().equals("interface");
+    eq ConstrainedTypeVariable.isClassDecl() = getConstraint().equals("class");
 
     refine TypeHierarchyCheck public void ClassDecl.nameCheck() {
 	super.nameCheck();
 	if(hasSuperClassAccess() && 
-	   !getSuperClassAccess().type().canbeSuperclass())
+	   !getSuperClassAccess().type().isClassDecl())
 	    error("class may not declare non-class type " + getSuperClassAccess().type().typeName() + " as superclass.");
 	if(isObject() && hasSuperClassAccess())
 	    error("class Object may not have superclass");
@@ -40,7 +45,7 @@ aspect MJTypeHierarchyCheck {
 	HashSet set = new HashSet();
 	for(int i = 0; i < getNumImplements(); i++) {
 	    TypeDecl decl = getImplements(i).type();
-	    if(!decl.canbeSuperinterface() && !decl.isUnknown())
+	    if(!decl.isInterfaceDecl() && !decl.isUnknown())
 		error("type " + fullName() + " tries to implement non interface type " + decl.fullName());
 	    if(set.contains(decl))
 		error("type " + decl.fullName() + " mentionened multiple times in implements clause");

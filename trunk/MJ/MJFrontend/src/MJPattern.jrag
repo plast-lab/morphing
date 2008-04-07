@@ -9,6 +9,35 @@ aspect MJPattern {
     eq StaticForFieldDeclaration.isReflectiveDecl() = true;
     syn lazy boolean TypeDecl.isReflectiveDecl() = false;
 
+    //    public boolean Variable.isReflectiveDecl();
+    syn lazy boolean ParameterDeclaration.isReflectiveDecl() = false;
+
+    /**
+     * Specifies whether a Stmt is a reflectively declared statement --
+     * this does not include stmts that are within a reflectively declared
+     * method.
+     **/
+    inh boolean Stmt.isReflectiveStmt();
+    eq StaticForStmt.getStmt(int index).isReflectiveStmt() = true;
+    eq Block.getStmt(int index).isReflectiveStmt() = isReflectiveStmt();
+    eq TryStmt.getCatchClause(int index).isReflectiveStmt() = isReflectiveStmt();
+    inh boolean CatchClause.isReflectiveStmt();
+
+    eq CatchClause.getBlock().isReflectiveStmt() = isReflectiveStmt();
+    eq LabeledStmt.getStmt().isReflectiveStmt() = isReflectiveStmt();
+    eq EnhancedForStmt.getStmt().isReflectiveStmt() = isReflectiveStmt();
+    eq ForStmt.getInitStmt(int index).isReflectiveStmt() = isReflectiveStmt();
+    eq ForStmt.getStmt().isReflectiveStmt() = isReflectiveStmt();
+    eq ForStmt.getUpdateStmt(int index).isReflectiveStmt() = isReflectiveStmt();
+    eq WhileStmt.getStmt().isReflectiveStmt() = isReflectiveStmt();
+    eq ConstructorDecl.getConstructorInvocation().isReflectiveStmt() = false;
+
+    eq ConstructorDecl.getBlock().isReflectiveStmt() = false;
+    eq MethodDecl.getBlock().isReflectiveStmt() = false;
+    
+    syn lazy boolean VariableDeclaration.isReflectiveDecl() = isReflectiveStmt();
+    /**********/
+
     syn lazy IteratorDecl BodyDecl.refIterator() = null;
     eq StaticForMethodDecl.refIterator() = getIteratorDecl();
     eq StaticForConstructorDecl.refIterator() = getIteratorDecl();
@@ -184,6 +213,7 @@ aspect MJPattern {
 	}
 	return false;
     }
+
     //    eq ExpandedMethodDecl.isNameVariable(String name) = original.isNameVariable(name);
     // eq StaticForMethodDeclSubstituted.isNameVariable(String name) = original.isNameVariable(name);
 

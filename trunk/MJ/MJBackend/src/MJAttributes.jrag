@@ -167,7 +167,7 @@ aspect MJAttributes {
 	Collection consTypes = new ArrayList();
 	buf.append("<");
 	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
-	    buf.append(getPatternTypeParameter(i).classTypeSignature());
+	    buf.append(getPatternTypeParameter(i).formalTypeParameter());
 	}
 	buf.append(">");
 	buf.append("[");

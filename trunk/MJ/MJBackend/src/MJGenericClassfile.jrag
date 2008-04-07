@@ -155,12 +155,21 @@ aspect MJGenerateClassfile {
 	if(hasPrevExpr())
 	    typeDecl = prevExpr().type();
 
-	while(typeDecl != null && !typeDecl.hasField(name()))
-	    typeDecl = typeDecl.enclosingType();
-
+	if ( isNameVariable(name()) || containsNameVariable(name())) {
+	    Identifier id = new Identifier(name(), enclosingRefIterator());
+	    while(typeDecl != null && !typeDecl.hasField(id))
+		typeDecl = typeDecl.enclosingType();
+	} else {
+	    while(typeDecl != null && !typeDecl.hasField(name()))
+		typeDecl = typeDecl.enclosingType();
+	}
+	
+	// from GenericsCodegen
 	if ( typeDecl == null )				
 	    return decl().hostType();
 
+	// added to make sure we don't erase away type variable information
+	// when field qualifier is a type variable
 	if ( typeDecl.shouldErase())
 	    return typeDecl.erasure();
 	return typeDecl;
@@ -303,4 +312,40 @@ aspect FixJastadd {
     eq PatternTypeVariable.typeDescriptor() = classTypeSignature();
     eq PatternTypeVariable.constantPoolName() = classTypeSignature();
     eq VectorTypeVariable.classTypeSignature() = "T" + name() + "*;";
+
+    eq VectorTypeVariable.formalTypeParameter() {
+	StringBuffer buf = new StringBuffer();
+	// Identifier
+	buf.append(name() + "*");
+	buf.append(":");
+	if(getNumTypeBound() > 0) {
+	    // ClassBound InterfaceBound*
+	    if(getTypeBound(0).type().isClassDecl())
+		buf.append(getTypeBound(0).type().fieldTypeSignature());
+	    else
+		buf.append(":" + getTypeBound(0).type().fieldTypeSignature());
+	    for(int i = 1; i < getNumTypeBound(); i++)
+		buf.append(":" + getTypeBound(i).type().fieldTypeSignature());
+	}
+	return buf.toString();
+    }
+
+
+    // fixes to casts that assume isClassDecl means the type can be cast
+    // to ClassDecl
+    refine InnerClasses eq TypeDecl.enclosingVariables() {
+	HashSet set = new HashSet();
+	for(TypeDecl e = this; e != null; e = e.enclosingType()) {
+	    if(e.isLocalClass() || e.isAnonymous()) {
+		collectEnclosingVariables(set, e.enclosingType());
+	    }
+	}
+	if(isClassDecl() && !isTypeVariable()) {
+	    ClassDecl classDecl = (ClassDecl)this;
+	    if(classDecl.isNestedType() && classDecl.hasSuperclass())
+		set.addAll(classDecl.superclass().enclosingVariables());
+	}
+	return set;
+    }
+
 }

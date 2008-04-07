@@ -17,4 +17,19 @@ aspect MJCreateBCode {
 
 	gen.addStaticForStmtEnd();
     }
+
+    public boolean TypeDecl.hasField(Identifier id) {
+	if(!fields(id).isEmpty())
+	    return true;
+	/*
+	for(int i = 0; i < getNumBodyDecl(); i++) {
+	    if(getBodyDecl(i) instanceof FieldDeclaration) {
+		FieldDeclaration decl = (FieldDeclaration)getBodyDecl(i);
+		if(decl.name().equals(name))
+		    return true;
+	    }
+	}
+	*/
+	return false;
+    }	
 }

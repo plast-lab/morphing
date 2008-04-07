@@ -815,7 +815,7 @@ aspect BytecodeReader {
 	  }
 
 	  TypeVariable patternTypeParameter() {
-	      eat("T");
+	      //	      eat("T");
 
 	      String id = identifier();
 

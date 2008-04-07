@@ -36,6 +36,7 @@ aspect MJExpansionProperties {
 	return true;
     }
     eq TypeVariable.grounded() = false;
+    eq UnknownType.grounded() = false;
 
     /**
      * A TypeDecl needs expansion if:
@@ -123,6 +124,13 @@ aspect MJExpansionProperties {
     eq PrimitiveType.needsExpansion() = false;
     eq NullType.needsExpansion() = false;
     eq AbstractWildcardType.needsExpansion() = false;
+    // TODO: Not sure if this entirely works, but since needsExpansion
+    // is based upon looking up base set's type, which can be a type
+    // parameter. But the type parameter is not visible to static method
+    // UNLESS the class is expanded, an UnknownType needs to be set to
+    // expandable for this circular computation to work.
+    // I don't think it has any harm -- SSH
+    eq UnknownType.needsExpansion() = true;
 
     eq MethodDecl.needsExpansion() {
 	// check return type.
