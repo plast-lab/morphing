@@ -42,17 +42,57 @@ aspect MJInstructionTransform {
 		maxStack += change;
 	}
 
+	void changeMaxLocal(int opcode, int var) {
+	    int n;
+            if (opcode == Opcodes.LLOAD || opcode == Opcodes.DLOAD
+		|| opcode == Opcodes.LSTORE || opcode == Opcodes.DSTORE) {
+                n = var + 2;
+            } else {
+                n = var + 1;
+            }
+            if (n > maxLocals) {
+                maxLocals = n;
+            }
+	}
+
+	protected TypeDecl retrieveTypeFromContext(Access ta) {
+	    TypeDecl t = null;
+	    if ( staticForStmt != null )
+		t = staticForStmt.retrieveType(ta);
+	    else t = md.retrieveType(ta);
+
+	    t = t.substitute(substitutions).type();
+	    Access ta2 = (Access) t.substitute(parClass);
+	    if ( staticForStmt != null )
+		t = staticForStmt.retrieveType(ta2);
+	    else t = md.retrieveType(ta2);
+	    return t;
+	    //return t.substitute(substitutions).type();
+	}
+
 	protected TypeDecl retrieveOwnerType(String owner) {
 	    // parse owner to get the actual type.
-	    TypeDecl ownerType = md.parseConstantPoolName(owner);
+	    TypeDecl ownerType = null;
+	    if ( owner.startsWith("["))
+		ownerType = retrieveTypeFromDesc(owner);
+	    else
+		ownerType = md.parseConstantPoolName(owner);
+
 	    if ( ownerType.isRawType() && 
 		 ((ParTypeDecl) ownerType).genericDecl() == parClass.genericDecl())
 	    	ownerType = parClass;
 	    else if ( ownerType.needsExpansion()) {
 		ownerType = ownerType.substitute(substitutions).type();
+		Access ta2 = (Access) ownerType.substitute(parClass);
+		if ( staticForStmt != null )
+		    ownerType = staticForStmt.retrieveType(ta2);
+		else ownerType = md.retrieveType(ta2);
+		
+		//		ownerType = ownerType.substitute(substitutions).type();
 	    } 
 	    return ownerType;
 	}
+
 	protected String retrieveOwner(String owner) {
 	    // parse owner to get the type's package and real name.
 	    // we only need to change it if the owner involves type variables
@@ -60,19 +100,24 @@ aspect MJInstructionTransform {
 	    return ownerType.expandedConstantPoolName();
 	}
 
-	protected int retrieveOpcode(String owner, String name, String desc) {
+	protected int retrieveOpcode(String owner, String name, String desc,
+				     int oldOpcode ) {
 	    BodyDecl bd = retrieveMethod(owner, name, desc);
-	    if ( bd instanceof ConstructorDecl || 
-		 // this is a super call.
-		 (parClass.hasSuperclass() && retrieveOwnerType(owner) == parClass.superclass()))
-		return org.objectweb.asm.Opcodes.INVOKESPECIAL;
-
-	    MethodDecl m = (MethodDecl) bd;
-	    if (m.isStatic()) 
-		return org.objectweb.asm.Opcodes.INVOKESTATIC;
-	    if (m.hostType().isInterfaceDecl())
-		return org.objectweb.asm.Opcodes.INVOKEINTERFACE;
-	    return org.objectweb.asm.Opcodes.INVOKEVIRTUAL;	    
+	    if ( bd != null ) {
+		if ( bd instanceof ConstructorDecl || 
+		     // this is a super call.
+		     (name.equals("<init>") && 
+		      parClass.hasSuperclass() && retrieveOwnerType(owner) == parClass.superclass()))
+		    return org.objectweb.asm.Opcodes.INVOKESPECIAL;
+		
+		MethodDecl m = (MethodDecl) bd;
+		if (m.isStatic()) 
+		    return org.objectweb.asm.Opcodes.INVOKESTATIC;
+		if (m.hostType().isInterfaceDecl())
+		    return org.objectweb.asm.Opcodes.INVOKEINTERFACE;
+		return org.objectweb.asm.Opcodes.INVOKEVIRTUAL;	    
+	    }
+	    return oldOpcode;
 	}
 
 	protected BodyDecl retrieveMethod(String owner, String name, String desc) {
@@ -81,25 +126,39 @@ aspect MJInstructionTransform {
 	    // and desciptor desc.
 	    String newDesc = retrieveMethodDesc(desc);
 
+	    // retrieve parameter types from newDesc.
+	    MethodDescriptor ndd = new MethodDescriptor(newDesc);
 	    if ( name.equals("<init>")) {
+		List newParamList = ownerType.isInnerType() ? 
+		    ndd.parameterListSkipFirst() : 
+		    ndd.parameterList();
+
 		// constructors.
-		Collection c = ownerType.constructors();
+		Collection c = ((ClassDecl) ownerType).bcMethods();
 		for ( Iterator mIt = c.iterator(); mIt.hasNext(); ) {
-		    ConstructorDecl md = (ConstructorDecl) mIt.next();
-		    if ( md.descName().equals(newDesc))
-			return md;
+		    BodyDecl bd = (BodyDecl) mIt.next();
+		    if ( bd instanceof ConstructorDecl ) {
+			ConstructorDecl cd = (ConstructorDecl) bd;
+			if ( parameterSubtype(cd.getParameterList(),
+					      newParamList))
+			    return cd;
+		    }
 		}
 	    } else {
+		List newParamList = ndd.parameterList();
 		Collection c = ownerType.unrestrictedMemberMethods(retrieveName(name));
 		for ( Iterator mIt = c.iterator(); mIt.hasNext(); ) {
-		    MethodDecl md = (MethodDecl) mIt.next();
-		    if ( md.descName().equals(newDesc))
-			return md;
+		    MethodDecl thismd = (MethodDecl) mIt.next();
+		    if (thismd.name().equals(retrieveName(name)) &&
+			parameterSubtype(thismd.getParameterList(), 
+					 newParamList))
+			return thismd;
 		}
 	    }
-	    throw new Error("Cannot find method " +
-			    retrieveName(name) + retrieveMethodDesc(desc) + 
-			    " in type " + ownerType.name());
+	    System.err.println(	"Cannot find method " +
+				retrieveName(name) + retrieveMethodDesc(desc) + 
+				" in type " + ownerType.name());
+	    return null;
 	}
 
 	protected String retrieveName(String name) {
@@ -114,6 +173,23 @@ aspect MJInstructionTransform {
 		return (String) substitutions.get(md.getNameVariable(name));
 	    return name;
 	    */
+	}
+
+
+	protected boolean parameterSubtype(List pl1, List pl2) {
+	    if ( pl1.getNumChild() == pl2.getNumChild()) {
+		boolean matched = true;
+		for ( int i=0; i<pl1.getNumChild(); i++) {
+		    TypeDecl pl1Type = md.retrieveType(((ParameterDeclaration) pl1.getChild(i)).type().substitute(parClass));
+		    TypeDecl pl2Type = md.retrieveType(((ParameterDeclaration) pl2.getChild(i)).getTypeAccess());
+		    if (!pl1Type.subtype(pl2Type)) {
+			matched = false;
+			break;
+		    }
+		}
+		return matched;
+	    }
+	    return false;
 	}
 
 
@@ -135,15 +211,6 @@ aspect MJInstructionTransform {
 	    return t.typeDescriptor();
 	}
 
-	protected TypeDecl retrieveTypeFromContext(Access ta) {
-	    TypeDecl t = null;
-	    if ( staticForStmt != null )
-		t = staticForStmt.retrieveType(ta);
-	    else t = md.retrieveType(ta);
-
-	    return t.substitute(substitutions).type();
-	}
-
 	protected String retrieveMethodDesc(String desc) {
 	    // parse desc name.
 	    Signatures.MethodSignature ms = new Signatures.MethodSignature(desc);
@@ -151,7 +218,9 @@ aspect MJInstructionTransform {
 	    // parameter names.
 	    buf.append("(");
 	    for ( Iterator ptIt = ms.parameterTypes().iterator(); ptIt.hasNext(); ) {
-		TypeAccess ta = (TypeAccess) ptIt.next();
+		// TODO: fix imported from Lime. CHeck whether works.
+		//		TypeAccess ta = (TypeAccess) ptIt.next();
+		Access ta = (Access) ptIt.next();
 
 		//		List argList = md.retrieveType(ta).expandAccessList(substitutions);
 		TypeDecl t = retrieveTypeFromContext(ta);
@@ -163,7 +232,7 @@ aspect MJInstructionTransform {
 	    buf.append(")");
 
 	    // return type
-	    TypeAccess rt = (TypeAccess) ms.returnType();
+	    Access rt = (Access) ms.returnType();
 	    //	    Access newRt = md.retrieveType(rt).substitute(substitutions);
 	    //     buf.append(newRt.type().typeDescriptor());
 	    TypeDecl newRt = retrieveTypeFromContext(rt);
@@ -200,6 +269,8 @@ aspect MJInstructionTransform {
 
 	public void visitIincInsn(int var, int increment) {
 	    instructions.add(new IincInsnNode(var, increment));
+	    if ( var+1 > maxLocals )
+		maxLocals = var+1;
 	}
 
 	public void visitInsn(int opcode) {
@@ -269,7 +340,7 @@ aspect MJInstructionTransform {
 	    // TODO: remove the test so we can properly test the 
 	    // retrieving constructors from static methods --
 	    // needsExpansion isn't working correctly.
-	    int newOpcode = retrieveOpcode(owner, name, desc);
+	    int newOpcode = retrieveOpcode(owner, name, desc, opcode);
 	    instructions.add(new MethodInsnNode(newOpcode,
 						retrieveOwner(owner),
 						retrieveName(name), 
@@ -287,13 +358,15 @@ aspect MJInstructionTransform {
 	public void visitTypeInsn(int opcode, String type) {
 	    // parse type to see whether it needs to be replaced with
 	    // expanded type name.	    
-	    instructions.add(new TypeInsnNode(opcode, type));
+	    TypeDecl t = retrieveOwnerType(type);
+	    instructions.add(new TypeInsnNode(opcode, t.constantPoolName()));
 	    changeMaxStack(opcode);
 	}
 
 	public void visitVarInsn(int opcode, int var) {
 	    instructions.add(new VarInsnNode(opcode,var));
 	    changeMaxStack(opcode);
+	    changeMaxLocal(opcode, var);
 	}
 
 	public void visitTryCatchBlock(Label start, Label end, Label handler, String type) {

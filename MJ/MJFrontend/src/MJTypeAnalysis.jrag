@@ -1,5 +1,5 @@
 aspect MJTypeAnalysis {
-    
+    /*
     inh BodyDecl Pattern.hostBodyDecl();
     inh BodyDecl IteratorDecl.hostBodyDecl();
     eq IteratorDecl.getPattern().hostBodyDecl() = hostBodyDecl();
@@ -8,10 +8,22 @@ aspect MJTypeAnalysis {
     eq StaticForConstructorDecl.getIteratorDecl().hostBodyDecl() = this;
     eq StaticForFieldDeclaration.getIteratorDecl().hostBodyDecl() = this;
     eq StaticForStmt.getIteratorDecl().hostBodyDecl() = hostBodyDecl();
+    eq StaticForDecl.getIteratorDecl().hostBodyDecl() = this;
+    */
+
+    inh BodyDecl Pattern.enclosingBodyDecl();
+    inh BodyDecl IteratorDecl.enclosingBodyDecl();
+    eq IteratorDecl.getPattern().enclosingBodyDecl() = enclosingBodyDecl();
+    eq IteratorDecl.getNestedPattern(int i).enclosingBodyDecl() = enclosingBodyDecl();
+    eq StaticForMethodDecl.getIteratorDecl().enclosingBodyDecl() = this;
+    eq StaticForConstructorDecl.getIteratorDecl().enclosingBodyDecl() = this;
+    eq StaticForFieldDeclaration.getIteratorDecl().enclosingBodyDecl() = this;
+    eq StaticForStmt.getIteratorDecl().enclosingBodyDecl() = enclosingBodyDecl();
+    eq StaticForDecl.getIteratorDecl().enclosingBodyDecl() = this;
 
     eq MethodPattern.getPatternMethodDecl().hostType() = getBaseSet().type();
     eq FieldPattern.getPatternFieldDeclaration().hostType() = getBaseSet().type();
-    
+
 
     refine TypeAnalysis public TypeDecl ClassDecl.superclass() {
 	if(isObject())

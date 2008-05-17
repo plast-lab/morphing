@@ -167,6 +167,24 @@ aspect MJTypeVariableUse {
 	    if ( getTypeParameter(i) == tv) return true;
 	return false;
     }
+    eq GenericMethodDecl.getException(int index).boundByMethod(TypeVariable tv) {
+	for (int i=0; i<getNumTypeParameter(); i++)
+	    if ( getTypeParameter(i) == tv) return true;
+	return false;
+    }
+    eq GenericMethodDecl.getParameter(int index).boundByMethod(TypeVariable tv) {
+	for (int i=0; i<getNumTypeParameter(); i++)
+	    if ( getTypeParameter(i) == tv) return true;
+	return false;
+    }
+    eq GenericMethodDecl.getTypeAccess().boundByMethod(TypeVariable tv) {
+	for (int i=0; i<getNumTypeParameter(); i++)
+	    if ( getTypeParameter(i) == tv) return true;
+	return false;
+    }
+
+
+
     eq Program.getChild(int i).boundByMethod(TypeVariable tv) = false;
 
     eq GenericTypeDecl.getChild(int i).boundByClass(TypeVariable tv) {
@@ -208,7 +226,7 @@ aspect MJTypeVariableUse {
     // return true if iterator decl uses type variable that are NOT
     // pattern matching type variables.
     syn lazy boolean IteratorDecl.usesTypeVariable () {
-	TypeDecl host = hostBodyDecl().hostType();
+	TypeDecl host = enclosingBodyDecl().hostType();
 	if ( host.isGenericType()) {
 	    GenericTypeDecl gh = (GenericTypeDecl) host;
 	    for ( int i=0; i<gh.getNumTypeParameter(); i++ ) {
@@ -219,6 +237,11 @@ aspect MJTypeVariableUse {
 		for ( int j=0; j<getNumNestedPattern(); j++)
 		    if ( getNestedPattern(j).usesTypeVariable(tv))
 			return true;
+	    }
+	} else if ( host.isParameterizedType()) {
+	    ParTypeDecl pd = (ParTypeDecl) host;
+	    for ( int i=0; i<pd.getNumArgument(); i++) {
+		Access ta = pd.getArgument(i);
 	    }
 	}
 	return false;

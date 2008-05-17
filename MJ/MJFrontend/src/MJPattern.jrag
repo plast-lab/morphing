@@ -1,6 +1,10 @@
 import java.util.*;
 
 aspect MJPattern {
+    
+    public interface PatternVariable {}
+    PatternTypeVariable implements PatternVariable;
+    PatternNameVariable implements PatternVariable;
 
     // whether a piece of code is reflectively declared.
     syn lazy boolean BodyDecl.isReflectiveDecl() = false;
@@ -178,7 +182,7 @@ aspect MJPattern {
 	}
     }
 
-    syn lazy Collection Stmt.patternNameVariables() = hostBodyDecl().patternNameVariables();
+    syn lazy Collection Stmt.patternNameVariables() = enclosingBodyDecl().patternNameVariables();
     syn lazy Collection Expr.patternNameVariables() = enclosingStmt().patternNameVariables();
 
     // get enclosing pattern type variables.
@@ -242,7 +246,7 @@ aspect MJPattern {
     syn lazy boolean IteratorDecl.isNameVariable(String name) = isLocalNameVariable(name) || (enclosingRefIterator() != null && enclosingRefIterator().isNameVariable(name));
     syn lazy boolean Expr.isNameVariable(String name) = 
 	enclosingStmt() != null && enclosingStmt().isNameVariable(name);
-    syn lazy boolean Pattern.isNameVariable(String name) = hostBodyDecl().isNameVariable(name);
+    syn lazy boolean Pattern.isNameVariable(String name) = enclosingBodyDecl().isNameVariable(name);
 
 
     // determines whether a name contains name variable.
@@ -275,7 +279,7 @@ aspect MJPattern {
     }
     syn lazy boolean Expr.containsNameVariable(String name) = 
 	enclosingStmt() != null && enclosingStmt().containsNameVariable(name);
-    syn lazy boolean Pattern.containsNameVariable(String name) = hostBodyDecl().containsNameVariable(name);
+    syn lazy boolean Pattern.containsNameVariable(String name) = enclosingBodyDecl().containsNameVariable(name);
 
 
     // returns the name variable by the ID name.

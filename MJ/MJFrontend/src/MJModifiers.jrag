@@ -347,6 +347,14 @@ aspect MJModifiers {
 	!getModifiers().possiblyPrivate() && !getModifiers().possiblyPublic();
     eq PatternFieldDeclaration.isPrivate() = super.isPrivate() && 
 	!getModifiers().possiblyPublic() && !getModifiers().possiblyProtected();
-    
-    
+
+
+    // make sure that annotations indicated for FIELD can be used for
+    // field pattern.
+    eq FieldPattern.getModifiers().mayUseAnnotationTarget(String name) = 
+	name.equals("FIELD");
+    eq MethodPattern.getModifiers().mayUseAnnotationTarget(String name) =
+	name.equals("METHOD");
+    eq MethodPattern.getParameter().mayUseAnnotationTarget(String name) =
+	name.equals("METHOD");
 }

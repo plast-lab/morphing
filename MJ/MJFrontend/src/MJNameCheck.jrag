@@ -59,7 +59,7 @@ aspect MJNameCheck {
 	    patternTypeVariables.add(returnType);
 
 	IteratorDecl id = new IteratorDecl(patternTypeVariables,
-					   new List().add(m), p, new List());
+					   new List().add(m), p, new List(), new List());
 	StaticForMethodDecl sfd = 
 	    new StaticForMethodDecl(new Modifiers(),
 				    returnType.createQualifiedAccess(),
@@ -101,7 +101,7 @@ aspect MJNameCheck {
 				
 	IteratorDecl id = new IteratorDecl(new List().add(R).add(A).add(E),
 					   new List().add(m),
-					   p, new List());
+					   p, new List(), new List());
 
 	StaticForMethodDecl sfd = 
 	    new StaticForMethodDecl(new Modifiers(),
@@ -221,7 +221,8 @@ aspect MJNameCheck {
 	// declaration representing all methods in the type variable.
 	if ( hostType().isClassDecl() && 
 	     ((ClassDecl) hostType()).hasSuperclass() &&
-	     ((ClassDecl) hostType()).superclass().isTypeVariable()) {
+	     ((ClassDecl) hostType()).superclass() instanceof TypeVariable ) {
+	    //.isTypeVariable()) {
 	    MethodDecl md = ((ClassDecl) hostType()).superclass().everyMethod();
 	    if ( !isUniqueFrom(md) )
 		// check whether this and md are overriding methods.

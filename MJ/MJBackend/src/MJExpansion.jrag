@@ -147,11 +147,13 @@ aspect MJExpansion {
 
 	// read StaticForStmtsAttribute.
 	ASMStaticForStmtsAttribute staticForStmtsAttr = null;
-	for ( int i=0; i<mn.attrs.size(); i++ ) {
-	    if ( ((org.objectweb.asm.Attribute) mn.attrs.get(i)).type.equals("StaticForStmts")) {
-		staticForStmtsAttr = 
-		    (ASMStaticForStmtsAttribute) mn.attrs.get(i);
-		break;
+	if ( mn.attrs != null ) {
+	    for ( int i=0; i<mn.attrs.size(); i++ ) {
+		if ( ((org.objectweb.asm.Attribute) mn.attrs.get(i)).type.equals("StaticForStmts")) {
+		    staticForStmtsAttr = 
+			(ASMStaticForStmtsAttribute) mn.attrs.get(i);
+		    break;
+		}
 	    }
 	}
 
@@ -181,7 +183,8 @@ aspect MJExpansion {
 		IteratorDecl itDecl = 
 		    new IteratorDecl(idSig.patternTypeParameters(), 
 				     idSig.patternNameParameters(), 
-				     idSig.pattern(), idSig.nestedPatterns());
+				     idSig.pattern(), idSig.nestedPatterns(),
+				     new List());
 		// add a statement to block.
 		StaticForStmt s = new StaticForStmt(itDecl, new List(), new List());
 		s.staticForStmtAttr = stmtsAttr;
@@ -222,6 +225,56 @@ aspect MJExpansion {
 	return newStmts;
     }
 
+    protected void MethodDecl.transformLocalVariables(MethodNode newNode) {
+	// localVariables may need to be expanded to multiple variables,
+	// depending on what type they are declared with.
+	// We need to do this before visiting the whole node.
+	// every original local variable has a mapping in nodesMap.
+
+	if ( newNode.localVariables != null ) {
+	    HashMap nodesMap = findReplacementLocalVariables(newNode);
+	    
+	    // remove all original local variables and replace with new ones.
+	    newNode.localVariables.clear();
+	    
+	    for ( Iterator nIt = nodesMap.keySet().iterator(); nIt.hasNext(); ) {
+		LocalVariableNode origNode = (LocalVariableNode) nIt.next();
+		java.util.List newLVNodes 
+		    = (java.util.List) nodesMap.get(origNode);
+		
+		// add the replaced local variables.
+		for ( Iterator newIt = newLVNodes.iterator(); newIt.hasNext(); ) {
+		    newNode.localVariables.add(newIt.next());
+		}
+		
+		// find the aload instructions for the original variable, and 
+		// replace with the appropriate number of aload's depending on 
+		// what argument types expend to.
+		ArrayList insnList = new ArrayList();
+		for(ListIterator iit = newNode.instructions.iterator(); 
+		    iit.hasNext(); ) {
+		    AbstractInsnNode inode = (AbstractInsnNode) iit.next();
+		    if (inode instanceof VarInsnNode &&
+			((VarInsnNode) inode).var == origNode.index) 
+			insnList.add(inode);
+		}
+		for(Iterator insnIt=insnList.iterator(); insnIt.hasNext(); ) {
+		    // This is a var insn node for the variable we are
+		    // dealing with.  Expand it into a list of instructions
+		    // with the var replaced with the expanded local
+		    // variables.
+		    VarInsnNode inode = (VarInsnNode) insnIt.next();
+		    for ( int i=newLVNodes.size()-1; i>=0; i--) {
+			LocalVariableNode newLV = (LocalVariableNode) newLVNodes.get(i);
+			newNode.instructions.insert(inode,new VarInsnNode(transformOpcode(inode.getOpcode(), newLV), newLV.index)); 
+		    }
+		    // remove the original instruction.
+		    newNode.instructions.remove(inode);
+		}
+	    }
+	}
+    }
+
     protected MemberNode MethodDecl.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
 	MethodNode newNode = NodeCopier.copyMethodNode((MethodNode)mn);
 	
@@ -236,50 +289,7 @@ aspect MJExpansion {
 	
 	// TODO: modify exceptions.
 	
-	// localVariables may need to be expanded to multiple variables,
-	// depending on what type they are declared with.
-	// We need to do this before visiting the whole node.
-	// every original local variable has a mapping in nodesMap.
-	HashMap nodesMap = findReplacementLocalVariables(newNode);
-
-	// remove all original local variables and replace with new ones.
-	newNode.localVariables.clear();
-
-	for ( Iterator nIt = nodesMap.keySet().iterator(); nIt.hasNext(); ) {
-	    LocalVariableNode origNode = (LocalVariableNode) nIt.next();
-	    java.util.List newLVNodes 
-		= (java.util.List) nodesMap.get(origNode);
-	    
-	    // add the replaced local variables.
-	    for ( Iterator newIt = newLVNodes.iterator(); newIt.hasNext(); ) {
-		newNode.localVariables.add(newIt.next());
-	    }
-
-	    // find the aload instructions for the original variable, and 
-	    // replace with the appropriate number of aload's depending on 
-	    // what argument types expend to.
-	    ArrayList insnList = new ArrayList();
-	    for(ListIterator iit = newNode.instructions.iterator(); 
-		iit.hasNext(); ) {
-		AbstractInsnNode inode = (AbstractInsnNode) iit.next();
-		if (inode instanceof VarInsnNode &&
-		    ((VarInsnNode) inode).var == origNode.index) 
-		    insnList.add(inode);
-	    }
-	    for(Iterator insnIt=insnList.iterator(); insnIt.hasNext(); ) {
-		// This is a var insn node for the variable we are
-		// dealing with.  Expand it into a list of instructions
-		// with the var replaced with the expanded local
-		// variables.
-		VarInsnNode inode = (VarInsnNode) insnIt.next();
-		for ( int i=newLVNodes.size()-1; i>=0; i--) {
-		    LocalVariableNode newLV = (LocalVariableNode) newLVNodes.get(i);
-		    newNode.instructions.insert(inode,new VarInsnNode(transformOpcode(inode.getOpcode(), newLV), newLV.index)); 
-		}
-		// remove the original instruction.
-		newNode.instructions.remove(inode);
-	    }
-	}
+	transformLocalVariables(newNode);
 
 	// find all static for stmts.
 	java.util.List staticForStmts = retrieveStaticForStmts(newNode);
@@ -294,7 +304,10 @@ aspect MJExpansion {
 	    InsnList replicatedInsns = new InsnList();
 
 	    // get the mappings for each element in the iterator decl's range. 
-	    for ( Iterator subMaps = s.getIteratorDecl().reflectiveElmts().values().iterator();
+	    IteratorDecl sid = s.getIteratorDecl();
+	    IteratorDecl sidSub = sid.lookupParIteratorDecl(parClass);
+	    
+	    for ( Iterator subMaps = sidSub.reflectiveElmts().values().iterator();
 		  subMaps.hasNext(); ) {
 		Map substitutions = (Map) subMaps.next();
 		substitutions.putAll(expansionSubstitutions);
@@ -325,7 +338,8 @@ aspect MJExpansion {
 	newNode.tryCatchBlocks = insnVisitor.tryCatchBlocks;
 	newNode.maxStack = insnVisitor.maxStack;
 	//	newNode.maxLocals = newNode.localVariables.size();
-	newNode.maxLocals = insnVisitor.maxLocals;
+
+	newNode.maxLocals = type().isVoid() ? insnVisitor.maxLocals : insnVisitor.maxLocals+1;
 
 	// remove IteratorDecl attribute.
 	if ( newNode.attrs != null ) {
@@ -336,6 +350,8 @@ aspect MJExpansion {
 	}
 	return newNode;
     }
+
+
     
     protected int BodyDecl.transformOpcode(int opcode, LocalVariableNode lv) {
 	// retrieve type of local variable node
@@ -412,8 +428,10 @@ aspect MJExpansion {
 		}
 	    } else {
 		FieldDeclaration fd = findField(fn);
-		FieldNode newfn = (FieldNode) fd.transformMemberNode(fn, this);
-		newFields.add(newfn);
+		if ( fd != null ) {
+		    FieldNode newfn = (FieldNode) fd.transformMemberNode(fn, this);
+		    newFields.add(newfn);
+		}
 	    }
 	}
 
@@ -453,8 +471,11 @@ aspect MJExpansion {
 				    mn.name);
 		}
 	    } else {
-		MethodNode newMn = (MethodNode) findMethod(mn).transformMemberNode(mn, this);
-		newMethods.add(newMn);
+		BodyDecl bd = findMethod(mn);
+		if ( bd != null ){ 
+		    MethodNode newMn = (MethodNode) bd.transformMemberNode(mn, this);
+		    newMethods.add(newMn);
+		}
 	    }
 	}
 	cn.methods = newMethods;
@@ -468,41 +489,117 @@ aspect MJExpansion {
 		if ( cd.isSameMethod(mn)) return cd;
 	    }
 	} else {
+	    MethodDecl curr = null;
 	    for ( Iterator mIt = methodsIterator(); mIt.hasNext(); ) {
 		MethodDecl md = (MethodDecl) mIt.next();
-		if ( md.isSameMethod(mn)) return md;
+		if ( md.isSameMethod(mn))  {
+		    if ( curr == null )
+			curr = md;
+		    else {
+			// find which one is more specific.
+			if ( md.hostType().subtype(curr.hostType()))
+			    curr = md;
+		    }
+		}
 	    }
+	    if ( curr != null ) return curr;
 	}
+
+	System.err.println("Method " + mn.name + " " + mn.desc + 
+			   " not found.");
 	return null;
     }
+    
 
     public FieldDeclaration TypeDecl.findField(FieldNode fn) {
 	// if fn is a reflectively declared one, we need to iterate reflective
 	// fields.
-	for ( Iterator fIt = fields(fn.name).iterator(); fIt.hasNext(); ) {
+	for ( Iterator fIt = memberFields(fn.name).iterator(); fIt.hasNext(); ) {
 	    FieldDeclaration f = (FieldDeclaration) fIt.next();
 	    if ( f.getID().equals(fn.name))
 		return f;
 	}
+
+	// check signature to see if this field belongs to an inner class.
+	// if so, don't translate.
+	System.err.println("Could not find field node : " + 
+			   fn.signature + "." + fn.desc + " " + fn.name);
+
 	return null;
     }
 
-
+    /*
     public boolean ConstructorDecl.isSameMethod(MethodNode mn) {
 	return mn.name.equals("<init>")
 	    && (mn.signature == null || 
 		mn.signature.equals(constructorTypeSignature()));
-    }
-    public boolean ConstructorDeclSubstituted.isSameMethod(MethodNode mn) {
-	return ((ConstructorDecl) getOriginal()).isSameMethod(mn);
     }
     public boolean MethodDecl.isSameMethod(MethodNode mn) {
 	return mn.name.equals(getID()) &&
 	    (mn.signature == null || 
 	     mn.signature.equals(methodTypeSignature()));
     }
+    */
+    public boolean ConstructorDecl.isSameMethod(MethodNode mn) {
+	if ( !mn.name.equals("<init>")) return false;
+
+	MethodDescriptor ndd = new MethodDescriptor(mn.desc);
+
+	List newParamList = hostType().isInnerType() ? 
+	    ndd.parameterListSkipFirst() : 
+	    ndd.parameterList();
+
+	return parameterListSubtype(this.getParameterList(),newParamList);
+    }
+    public boolean MethodDecl.isSameMethod(MethodNode mn) {
+	if ( !mn.name.equals(getID())) return false;
+
+	MethodDescriptor ndd = new MethodDescriptor(mn.desc);
+
+	List newParamList = ndd.parameterList();
+	return parameterListSubtype(this.getParameterList(), ndd.parameterList());
+    }
+    public boolean ConstructorDeclSubstituted.isSameMethod(MethodNode mn) {
+	return ((ConstructorDecl) getOriginal()).isSameMethod(mn);
+    }
     public boolean MethodDeclSubstituted.isSameMethod(MethodNode mn) {
 	return ((MethodDecl) getOriginal()).isSameMethod(mn);
+    }
+
+    public boolean BodyDecl.parameterListSubtype(List pl1, List pl2) {
+	if ( pl1.getNumChild() == pl2.getNumChild()) {
+	    boolean matched = true;
+	    for ( int i=0; i<pl1.getNumChild(); i++) {
+		TypeDecl pl1Type = ((ParameterDeclaration) pl1.getChild(i)).type();
+		TypeDecl pl2Type = retrieveType(((ParameterDeclaration) pl2.getChild(i)).getTypeAccess());
+		/*
+		if ( hostType().isParameterizedType())
+		pl2Type = pl2Type.substitute((Parameterization) hostType()).type();*/
+		//		if ( pl1Type != pl2Type ) {
+		if (!pl1Type.subtype(pl2Type)) {
+		    matched = false;
+		    break;
+		}
+	    }
+	    /*
+	    if ( matched ) return true;
+
+	    // check erased parameters.
+	    for ( int i=0; i<pl1.getNumChild(); i++) {
+		TypeDecl pl1Type = ((ParameterDeclaration) pl1.getChild(i)).type().erasure();
+		TypeDecl pl2Type = retrieveType(((ParameterDeclaration) pl2.getChild(i)).getTypeAccess());
+		if ( hostType().isParameterizedType())
+		    pl2Type = pl2Type.substitute((Parameterization) hostType()).type();
+		//		if ( pl1Type != pl2Type ) {
+		if (!pl1Type.subtype(pl2Type)) {
+		    matched = false;
+		    break;
+		}
+	    }
+	    */
+	    return matched;
+	}
+	return false;
     }
 
     public boolean FieldDeclaration.isSameField(FieldNode fn) {

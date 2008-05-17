@@ -43,7 +43,13 @@ aspect MJIdentifier {
 	public IteratorDecl enclosingRefIterator() {
 	    return context;
 	}
+	public Identifier(PatternNameVariable nv) {
+	    prefix ="";
+	    varname = nv.getID();
 
+	    context = nv.enclosingRefIterator();
+	    namevariable = nv;
+	}
 	public Identifier(String s, IteratorDecl context) {
 	    // this is used for substitution.
 	    // parse out the prefix and the (possibly) variable parts.
@@ -144,7 +150,10 @@ aspect MJIdentifier {
 	}
 
 	public boolean isNameVariable() { return namevariable != null; } 
-	
+	public boolean isPureNameVariable() {
+	    return isNameVariable() && (prefix==null ||
+					prefix.length() ==0);
+	}
 	public boolean isUnificationNameVariable(Collection uniNameVars) {
 	    return isNameVariable() && 
 		uniNameVars.contains(namevariable);

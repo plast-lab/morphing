@@ -1,5 +1,5 @@
 aspect MJExpansionProperties {
-    public Map BodyDecl.expansionSubstitutions = null;
+    public Map BodyDecl.expansionSubstitutions = new HashMap();
 
     public StaticForConstructorDecl StaticForConstructorDeclSubstituted.original = null;
     public StaticForFieldDeclaration StaticForFieldDeclarationSubstituted.original = null;
@@ -205,5 +205,27 @@ aspect MJExpansionProperties {
     syn lazy boolean Pattern.expandable() = getBaseSet().type().grounded();
     eq TrueNestedPattern.expandable() = true;
     eq EmptyPrimaryPattern.expandable() = true;
+
+
+    syn lazy boolean TypeDecl.shouldErase() = true;
+    eq GenericTypeDecl.shouldErase() = !needsExpansion();
+    eq ParTypeDecl.shouldErase() {
+	if ( !genericDecl().shouldErase() ) return false;
+	/*
+	for ( int i=0; i<getNumArgument(); i++) {
+	    if ( !getArgument(i).type().shouldErase())
+		return false;
+		}*/
+	return true;
+    }
+    eq TypeVariable.shouldErase() = enclosingType().shouldErase();
+    eq ArrayDecl.shouldErase() = componentType().shouldErase();
+
+    refine GenericsCodegen eq MethodDeclSubstituted.erasedMethod() = shouldErase() ? GenericsCodegen.MethodDeclSubstituted.erasedMethod() : this;
+    refine GenericsCodegen eq ParMethodDecl.erasedMethod() = shouldErase() ? GenericsCodegen.ParMethodDecl.erasedMethod() : this;
+    
+    syn lazy boolean BodyDecl.shouldErase() = hostType().shouldErase();
+    refine GenericsCodegen eq FieldDeclarationSubstituted.erasedField() = shouldErase() ? GenericsCodegen.FieldDeclarationSubstituted.erasedField() : this;
+
 }
 

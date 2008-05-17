@@ -257,13 +257,14 @@ aspect MJFields {
 	for ( Iterator<StaticForFieldDeclaration> rfIt = refFields.iterator(); 
 	      rfIt.hasNext(); ) {
 	    StaticForFieldDeclaration fd = rfIt.next();
-	    if ( fd.usesTypeVariable()) {
+	    //	    if ( fd.usesTypeVariable()) {
 		BodyDecl bd = fd.p(this);
 		bd.is$Final = true;
 		addBodyDecl((StaticForFieldDeclaration)bd);
 		substitutedFields.add((StaticForFieldDeclaration)bd);
-	    } else 
+		/*	    } else 
 		substitutedFields.add((StaticForFieldDeclaration)fd);
+		*/
 	}
 	return substitutedFields;
     }
@@ -303,9 +304,12 @@ aspect MJFields {
 	return getStaticForFieldDeclarationSubstitutedList();
     }
 
+    /*
     refine Generics eq ParTypeDecl.fields(String name) {
 	SimpleSet set = Generics.ParTypeDecl.fields(name);
-
+    */
+    refine Generics eq MemberSubstitutor.localFields(String name) {
+	SimpleSet set = Generics.MemberSubstitutor.localFields(name);
 	// find reflectively declared, expandable fields
 	for ( Iterator refIt = reflectiveFields().iterator(); 
 	      refIt.hasNext(); ) {
@@ -372,7 +376,7 @@ aspect MJFields {
 				     new Opt(), new List());
 	IteratorDecl id = new IteratorDecl(new List().add(F),
 					   new List().add(f),
-					   p, new List());
+					   p, new List(), new List());
 
 	StaticForFieldDeclaration sfd = 
 	    new StaticForFieldDeclaration(new Modifiers(),
@@ -454,16 +458,62 @@ aspect MJFields {
     syn lazy SimpleSet TypeDecl.memberFields(Identifier id) = fields(id);
     syn SimpleSet TypeDecl.localFields(Identifier id) {
 	SimpleSet fields = SimpleSet.emptySet;
-	for ( int i=0; i<getNumBodyDecl(); i++) {
-	    if ( getBodyDecl(i) instanceof StaticForFieldDeclaration) {
-		StaticForFieldDeclaration fd = (StaticForFieldDeclaration) getBodyDecl(i);
-		HashMap uniMap = new HashMap();
 
-		if ( fd.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
-		    Identifier fid = fd.identifier().substitutedIdentifier(uniMap);
-		    Identifier idid = id.substitutedIdentifier(uniMap);
-		    if ( fid.equals(idid)) {
-			fields = fields.add(fd.substitute(uniMap));
+	IteratorDecl idecl = id.enclosingRefIterator();
+	if ( idecl.reflectiveBaseType() == this &&
+	     idecl.getPattern().isFieldPattern() &&
+	     idecl.getPattern().identifiedBy(id) )
+	    // If the name is exactly what is used to match on the outermost
+	    // reflective loop, then the method designated by the name is
+	    // exactly what is specified by the pattern.
+	    fields = fields.add(idecl.getPattern().patternFieldDeclaration());
+	else {
+	    for ( int i=0; i<getNumBodyDecl(); i++) {
+		if ( getBodyDecl(i) instanceof StaticForFieldDeclaration) {
+		    StaticForFieldDeclaration fd = (StaticForFieldDeclaration) getBodyDecl(i);
+		    HashMap uniMap = new HashMap();
+		    
+		    if ( fd.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
+			Identifier fid = fd.identifier().substitutedIdentifier(uniMap);
+			Identifier idid = id.substitutedIdentifier(uniMap);
+			if ( fid.equals(idid)) {
+			    fields = fields.add(fd.substitute(uniMap));
+			}
+		    }
+		}
+	    }
+	}
+	return fields;
+    }
+
+    syn SimpleSet ParTypeDecl.localFields(Identifier id) {
+	SimpleSet fields = SimpleSet.emptySet;
+	IteratorDecl idecl = id.enclosingRefIterator();
+
+	TypeDecl gd = genericDecl();
+	if ( idecl.reflectiveBaseType() == this &&
+	     idecl.getPattern().isFieldPattern() &&
+	     idecl.getPattern().identifiedBy(id) )
+	    // If the name is exactly what is used to match on the outermost
+	    // reflective loop, then the method designated by the name is
+	    // exactly what is specified by the pattern.
+	    fields = fields.add(idecl.getPattern().patternFieldDeclaration());
+	else {
+	    for ( int i=0; i<gd.getNumBodyDecl(); i++) {
+		if ( gd.getBodyDecl(i) instanceof StaticForFieldDeclaration) {
+		    StaticForFieldDeclaration fd = (StaticForFieldDeclaration) gd.getBodyDecl(i);
+		    HashMap uniMap = new HashMap();
+		    StaticForFieldDeclarationSubstituted fds =
+			(StaticForFieldDeclarationSubstituted) fd.p(this);
+		    
+		    this.addBodyDecl(fds);
+		    
+		    if ( fds.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
+			Identifier fid = fds.identifier().substitutedIdentifier(uniMap);
+			Identifier idid = id.substitutedIdentifier(uniMap);
+			if ( fid.equals(idid)) {
+			    fields = fields.add(fds.substitute(uniMap));
+			}
 		    }
 		}
 	    }

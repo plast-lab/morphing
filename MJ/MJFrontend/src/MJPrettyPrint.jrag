@@ -1,4 +1,13 @@
 aspect MJPrettyPrint {
+
+    public void BoundTypeAccess.toString(StringBuffer s) {
+	TypeDecl td = getTypeDecl();
+	if ( td.isParameterizedType() )
+	    s.append(((ParTypeDecl) td).nameWithArgs());
+	    else
+	s.append(td.name());
+    }
+
     refine GenericsPrettyPrint public void TypeVariable.toString(StringBuffer s) {
 	s.append(name());
 	if(getNumRealTypeBound() > 0) {
@@ -52,12 +61,14 @@ aspect MJPrettyPrint {
     public String StaticForMethodDecl.infoSignature() {
 	StringBuffer buf = new StringBuffer();
 	getIteratorDecl().toString(buf);
+	buf.append("\n");
 	buf.append(type().name() + " " + super.signature());
 	return buf.toString();
     }
 
     public void StaticForFieldDeclaration.toString(StringBuffer buf) {
 	getIteratorDecl().toString(buf);
+	buf.append("\n");
 	super.toString(buf);
     }
 
@@ -69,6 +80,7 @@ aspect MJPrettyPrint {
 
     public void StaticForMethodDecl.toString(StringBuffer buf) {
 	getIteratorDecl().toString(buf);
+	buf.append("\n");
 	super.toString(buf);
     }
 
@@ -83,6 +95,7 @@ aspect MJPrettyPrint {
     }
 
     public void IteratorDecl.toString(StringBuffer buf) {
+	buf.append(indent());
 	if ( getNumRealPatternTypeParameter() > 0 ) {
 	    buf.append("<");
 	    int i=0;
@@ -262,5 +275,13 @@ aspect MJPrettyPrint {
 		buf.append(getTypeBound(i).type().fullName());
 	    }
 	}
+    }
+
+
+    public void ParInterfaceDecl.toString(StringBuffer s) {
+	s.append(nameWithArgs());
+    }
+    refine GenericsPrettyPrint public void ParClassDecl.toString(StringBuffer s) {
+	s.append(nameWithArgs());
     }
 }

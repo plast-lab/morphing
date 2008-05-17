@@ -20,8 +20,10 @@ aspect StaticFor {
 	when ( getNumBodyDecl() > 1 ) 
 	    to List {
 	    List declList = new List();
+	    List bodyDecls = getBodyDeclListNoTransform();
 	    for ( int i=0; i<getNumBodyDecl(); i++) {
-		declList.addChild((ASTNode) getBodyDecl(i).createStaticForDeclarationFrom((IteratorDecl) getIteratorDecl().fullCopy()));
+		declList.addChild((ASTNode) ((BodyDecl) bodyDecls.getChildNoTransform(i))
+				  .createStaticForDeclarationFrom((IteratorDecl) getIteratorDeclNoTransform().fullCopy()));
 	    }
 	    return declList;
 	}
@@ -31,7 +33,8 @@ aspect StaticFor {
     rewrite StaticForDecl {
 	when ( getNumBodyDecl() == 1 )
 	    to ASTNode {
-	    StaticForDeclaration decl = getBodyDecl(0).createStaticForDeclarationFrom(getIteratorDecl());
+	    StaticForDeclaration decl = 
+		getBodyDeclListNoTransform().getChildNoTransform(0).createStaticForDeclarationFrom(getIteratorDecl());
 	    decl.setStart(start);
 	    decl.setEnd(end);
 	    return (ASTNode) decl;
@@ -73,7 +76,11 @@ aspect StaticFor {
 	return new StaticForConstructorDecl(getModifiers(), getID(), getParameterList(), getExceptionList(), getConstructorInvocationOpt(), getBlock(), id, new List());
     }
     public StaticForDeclaration MethodDecl.createStaticForDeclarationFrom(IteratorDecl id) {
-	return new StaticForMethodDecl(getModifiers(), getTypeAccess(), getID(), getParameterList(), getExceptionList(), getBlockOpt(), id, new List(), new List());
+	return new StaticForMethodDecl(getModifiers(), 
+				       getTypeAccess(), getID(), 
+				       getParameterList(),
+				       getExceptionList(),
+				       getBlockOpt(), id, new List(), new List());
     }
     public StaticForDeclaration FieldDeclaration.createStaticForDeclarationFrom(IteratorDecl id) {
 	return new StaticForFieldDeclaration(getModifiers(), getTypeAccess(), getID(), getInitOpt(), id, new List());

@@ -49,7 +49,8 @@ aspect BytecodeDescriptor {
 	if ( d != null ) 
 	    itDecl = new IteratorDecl(d.patternTypeParameters(), 
 				      d.patternNameParameters(), 
-				      d.pattern(), d.nestedPatterns());
+				      d.pattern(), d.nestedPatterns(),
+				      new List());
 	
       FieldDeclaration f;
       if((flags & Flags.ACC_ENUM) != 0)
@@ -106,10 +107,22 @@ aspect BytecodeDescriptor {
       //String[] strings = descriptor.substring(1).split("\\)");
       //parameterDescriptors = strings[0];
       //typeDescriptor = strings[1];
+      /* Replace diwth method parseDescriptor
       int pos = descriptor.indexOf(')');
       parameterDescriptors = descriptor.substring(1, pos);
       typeDescriptor = descriptor.substring(pos+1, descriptor.length());
+      */
+      parseDescriptor(descriptor);
     }
+      public MethodDescriptor(String descriptor) {
+	  parseDescriptor(descriptor);
+      }
+      
+      public void parseDescriptor(String descriptor) {
+	  int pos = descriptor.indexOf(')');
+	  parameterDescriptors = descriptor.substring(1, pos);
+	  typeDescriptor = descriptor.substring(pos+1, descriptor.length());	  
+      }
 
     public List parameterList() {
       TypeDescriptor d = new TypeDescriptor(p, parameterDescriptors);
@@ -157,7 +170,7 @@ aspect BytecodeDescriptor {
       // -- Added for MJFrontend -- ssh
       Signatures.IteratorDeclSignature d = attributes.iteratorSignature;
       IteratorDecl itDecl = null;
-      if ( d != null ) itDecl = new IteratorDecl(d.patternTypeParameters(), d.patternNameParameters(), d.pattern(), d.nestedPatterns());
+      if ( d != null ) itDecl = new IteratorDecl(d.patternTypeParameters(), d.patternNameParameters(), d.pattern(), d.nestedPatterns(), new List());
       // --------------------------------
 
       Access returnType = (s != null && s.hasReturnType()) ? s.returnType() : methodDescriptor.type();
@@ -252,12 +265,16 @@ aspect BytecodeDescriptor {
   }
 
   class TypeDescriptor {
-    private BytecodeParser p;
+      //    private BytecodeParser p;
     private String descriptor;
     public TypeDescriptor(BytecodeParser parser, String descriptor) {
-      p = parser;
+	//      p = parser;
       this.descriptor = descriptor;
     }
+
+      public TypeDescriptor(String descriptor) {
+	  this.descriptor = descriptor;
+      }
 
     public boolean isBoolean() {
       return descriptor.charAt(0) == 'Z';
@@ -287,7 +304,7 @@ aspect BytecodeDescriptor {
         case 'Z':
           return new PrimitiveTypeAccess("boolean");
         case 'L':
-          return this.p.fromClassName(s.substring(1, s.length() - 1));
+          return BytecodeParser.fromClassName(s.substring(1, s.length() - 1));
         case '[':
           return new ArrayTypeAccess(type(s.substring(1)));
         case 'V':
@@ -295,7 +312,7 @@ aspect BytecodeDescriptor {
       case 'T':
 	  return new TypeAccess(s.substring(1, s.length() - 1));
         default:
-          this.p.println("Error: unknown type in TypeDescriptor");
+	 BytecodeParser.println("Error: unknown type in TypeDescriptor");
           throw new Error("Error: unknown Type in TypeDescriptor: " + s);
       }
       //return null;
@@ -360,7 +377,7 @@ aspect BytecodeDescriptor {
           String s1 = s.substring(1, pos);
           String s2 = s.substring(pos+1, s.length());
           l.add(new ParameterDeclaration(new Modifiers(),
-                this.p.fromClassName(s1),
+                BytecodeParser.fromClassName(s1),
                 "p" + l.getNumChildNoTransform()));
           return s2;
       case 'T':
@@ -380,7 +397,7 @@ aspect BytecodeDescriptor {
           l.add(new ParameterDeclaration(new Modifiers(), top, "p" + l.getNumChild()));
           return arrayTypeList(s.substring(i), bottom);
         default:
-          this.p.println("Error: unknown Type \"" + c + "\" in TypeDescriptor");
+          BytecodeParser.println("Error: unknown Type \"" + c + "\" in TypeDescriptor");
           throw new Error("Error: unknown Type in TypeDescriptor: " + s);
       }
       //return "";
@@ -421,10 +438,10 @@ aspect BytecodeDescriptor {
           int pos = s.indexOf(';');
           String s1 = s.substring(1, pos);
           String s2 = s.substring(pos+1, s.length());
-          typeAccess.setAccess(this.p.fromClassName(s1));
+          typeAccess.setAccess(BytecodeParser.fromClassName(s1));
           return s2;
         default:
-          this.p.println("Error: unknown Type in TypeDescriptor");
+	    BytecodeParser.println("Error: unknown Type in TypeDescriptor");
           throw new Error("Error: unknown Type in TypeDescriptor: " + s);
       }
       //return null;

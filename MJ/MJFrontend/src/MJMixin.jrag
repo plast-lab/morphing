@@ -18,7 +18,7 @@ aspect MJMixin {
 	  set.addAll(superclass().implementedInterfaces());
       for(Iterator iter = interfacesIterator(); iter.hasNext(); ) {
 	  TypeDecl decl = (TypeDecl)iter.next();
-	  if ( decl.isTypeVariable()) {
+	  if ( decl instanceof TypeVariable ) { //.isTypeVariable()) {
 	      TypeVariable tv = (TypeVariable) decl;
 	      for ( int i=0; i<tv.getNumTypeBound(); i++) 
 		  set.addAll(tv.getTypeBound(i).type().implementedInterfaces());
@@ -35,7 +35,7 @@ aspect MJMixin {
 
 	for(Iterator iter = superinterfacesIterator(); iter.hasNext(); ) {
 	    TypeDecl decl = (TypeDecl)iter.next();
-	    if ( decl.isTypeVariable()) {
+	    if ( decl instanceof TypeVariable ) { //.isTypeVariable()) {
 		TypeVariable tv = (TypeVariable) decl;
 		for ( int i=0; i<tv.getNumTypeBound(); i++) 
 		    set.addAll(tv.getTypeBound(i).type().implementedInterfaces());
@@ -49,15 +49,19 @@ aspect MJMixin {
 
     syn lazy boolean TypeDecl.isMixin () = false;
     eq GenericClassDecl.isMixin() {
-	if ( hasSuperclass() && superclass().isTypeVariable()) return true;
+	if ( hasSuperclass() && 
+	     superclass() instanceof TypeVariable ) //.isTypeVariable()) 
+	    return true;
 	for (Iterator ifIt = interfacesIterator(); ifIt.hasNext(); ) {
-	    if ( ((TypeDecl)ifIt.next()).isTypeVariable()) return true;
+	    //	    if ( ((TypeDecl)ifIt.next()).isTypeVariable()) return true;
+	    if ( ifIt.next() instanceof TypeVariable ) return true;
 	}
 	return false;
     }
     eq GenericInterfaceDecl.isMixin() {
 	for (Iterator ifIt = superinterfacesIterator(); ifIt.hasNext(); ) {
-	    if ( ((TypeDecl) ifIt.next()).isTypeVariable()) return true;
+	    if ( ifIt.next() instanceof TypeVariable ) return true;
+	    //	    if ( ((TypeDecl) ifIt.next()).isTypeVariable()) return true;
 	}
 	return false;
     }
