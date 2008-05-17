@@ -150,7 +150,7 @@ aspect MJTypeCheckCore {
 		// clear uniMap first.
 		uniMap = (Map) possOverrides.get(m);
 	    } else {
-		Collection possOverrides = m.hostType().lookupMethod(getID());
+		Collection possOverrides = m.hostType().memberMethods(getID());
 		// is m one of the possible override methods?
 		boolean possOv = false;
 		for ( Iterator ovIt = possOverrides.iterator(); 
@@ -490,9 +490,62 @@ aspect MJTypeCheckCore {
     syn lazy boolean Pattern.subsumedByFieldPattern(FieldPattern p, Map uniMap) = false;
     eq FieldPattern.subsumedByFieldPattern(FieldPattern p, Map uniMap) {
 	if ( this == p ) return true;
-	// this's base type must be a supertype of p's base type.
-	if ( !p.reflectiveBaseType().subtype(reflectiveBaseType()))
+
+	if ( !p.reflectiveBaseType().subtype(reflectiveBaseType())) {
+	    /* Doesn't really work without full normalization of all
+	       ranges.
+	    // we can deconstruct this pattern to be a union of patterns,
+	    // matching each field in its base type.
+	    // This is only possible if pRefBase is not a type variable.
+	    TypeDecl pRefBase = this.reflectiveBaseType();
+	    if ( pRefBase instanceof TypeVariable )
+		return false;
+	    
+	    // F1 U F2 U ... Fn
+	    // if Fi can be matched by pattern, Fi << this
+	    // and Fi[this] << p, wher Fi[this] is Fi with substitution from Fi << this applied.
+	    // then the part Fi is subsumed by p.
+	    // Fi for all i needs to be subsumed by p.
+ 	    Collection refFields = pRefBase.bcFields();
+	    for( Iterator rfIt = refFields.iterator(); rfIt.hasNext(); ) {
+		FieldDeclaration fd = (FieldDeclaration) rfIt.next();
+		HashMap map = new HashMap();
+
+		// Want: this << p
+		// If this << fd, and fd << p , then  this << p
+		// first apply reverse of map to fd.
+		if ( this.subsumesFieldDeclaration(fd, map)) {
+
+		    HashMap rMap = new HashMap();
+		    for ( Iterator mkIt = map.keySet().iterator(); mkIt.hasNext(); ) {
+			PatternVariable tv = (PatternVariable) mkIt.next();
+		    	Object mapped = map.get(tv);
+			if ( mapped instanceof PatternVariable )
+			    rMap.put(mapped, tv);
+			else if ( mapped instanceof Identifier ) {
+			    Identifier id = (Identifier) mapped;
+			    if ( id.isPureNameVariable())
+				rMap.put(id.namevariable, 
+					 new Identifier((PatternNameVariable) tv));
+			}
+		    }			    
+		    
+		    if ( fd instanceof StaticForFieldDeclaration ) {
+			StaticForFieldDeclaration sfd = (StaticForFieldDeclaration) fd;
+			StaticForFieldDeclarationSubstituted ssfd = sfd.substitute(rMap);
+			if ( sfd.isSubsumedBy(p, (HashMap) uniMap)) {
+			    // found it.
+			    return true;
+			}
+		    } else {
+			if ( fd.isSubsumedBy(p, (HashMap) uniMap ))
+			    return true;
+		    }
+		}
+	    }
+	    */
 	    return false;
+	}
 
 	PatternFieldDeclaration thisFd = this.patternFieldDeclaration();
 	PatternFieldDeclaration pFd = p.patternFieldDeclaration();
@@ -601,9 +654,23 @@ aspect MJTypeCheckCore {
 		}
 	    }
 	}
+
+	// If the generic class must be expanded, then the type parameter used
+	// to parameterize it cannot be an inferred method type variable.
+	if ( td.needsExpansion()) {
+	    for ( int i=0; i<getNumTypeArgument(); i++) {
+		if ( getTypeArgument(i).type().isTypeVariable() &&
+		     boundByMethod((TypeVariable)getTypeArgument(i).type())) {
+		    error("Cannot use inferred method type parameters to instantiate a generic type that needs expansion. This feature will be supported in the next version.");
+		}
+	    }
+	}
     }
 
-    public void TypeAccess.typeCheck() {
+    //    public void TypeAccess.typeCheck() {
+    refine Generics public void TypeAccess.typeCheck() {
+	Generics.TypeAccess.typeCheck();
+
 	TypeDecl t = type();
 	// Some types cannot be accessed as raw. But only report this
 	// as an error if this is not a child of an import statement.
@@ -627,4 +694,9 @@ aspect MJTypeCheckCore {
 	}
 	return false;
     }
+
+    public void PatternMethodDecl.collectErrors() {}
+    public void PatternFieldDeclaration.collectErrors() {}
+    public void StaticForMethodDeclSubstituted.collectErrors(){}
+
 }

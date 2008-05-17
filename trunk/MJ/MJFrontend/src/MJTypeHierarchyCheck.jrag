@@ -52,7 +52,6 @@ aspect MJTypeHierarchyCheck {
 	    set.add(decl);
 	}
 
-
 	// When a type variable is used as a superclass or an interface,
 	// the only way to make sure that its methods do not conflict with
 	// the methods of another superclass/interface is to make sure
@@ -62,6 +61,7 @@ aspect MJTypeHierarchyCheck {
 	// - if one of the interfaces is a type variable, the only other 
 	//   interfaces must be bounds of that type variable, and there may
 	//   not be a superclass.
+	/*
 	if ( hasSuperClassAccess() && superclass().isTypeVariable()) {
 	    for ( int i=0; i<getNumImplements(); i++) {
 		if ( !superclass().subtype(getImplements(i).type()))
@@ -80,7 +80,8 @@ aspect MJTypeHierarchyCheck {
 		}
 	    }
 	}
-	
+	*/
+
 	checkInterfaceImplementation();
     }
 

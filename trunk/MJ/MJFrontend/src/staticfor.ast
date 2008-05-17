@@ -29,7 +29,7 @@ StaticForStmt : Stmt ::= IteratorDecl Stmt* SubstitutedStaticForStmt*;
 SubstitutedStaticForStmt : StaticForStmt;
 //ExpandedStaticForStmt : Stmt;
 
-IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern:Pattern*;
+IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern:Pattern* ParIteratorDecl*;
 ParIteratorDecl : IteratorDecl;
 
 Pattern ::= BaseSet;

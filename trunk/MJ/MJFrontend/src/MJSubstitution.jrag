@@ -16,27 +16,59 @@ aspect MJSubstitution {
 		 ((StaticForMethodDeclSubstituted) b).original == this)
 		return b;
 	}
+
+	ParIteratorDecl pId = getIteratorDecl().substitute(parTypeDecl);
+
+	StaticForMethodDeclSubstituted m = new StaticForMethodDeclSubstituted();
+	((TypeDecl)parTypeDecl).addBodyDecl(m);
+
+	m.setModifiers((Modifiers)getModifiers().fullCopy());
+	m.setID(getID());
+	m.setIteratorDecl(pId);
 	
+	// substitute return types, parameters, exceptions with parTypeDecl.
+	Access retType = getTypeAccess().type().substituteReturnType(pId);
+	List pList = getParameterList().substitute(pId);
+	List eList = getExceptionList().substitute(pId);
+
+	m.setTypeAccess(retType);
+	m.setParameterList(pList);
+	m.setExceptionList(eList);
+
+	    /*
+	ParIteratorDecl pId = getIteratorDecl().substitute(parTypeDecl);
+	
+	StaticForMethodDeclSubstituted m = 
+	    new StaticForMethodDeclSubstituted((Modifiers)getModifiers().fullCopy(), 
+					       getTypeAccess().type().substituteReturnType(pId),
+					       getID(),
+					       // TODO: this list needs to be substituted with whatever IteratorDecl's substitutions are.
+					       getParameterList().substitute(pId),
+					       getExceptionList().substitute(pId),
+					       new Opt(),
+					       pId,
+					       new List(), new List());
+	((TypeDecl)parTypeDecl).addBodyDecl(m);
+
+	// substitute return types, parameters, exceptions with parTypeDecl.
+	Access retType = m.getTypeAccess().type().substituteReturnType(parTypeDecl);
+	List pList = m.getParameterList().substitute(parTypeDecl);
+	List eList = m.getExceptionList().substitute(parTypeDecl);
+
+	m.setTypeAccess(retType);
+	m.setParameterList(pList);
+	m.setExceptionList(eList);
+	    */
+
 	// TODO: this is not good enough for generic methods.
 	// Might need a StaticForGenericMethodDecl...
 	// What I really need is for StaticForMethodDecl to be a proxy for
 	// the underlying MethodDecl. But it is simply too hard to duplicate
 	// all the functionalities in MethodDecl.
 	// May be a nice functionality for JastAdd.
-	StaticForMethodDeclSubstituted m = 
-	    new StaticForMethodDeclSubstituted((Modifiers)getModifiers().fullCopy(), 
-					       getTypeAccess().type().substituteReturnType(parTypeDecl),
-					       getID(),
-					       // TODO: this list needs to be substituted with whatever IteratorDecl's substitutions are.
-					       getParameterList().substitute(parTypeDecl),
-					       getExceptionList().substitute(parTypeDecl),
-					       new Opt(),
-					       getIteratorDecl().substitute(parTypeDecl),
-					       new List(), new List());
 
 	m.original = this;
 	m.is$Final = true;
-	((TypeDecl)parTypeDecl).addBodyDecl(m);
 
 	return m;
     }
@@ -81,6 +113,12 @@ aspect MJSubstitution {
 	    identifier().substitutedNameVariable(substitutions);
 
 	return m;
+    }
+
+    public StaticForMethodDeclSubstituted StaticForMethodDeclSubstituted.substitute(Map substitutions) {
+	if ( substitutions.isEmpty())
+	    return this;
+	return super.substitute(substitutions);
     }
 
     public StaticForFieldDeclarationSubstituted StaticForFieldDeclaration.substitute(Map substitutions) {
@@ -163,7 +201,7 @@ aspect MJSubstitution {
 	return pid;
     }
 
-    public IteratorDecl IteratorDecl.substitute(ParTypeDecl parTypeDecl) {
+    public ParIteratorDecl IteratorDecl.substitute(ParTypeDecl parTypeDecl) {
 	ParIteratorDecl pid = new ParIteratorDecl();
 
 	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
@@ -187,6 +225,19 @@ aspect MJSubstitution {
 	
 	pid.original = this;
 	return pid;
+    }
+
+    public ParIteratorDecl IteratorDecl.lookupParIteratorDecl(ParTypeDecl parTypeDecl) {
+	for ( int i=0; i<getNumParIteratorDecl(); i++) {
+	    ParIteratorDecl p = getParIteratorDecl(i);
+	    if ( p.original == parTypeDecl )
+		return p;
+	}
+
+	// not found. make another one.
+	ParIteratorDecl p = (ParIteratorDecl) substitute(parTypeDecl);
+	addParIteratorDecl(p);
+	return p;
     }
     
     syn lazy TypeDecl PatternTypeVariable.substitute(ParTypeDecl parTypeDecl) {

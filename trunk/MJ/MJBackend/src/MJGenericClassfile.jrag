@@ -105,9 +105,23 @@ aspect MJGenerateClassfile {
 		}
 	    }
 
-	    String gtSource = gt.compilationUnit().fromSource() ? 
-		gt.destinationPath() + File.separator + gt.constantPoolName() + ".class"
-		: gt.destinationPath();
+	    // TODO: fix JastAddJ PathPart.getCompilationUnit()
+	    // inner class overrides the pathname of the outerclass.
+	    /*
+	      String gtSource = gt.compilationUnit().fromSource() ? 
+	      gt.destinationPath() + File.separator + gt.constantPoolName() + ".class"
+	      : gt.destinationPath();
+	    */
+
+	    String gtSource = null;
+	    if ( gt.compilationUnit().fromSource() ) 
+		gtSource = gt.destinationPath() + File.separator + gt.constantPoolName() + ".class";
+	    else {
+		String relativeName = gt.fullName().replace(".", File.separator);
+		String destPath = gt.destinationPath();
+		int i = destPath.indexOf(relativeName);
+		gtSource = destPath.substring(0, i) + relativeName + ".class";
+	    }
 
 	    String outFileName = sourceFile();
 
@@ -139,6 +153,16 @@ aspect MJGenerateClassfile {
 	    DataOutputStream out = new DataOutputStream(new BufferedOutputStream(f));
 	    
 	    out.write(cw.toByteArray());
+	    
+	    // bytecode verifier.
+	    if ( Program.verbose()) {
+		try {
+		    ClassReader verifyReader = new ClassReader(cw.toByteArray());
+		    org.objectweb.asm.util.CheckClassAdapter.verify(verifyReader, false, new PrintWriter(System.err));
+		} catch (Throwable e) {
+		    System.err.println("Exception when verifying bytecode: " + e.getMessage());
+		}
+	    }
 
 	    out.close();
 	    fis.close();
@@ -196,27 +220,17 @@ aspect MJGenerateClassfile {
 	if ( typeDecl == null ) 
 	    typeDecl = decl().hostType();
 
+	/* TODO: i think this causes problems.
 	TypeDecl hostType = hostType();
 	while ( hostType.isInnerType()) 
 	    hostType = hostType.hostType();
-	
+	*/
+
 	if ( typeDecl.shouldErase())
 	    return typeDecl.erasure();
 
 	return typeDecl;
     }
-
-    syn lazy boolean TypeDecl.shouldErase() = true;
-    eq GenericTypeDecl.shouldErase() = !needsExpansion();
-    eq ParTypeDecl.shouldErase() {
-	if ( !genericDecl().shouldErase() ) return false;
-	for ( int i=0; i<getNumArgument(); i++) {
-	    if ( !getArgument(i).type().shouldErase())
-		return false;
-	}
-	return true;
-    }
-    eq TypeVariable.shouldErase() = enclosingType().shouldErase();
 
     refine GenericsCodegen public void ConstructorDeclSubstituted.emitInvokeConstructor(CodeGeneration gen) {
 	if ( hostType().shouldErase())
@@ -348,4 +362,12 @@ aspect FixJastadd {
 	return set;
     }
 
+    /*
+    refine AutoBoxing eq ReferenceType.unboxed() {
+	if ( isEnumDecl()) return typeInt();
+	return AutoBoxing.ReferenceType.unboxed();
+    }
+
+    eq EnumDecl.boxed() = this;
+    */
 }

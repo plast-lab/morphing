@@ -199,7 +199,8 @@ aspect MJASMHelper {
 		new IteratorDecl(iteratorSignature.patternTypeParameters(), 
 				 iteratorSignature.patternNameParameters(), 
 				 iteratorSignature.pattern(), 
-				 iteratorSignature.nestedPatterns());
+				 iteratorSignature.nestedPatterns(),
+				 new List());
 
 	    return new ASMIteratorDeclAttribute(itDecl, itSig);
 	}

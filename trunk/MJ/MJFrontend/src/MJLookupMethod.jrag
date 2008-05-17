@@ -40,13 +40,15 @@ aspect MJLookupMethod {
 	Set<StaticForMethodDecl> substitutedMethods = new HashSet();
 	for ( Iterator<StaticForMethodDecl> rmIt = refMethods.iterator(); rmIt.hasNext(); ) {
 	    StaticForMethodDecl md = rmIt.next();
-	    if ( md.usesTypeVariable()) {
+	    //	    if ( md.usesTypeVariable()) {
 		BodyDecl bd = md.p(this);
 		bd.is$Final = true;
 		addBodyDecl((StaticForMethodDecl)bd);
 		substitutedMethods.add((StaticForMethodDecl)bd);
+		/*
 	    } else 
 		substitutedMethods.add((StaticForMethodDecl)md);
+		*/
 	}
 	return substitutedMethods;
     }
@@ -85,8 +87,10 @@ aspect MJLookupMethod {
 	return map;
     }
 
-    refine Generics eq ParTypeDecl.localMethodsSignatureMap() {    
-	HashMap map = Generics.ParTypeDecl.localMethodsSignatureMap();
+    //    refine Generics eq ParTypeDecl.localMethodsSignatureMap() {    
+    // HashMap map = Generics.ParTypeDecl.localMethodsSignatureMap();
+    refine Generics eq MemberSubstitutor.localMethodsSignatureMap() {
+	HashMap map = Generics.MemberSubstitutor.localMethodsSignatureMap();
 	// add the ones from grounded reflective declarations.
 	Collection refMethods = reflectiveMethods();
 	for ( Iterator refIt = refMethods.iterator(); refIt.hasNext(); ) {
@@ -180,7 +184,6 @@ aspect MJLookupMethod {
 	}
 	return methods;
     }
-
     syn HashMap TypeDecl.memberMethodsAndMap(Identifier name) {
 	HashMap map = new HashMap();
 	Collection methods = memberMethods(name);
@@ -202,8 +205,9 @@ aspect MJLookupMethod {
 	    if ( md.getIteratorDecl().subsumes(name.enclosingRefIterator(), uniMap)) {
 		// 2. the name it maps to is used in declaring method.
 		//		if ( md.substitute(uniMap).getID().equals(name.substitutedName()))
-		if ( md.substitute(uniMap).identifier().equals(name))
+		if ( md.substitute(uniMap).identifier().equals(name)) {
 		    methods.put(md, uniMap);
+		}
 	    }
 	}
 	return methods;
@@ -213,20 +217,32 @@ aspect MJLookupMethod {
     syn Collection TypeDecl.memberMethods(Identifier id) = Collections.EMPTY_LIST;
     eq ClassDecl.memberMethods(Identifier id) {
 	Collection methods = new ArrayList();
-	
-	Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
-	for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
-	    StaticForMethodDecl md = refIt.next();
 
-	    // id could be a member method of this if
-	    // 1. its' enclosing iterator decl is subsumed by one of this's
-	    // method's iterator decl.
-	    HashMap uniMap = new HashMap();
-	    if ( md.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
-		// 2. the name it maps to is used in declaring method.
-		//		if ( md.substitute(uniMap).getID().equals(id.substitutedName()))
-		if ( md.substitute(uniMap).identifier().equals(id))
-		    methods.add(md);
+	IteratorDecl idecl = id.enclosingRefIterator();
+	if ( idecl.reflectiveBaseType() == this &&
+	     idecl.getPattern().isMethodPattern() &&
+	     idecl.getPattern().identifiedBy(id) )
+	    // If the name is exactly what is used to match on the outermost
+	    // reflective loop, then the method designated by the name is
+	    // exactly what is specified by the pattern.
+	    methods.add(idecl.getPattern().patternMethodDecl());
+	else {
+	    Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
+	    for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
+		StaticForMethodDecl md = refIt.next();
+		
+		// id could be a member method of this if
+		// 1. its' enclosing iterator decl is subsumed by one of this's
+		// method's iterator decl.
+		HashMap uniMap = new HashMap();
+		if ( md.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
+		    // 2. the name it maps to is used in declaring method.
+		    //		if ( md.substitute(uniMap).getID().equals(id.substitutedName()))
+		    if ( md.substitute(uniMap).identifier().equals(id)) {
+			StaticForMethodDeclSubstituted smd = md.substitute(uniMap);
+			methods.add(smd);
+		    }
+		}
 	    }
 	}
 	return methods;
