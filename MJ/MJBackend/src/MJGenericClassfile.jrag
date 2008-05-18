@@ -159,7 +159,7 @@ aspect MJGenerateClassfile {
 		try {
 		    ClassReader verifyReader = new ClassReader(cw.toByteArray());
 		    org.objectweb.asm.util.CheckClassAdapter.verify(verifyReader, false, new PrintWriter(System.err));
-		} catch (Throwable e) {
+		} catch ( Throwable e) {
 		    System.err.println("Exception when verifying bytecode: " + e.getMessage());
 		}
 	    }
