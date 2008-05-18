@@ -95,7 +95,13 @@ aspect MJIdentifier {
 
 	public Identifier substitutedIdentifier(Map uniMap) {
 	    if ( isNameVariable() && uniMap.containsKey(namevariable)) {
-		return ((Identifier) uniMap.get(namevariable)).absorbPrefix(prefix);
+		Object o = uniMap.get(namevariable);
+		while ( ! (o instanceof Identifier )) {
+		    // mapped to a variable. keep searching.
+		    o = uniMap.get(o);
+		}
+		return ((Identifier) o).absorbPrefix(prefix);		    
+		//		return ((Identifier) uniMap.get(namevariable)).absorbPrefix(prefix);
 	    }
 	    return this;
 	}

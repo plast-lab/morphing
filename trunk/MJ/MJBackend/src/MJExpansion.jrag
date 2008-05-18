@@ -276,16 +276,15 @@ aspect MJExpansion {
     }
 
     protected MemberNode MethodDecl.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
+	// if this is a bridge method, delete it.
+	if ( ( ((MethodNode) mn).access & Opcodes.ACC_BRIDGE ) != 0 ) {
+	    return null;
+	}
+
 	MethodNode newNode = NodeCopier.copyMethodNode((MethodNode)mn);
 	
 	// see if we need to change name.
 	newNode.name = getID();
-	
-	// modify descriptor;
-	newNode.desc = descName();
-	
-	// modify signature.
-	newNode.signature = null; //descName();
 	
 	// TODO: modify exceptions.
 	
@@ -340,6 +339,18 @@ aspect MJExpansion {
 	//	newNode.maxLocals = newNode.localVariables.size();
 
 	newNode.maxLocals = type().isVoid() ? insnVisitor.maxLocals : insnVisitor.maxLocals+1;
+	
+	// modify descriptor;
+	// Do not transform the descriptor and signature of synthetic methods.
+	if ( (newNode.access & Opcodes.ACC_SYNTHETIC) == 0 ) {
+	    // modify descriptor;
+	    //	    newNode.desc = descName();
+	    String newDesc = insnVisitor.retrieveMethodDesc(newNode.desc);
+	    newNode.desc = newDesc;
+	    
+	    // modify signature.
+	    newNode.signature = null; //descName();
+	}
 
 	// remove IteratorDecl attribute.
 	if ( newNode.attrs != null ) {
@@ -350,8 +361,6 @@ aspect MJExpansion {
 	}
 	return newNode;
     }
-
-
     
     protected int BodyDecl.transformOpcode(int opcode, LocalVariableNode lv) {
 	// retrieve type of local variable node
@@ -462,7 +471,8 @@ aspect MJExpansion {
 
 			MethodNode newNode = 
 			    (MethodNode) expandedMd.transformMemberNode(mn, this);
-			newMethods.add(newNode);
+			if ( newNode != null )
+			    newMethods.add(newNode);
 		    }
 		} else {
 		    // something is seriously wrong.
@@ -474,7 +484,8 @@ aspect MJExpansion {
 		BodyDecl bd = findMethod(mn);
 		if ( bd != null ){ 
 		    MethodNode newMn = (MethodNode) bd.transformMemberNode(mn, this);
-		    newMethods.add(newMn);
+		    if ( newMn != null ) 
+			newMethods.add(newMn);
 		}
 	    }
 	}

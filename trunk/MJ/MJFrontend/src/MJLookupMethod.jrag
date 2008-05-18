@@ -494,6 +494,9 @@ aspect MJLookupMethod {
 	    for ( int i=0; i<getNumPatternTypeParameter(); i++)
 		ptMap.put(((ParIteratorDecl) this).original.getPatternTypeParameter(i),
 			  getPatternTypeParameter(i));
+	    for ( int i=0; i<getNumPatternNameParameter(); i++)
+		ptMap.put(((ParIteratorDecl) this).original.getPatternNameParameter(i),
+			  getPatternNameParameter(i));
 	}
 	
 	Map refElmtsMap = new HashMap();

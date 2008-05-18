@@ -3,10 +3,10 @@ aspect MJTypeCheckCore {
     syn lazy boolean FieldDeclaration.isUniqueFrom(FieldDeclaration f) {
 	if ( this == f ) return false;
 	
-	Collection uniTypeVars = f.patternTypeVariables();
+	Collection uniTypeVars = new ArrayList(f.patternTypeVariables());
 	uniTypeVars.addAll(patternTypeVariables());
 
-	Collection uniNameVars = f.patternNameVariables();
+	Collection uniNameVars = new ArrayList(f.patternNameVariables());
 	uniNameVars.addAll(patternNameVariables());
 
 	HashMap uniMap = new HashMap();
@@ -41,11 +41,11 @@ aspect MJTypeCheckCore {
      **/
     syn lazy boolean MethodDecl.isUniqueFrom(MethodDecl m) {
 	if ( this == m) return false;
-
-	Collection uniTypeVars = m.patternTypeVariables();
+	
+	Collection uniTypeVars = new ArrayList(m.patternTypeVariables());
 	uniTypeVars.addAll(patternTypeVariables());
 
-	Collection uniNameVars = m.patternNameVariables();
+	Collection uniNameVars = new ArrayList(m.patternNameVariables());
 	uniNameVars.addAll(patternNameVariables());
 
 	HashMap uniMap = new HashMap();
@@ -133,8 +133,10 @@ aspect MJTypeCheckCore {
 	Map uniMap = new HashMap();
 	if ( !m.isSubsumedBy(getIteratorDecl(), (HashMap) uniMap)) {
 	    // fetch method named by this's name in m's host type.
-	    if ( isNameVariable(getID())) {
-		HashMap possOverrides = m.hostType().memberMethodsAndMap(getNameVariable(getID()));
+	    if ( isNameVariable(getID()) || containsNameVariable(getID())) {
+		Identifier id = new Identifier(getID(), this.getIteratorDecl());
+		//		HashMap possOverrides = m.hostType().memberMethodsAndMap(getNameVariable(getID()));
+		HashMap possOverrides = m.hostType().memberMethodsAndMap(id);
 		// is m one of the possible override methods?
 		boolean possOv = false;
 		for ( Iterator ovIt = possOverrides.keySet().iterator(); 
