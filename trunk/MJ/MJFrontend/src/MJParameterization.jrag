@@ -1,0 +1,15 @@
+aspect MJParameterization {
+    ParIteratorDecl implements Parameterization;
+
+    public boolean ParIteratorDecl.isRawType() { return false; }
+    
+    public TypeDecl ParIteratorDecl.substitute(TypeVariable typeVariable) {
+	// check whether type variable is part of the original.
+	for ( int i=0; i<original.getNumPatternTypeParameter(); i++) {
+	    if ( original.getPatternTypeParameter(i) == typeVariable )
+		// If part of the original, return the new one.
+		return getPatternTypeParameter(i);
+	}
+	return enclosingBodyDecl().hostType().substitute(typeVariable);
+    }
+}
