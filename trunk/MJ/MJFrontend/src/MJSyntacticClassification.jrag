@@ -13,4 +13,5 @@ aspect MJSyntacticClassification {
 
 
     eq BaseSet.getTypeAccess().nameType() = NameType.TYPE_NAME;
+
 }

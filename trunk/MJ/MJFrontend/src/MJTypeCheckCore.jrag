@@ -251,6 +251,7 @@ aspect MJTypeCheckCore {
 
 	return true;
     }
+
     syn lazy boolean Pattern.subsumesFieldDeclaration(FieldDeclaration fd, HashMap map) = false;
     eq FieldPattern.subsumesFieldDeclaration(FieldDeclaration fd, HashMap map) {
 	// 1, hostType of fd has to be a supertype of pattern's base type.
@@ -286,28 +287,42 @@ aspect MJTypeCheckCore {
 		// this md is in the range of the pattern,
 		// - if the pattern is a positive one, then it is satisfied.
 		// - if the pattern is negative, then it is definitely not sat.
-		return isPositiveCondition();
-	    } else if ( !isPositiveCondition() && !md.isUniqueFrom(nmd))
-		// if the pattern is negative and the method is
-		// not definitely unique from the pattern, 
-		// then the condition is not satisfied.
-		return false;
-	    /*
-	    if ( md.canUnifySignature(pmd, uniMap, 
-				      patternTypeVariables(),
-				      patternNameVariables()) &&
-		 md.type().unifiesWith(pmd.type(),
-				       uniMap,patternTypeVariables()) &&
-		 pmd.getModifiers().unifiesWith(md.getModifiers()))
-		matched++;
-	    */
-
+		if ( getIsPositive()) {
+		    if ( getIsErrorCondition()) {
+			// error! 
+			error("Error condition " + 
+			      this.toString() + " is violated by " +
+			      this.enclosingBodyDecl().hostType().toString());
+			return false;
+		    } return true;
+		} return false;
+	    } else {
+		if ( !isPositiveCondition() && !md.isUniqueFrom(nmd)) {
+		    if ( getIsErrorCondition()) {
+			// this is an error some ... condition.
+			// if md is not definitely unique from this,
+			// then there's the possibilty there is some such 
+			// field.
+			error("Error condition " + this.toString() +
+			      " is violated by " + this.enclosingBodyDecl().hostType().toString());
+		    }
+		    // if the pattern is negative and the method is
+		    // not definitely unique from the pattern, 
+		    // then the condition is not satisfied.
+		    return false;
+		}
+	    }
 	}
-	/*
-	return (getIsPositive() && matched > 0) ||
-	    (!getIsPositive() && matched == 0 );
-	*/
-	return !getIsPositive();
+
+	if ( getIsErrorCondition() && !getIsPositive()) {
+	    // this is : error no ... 
+	    // If we have not found a method that fits the pattern,
+	    // then this is an error condition.
+	    error("Error condition " + this.toString() +
+		  " is violated by " + this.enclosingBodyDecl().hostType().toString());
+	}
+
+	return !isPositiveCondition();
     }
     eq NestedFieldPattern.satisfiedBy(Map uniMap) {
 	NestedFieldPattern subed = substitute(uniMap);
@@ -318,16 +333,52 @@ aspect MJTypeCheckCore {
 	for ( Iterator fIt = fields.iterator(); fIt.hasNext(); ) {
 	    FieldDeclaration fd = (FieldDeclaration) fIt.next();
 	    if ( fd.isSubsumedBy(subed, (HashMap) uniMap)) {
-		return isPositiveCondition();
-	    } else if (!isPositiveCondition() &&
+		//		return isPositiveCondition();
+		if ( getIsPositive()) {
+		    if ( getIsErrorCondition()) {
+			// error! 
+			error("Error condition " + 
+			      this.toString() + " is violated by " +
+			      this.enclosingBodyDecl().hostType().toString());
+			return false;
+		    } return true;
+		} return false;
+	    } /*else if (!isPositiveCondition() &&
 			// if condition is negative and fd is not absolutely
 			// excluded by the pattern, then return false.
 			!fd.isUniqueFrom(subed.patternFieldDeclaration()))
 		return false;
+	      */
+	    else {
+		if ( !isPositiveCondition() && !fd.isUniqueFrom(pfd)) {
+		    if ( getIsErrorCondition()) {
+			// this is an error some ... condition.
+			// if md is not definitely unique from this,
+			// then there's the possibilty there is some such 
+			// field.
+			error("Error condition " + this.toString() +
+			      " is violated by " + this.enclosingBodyDecl().hostType().toString());
+		    }
+		    // if the pattern is negative and the method is
+		    // not definitely unique from the pattern, 
+		    // then the condition is not satisfied.
+		    return false;
+		}
+	    }
 	}
 
 	// if we're here, if it's a negative pattern, this return true;
-	return !isPositive();
+	//	return !isPositive();
+
+	if ( getIsErrorCondition() && !getIsPositive()) {
+	    // this is : error no ... 
+	    // If we have not found a method that fits the pattern,
+	    // then this is an error condition.
+	    error("Error condition " + this.toString() +
+		  " is violated by " + this.enclosingBodyDecl().hostType().toString());
+	}
+
+	return !isPositiveCondition();
     }
 
     eq TrueNestedPattern.satisfiedBy(Map uniMap) = true;
@@ -466,6 +517,19 @@ aspect MJTypeCheckCore {
 	    return subsumes(p, uniMap);
     }
     eq TrueNestedPattern.implies(Pattern p, Map uniMap) = true;
+    
+    // Error conditions can be considered True conditions.
+    // If they are not true, it is caught at expansion time.
+    eq NestedFieldPattern.implies(Pattern p, Map uniMap) {
+	if ( getIsErrorCondition())
+	    return true;
+	return super.implies(p, uniMap);
+    }
+    eq NestedMethodPattern.implies(Pattern p, Map uniMap) {
+	if ( getIsErrorCondition())
+	    return true;
+	return super.implies(p, uniMap);
+    }
 
     syn lazy Pattern Pattern.difference(Pattern p, Map uniMap) {
 	if ( isPositive() && p.subsumes(this, uniMap) ||
@@ -486,8 +550,20 @@ aspect MJTypeCheckCore {
     }
 
     syn lazy boolean Pattern.subsumes(Pattern p, Map uniMap) = false;
+    eq EmptyPrimaryPattern.subsumes(Pattern p, Map uniMap) = true;
     eq MethodPattern.subsumes(Pattern p, Map uniMap) = p.subsumedByMethodPattern(this, uniMap);
     eq FieldPattern.subsumes(Pattern p, Map uniMap) = p.subsumedByFieldPattern(this, uniMap);
+
+    // error nested conditions are always subsumed.
+    eq NestedFieldPattern.subsumedByFieldPattern(FieldPattern p, Map uniMap) {
+	if ( getIsErrorCondition())
+	    return true;
+	return super.subsumedByFieldPattern(p, uniMap);
+    }
+    eq NestedMethodPattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) {
+	if ( getIsErrorCondition()) return true;
+	return super.subsumedByMethodPattern(p, uniMap);
+    }
 
     syn lazy boolean Pattern.subsumedByFieldPattern(FieldPattern p, Map uniMap) = false;
     eq FieldPattern.subsumedByFieldPattern(FieldPattern p, Map uniMap) {
@@ -639,21 +715,19 @@ aspect MJTypeCheckCore {
 	// Check that types used for instantiation conforms to 
 	// interface/class requirement.
 	TypeDecl td = genericDecl();
-	if ( td instanceof GenericTypeDecl ) {
-	    GenericTypeDecl decl = (GenericTypeDecl) td;
-	    for ( int i=0; i<getNumTypeArgument(); i++) {
-		TypeVariable tv = ((GenericTypeDecl) decl.original()).getTypeParameter(i);
-		if (tv.isConstrainedTypeVariable()) {
-		    if ( tv.mustbeClass() &&
-			 (getTypeArgument(i).type().isTypeVariable() ? 
-			  !((TypeVariable) getTypeArgument(i).type()).mustbeClass() : 
-			  !getTypeArgument(i).type().isClassDecl()))
-			error("type argument " + i + " is not a class.");
-		    if ( tv.mustbeInterface() &&
-			 (getTypeArgument(i).type().isTypeVariable() ?
-			  !((TypeVariable) getTypeArgument(i).type()).mustbeInterface() : !getTypeArgument(i).type().isInterfaceDecl()))
-			error("type argument " + i + " is not an interface.");
-		}
+	GenericTypeDecl gDecl = (GenericTypeDecl) td;
+	for ( int i=0; i<getNumTypeArgument(); i++) {
+	    TypeVariable tv = ((GenericTypeDecl) gDecl.original()).getTypeParameter(i);
+	    if (tv.isConstrainedTypeVariable()) {
+		if ( tv.mustbeClass() &&
+		     (getTypeArgument(i).type().isTypeVariable() ? 
+		      !((TypeVariable) getTypeArgument(i).type()).mustbeClass() : 
+		      !getTypeArgument(i).type().isClassDecl()))
+		    error("type argument " + i + " is not a class.");
+		if ( tv.mustbeInterface() &&
+		     (getTypeArgument(i).type().isTypeVariable() ?
+		      !((TypeVariable) getTypeArgument(i).type()).mustbeInterface() : !getTypeArgument(i).type().isInterfaceDecl()))
+		    error("type argument " + i + " is not an interface.");
 	    }
 	}
 
@@ -666,6 +740,24 @@ aspect MJTypeCheckCore {
 		    error("Cannot use inferred method type parameters to instantiate a generic type that needs expansion. This feature will be supported in the next version.");
 		}
 	    }
+	}
+
+	// check that the parameterization does not violate any errorif 
+	// conditions.
+	TypeDecl ptd = type();
+	Collection<StaticForFieldDeclaration> sfields = ptd.reflectiveFields();
+	for ( StaticForFieldDeclaration sfd : sfields ) {
+	    IteratorDecl id = sfd.getIteratorDecl();
+	    if ( id.expandable())
+		// invoking this causes appropriate error msgs to be generated.
+		id.reflectiveElmts();
+	}
+
+	Collection<StaticForMethodDecl> smethods = ptd.reflectiveMethods();
+	for ( StaticForMethodDecl smd : smethods ) {
+	    IteratorDecl id = smd.getIteratorDecl();
+	    if ( id.expandable())
+		id.reflectiveElmts();
 	}
     }
 

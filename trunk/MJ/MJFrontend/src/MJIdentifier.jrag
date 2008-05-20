@@ -1,30 +1,41 @@
 aspect MJIdentifier {
 
+    syn lazy Identifier Variable.identifier();
+    //	return new Identifier(name(), IteratorDecl.TrueIteratorDecl); 
+
     // Identifier representation of field, method, and variable names.
-    syn lazy Identifier FieldDeclaration.identifier() = 
-	new Identifier(getID(), null);
+    eq FieldDeclaration.identifier() = 
+	new Identifier(getID(), IteratorDecl.TrueIteratorDecl);
     eq StaticForFieldDeclaration.identifier() = new Identifier(getID(), refIterator());
 
     inh Identifier PatternFieldDeclaration.identifier();
     eq FieldPattern.getPatternFieldDeclaration().identifier() = identifier();
 
-    syn lazy Identifier MethodDecl.identifier() = new Identifier(getID(), null);
+    syn lazy Identifier MethodDecl.identifier() = 
+	new Identifier(getID(), IteratorDecl.TrueIteratorDecl);
     eq StaticForMethodDecl.identifier() = new Identifier(getID(), refIterator());
 
     inh Identifier PatternMethodDecl.identifier();
     eq MethodPattern.getPatternMethodDecl().identifier() = identifier();
     eq Program.getChild(int i).identifier() { return null; }
 
-    syn lazy Identifier VariableDeclaration.identifier() =
-	new Identifier(getID(),
-		       refIterator() == null ? enclosingRefIterator() : refIterator());
+    eq VariableDeclaration.identifier() {
+	IteratorDecl id = refIterator();
+	if ( id == null ) id = enclosingRefIterator();
+	if ( id == null ) id = IteratorDecl.TrueIteratorDecl;
 
+	return new Identifier(getID(), id);
+    }
+    
     syn lazy Identifier Pattern.identifier() = null;
     syn lazy Identifier FieldPattern.identifier() = new Identifier(getID(), enclosingRefIterator());
     syn lazy Identifier MethodPattern.identifier() = new Identifier(getID(), enclosingRefIterator());
     
-    syn lazy Identifier ParameterDeclaration.identifier() = new Identifier(getID(), enclosingRefIterator());
-    
+    eq ParameterDeclaration.identifier() {
+	IteratorDecl id = enclosingRefIterator();
+	if ( id == null ) id = IteratorDecl.TrueIteratorDecl;
+	return new Identifier(getID(), id);
+    }
 
     public class Identifier {
 	public String prefix;

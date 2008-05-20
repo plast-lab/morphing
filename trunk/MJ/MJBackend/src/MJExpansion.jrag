@@ -1,5 +1,4 @@
 aspect MJExpansion {
-
     protected void ParClassDecl.expand(ClassNode cn) {
 	// change name
 	cn.name = expandedConstantPoolName();
@@ -339,18 +338,8 @@ aspect MJExpansion {
 	//	newNode.maxLocals = newNode.localVariables.size();
 
 	newNode.maxLocals = type().isVoid() ? insnVisitor.maxLocals : insnVisitor.maxLocals+1;
-	
-	// modify descriptor;
-	// Do not transform the descriptor and signature of synthetic methods.
-	if ( (newNode.access & Opcodes.ACC_SYNTHETIC) == 0 ) {
-	    // modify descriptor;
-	    //	    newNode.desc = descName();
-	    String newDesc = insnVisitor.retrieveMethodDesc(newNode.desc);
-	    newNode.desc = newDesc;
-	    
-	    // modify signature.
-	    newNode.signature = null; //descName();
-	}
+
+	transformDescriptor(newNode, insnVisitor);
 
 	// remove IteratorDecl attribute.
 	if ( newNode.attrs != null ) {
@@ -360,6 +349,22 @@ aspect MJExpansion {
 	    }
 	}
 	return newNode;
+    }
+
+    protected void MethodDecl.transformDescriptor(MethodNode newNode,
+						  InsnTransformVisitor insnVisitor) {
+	// modify descriptor;
+	//	    newNode.desc = descName();
+	String newDesc = insnVisitor.retrieveMethodDesc(newNode.desc);
+	newNode.desc = newDesc;
+	
+	// modify signature.
+	newNode.signature = null; //descName();    
+    }
+    
+    protected void BridgeMethodDecl.transformDescriptor(MethodNode newNode,
+							InsnTransformVisitor insnVisitor) {
+	// Do not transform descriptor of bridge methods.
     }
     
     protected int BodyDecl.transformOpcode(int opcode, LocalVariableNode lv) {
@@ -419,7 +424,8 @@ aspect MJExpansion {
 		StaticForFieldDeclaration fd = genericDecl().reflectiveField(fn);
 		if ( fd != null ) {
 		    StaticForFieldDeclarationSubstituted parfd = 
-			(StaticForFieldDeclarationSubstituted) fd.p(this);
+			(StaticForFieldDeclarationSubstituted) fd.findSubstitutedFieldDeclaration(this);
+		    //			(StaticForFieldDeclarationSubstituted) fd.p(this);
 		    List expandedFields = parfd.expandedFields();
 		    for ( int i=0; i<expandedFields.getNumChild(); i++) {
 			FieldDeclaration expandedFd =
@@ -462,7 +468,8 @@ aspect MJExpansion {
 		
 		if ( md != null ) {
 		    StaticForMethodDeclSubstituted subMd = 
-			(StaticForMethodDeclSubstituted) md.p(this);
+			(StaticForMethodDeclSubstituted) md.findSubstitutedMethodDecl(this);
+			//			(StaticForMethodDeclSubstituted) md.p(this);
 		    List expandedMethods = subMd.expandedMethods();
 
 		    for ( int i=0; i<expandedMethods.getNumChild(); i++) {

@@ -224,6 +224,8 @@ aspect MJAttributes {
     }
     eq NestedMethodPattern.signature() {
 	StringBuffer buf = new StringBuffer();
+	if ( getIsErrorCondition()) buf.append("error");
+
 	if ( getIsPositive()) buf.append("+");
 	else buf.append("-");
 	buf.append(super.signature());
@@ -231,6 +233,8 @@ aspect MJAttributes {
     }
     eq NestedFieldPattern.signature() {
 	StringBuffer buf = new StringBuffer();
+	if ( getIsErrorCondition()) buf.append("error");
+
 	if ( getIsPositive()) buf.append("+");
 	else buf.append("-");
 	buf.append(super.signature());

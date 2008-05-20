@@ -170,6 +170,9 @@ aspect MJPrettyPrint {
 	buf.append(";");
     }
     public void NestedMethodPattern.toString(StringBuffer buf) {
+	if ( getIsErrorCondition())
+	    buf.append("error ");
+
 	if ( getIsPositive()) buf.append("some ");
 	else buf.append("no ");
 
@@ -217,6 +220,9 @@ aspect MJPrettyPrint {
 	buf.append(";");
     }
     public void NestedFieldPattern.toString(StringBuffer buf) {
+	if ( getIsErrorCondition())
+	    buf.append("error ");
+
 	if ( getIsPositive()) buf.append("some ");
 	else buf.append("no ");
 

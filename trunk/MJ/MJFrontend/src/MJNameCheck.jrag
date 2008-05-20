@@ -129,9 +129,9 @@ aspect MJNameCheck {
 	    if ( this.isUniqueFrom(field)) {
 		error("field \n" + 
 		      "       " + infoSignature() + 
-		      "\n    conflicts with field \n" + 
+		      "    conflicts with field \n" + 
 		      "       " + field.infoSignature() +
-		      "\n    in type " + field.hostType().typeName() + 
+		      "    in type " + field.hostType().typeName() + 
 		      ".");		
 	    }
 	}
@@ -189,9 +189,9 @@ aspect MJNameCheck {
 		if ( !this.isUniqueFrom(md) ) {
 		    error("method with signature \n" + 
 			  "       " + infoSignature() + 
-			  "\n    conflicts with method\n" + 
+			  "    conflicts with method\n" + 
 			  "       " + md.infoSignature() +
-			  "\n    in type " + md.hostType().typeName() + 
+			  "    in type " + md.hostType().typeName() + 
 			  ".");
 		}
 	    }
@@ -228,9 +228,9 @@ aspect MJNameCheck {
 		// check whether this and md are overriding methods.
 		error("method with signature \n" + 
 		      "       " + infoSignature() + 
-		      "\n    conflicts with method\n" + 
+		      "    conflicts with method\n" + 
 		      "       " + md.infoSignature() +
-		      "\n    in type " + md.hostType().typeName() + ".");
+		      "    in type " + md.hostType().typeName() + ".");
 	}
 	
 	// 8.4.3.4

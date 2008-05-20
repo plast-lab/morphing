@@ -160,7 +160,7 @@ aspect MJGenerateClassfile {
 		    ClassReader verifyReader = new ClassReader(cw.toByteArray());
 		    org.objectweb.asm.util.CheckClassAdapter.verify(verifyReader, false, new PrintWriter(System.err));
 		} catch ( Throwable e) {
-		    System.err.println("Exception when verifying bytecode: " + e.getMessage());
+		    System.err.println("Exception when verifying bytecode: ");// + e.getMessage());
 		}
 	    }
 
@@ -179,6 +179,12 @@ aspect MJGenerateClassfile {
 	if(hasPrevExpr())
 	    typeDecl = prevExpr().type();
 
+	Identifier id = enclosingRefIterator() != null ?
+	    new Identifier(name(), enclosingRefIterator()) 
+	    : new Identifier(name(), IteratorDecl.TrueIteratorDecl);
+	while(typeDecl != null && !typeDecl.hasField(id))
+	    typeDecl = typeDecl.enclosingType();
+	/*
 	if ( isNameVariable(name()) || containsNameVariable(name())) {
 	    Identifier id = new Identifier(name(), enclosingRefIterator());
 	    while(typeDecl != null && !typeDecl.hasField(id))
@@ -187,7 +193,8 @@ aspect MJGenerateClassfile {
 	    while(typeDecl != null && !typeDecl.hasField(name()))
 		typeDecl = typeDecl.enclosingType();
 	}
-	
+	*/
+
 	// from GenericsCodegen
 	if ( typeDecl == null )				
 	    return decl().hostType();
@@ -361,6 +368,12 @@ aspect FixJastadd {
 	}
 	return set;
     }
+
+    refine GenericsCodegen eq MethodDeclSubstituted.erasedMethod() = shouldErase() ? GenericsCodegen.MethodDeclSubstituted.erasedMethod() : this;
+    refine GenericsCodegen eq ParMethodDecl.erasedMethod() = shouldErase() ? GenericsCodegen.ParMethodDecl.erasedMethod() : this;
+
+    refine GenericsCodegen eq FieldDeclarationSubstituted.erasedField() = shouldErase() ? GenericsCodegen.FieldDeclarationSubstituted.erasedField() : this;
+
 
     /*
     refine AutoBoxing eq ReferenceType.unboxed() {

@@ -31,14 +31,15 @@ SubstitutedStaticForStmt : StaticForStmt;
 
 IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern:Pattern* ParIteratorDecl*;
 ParIteratorDecl : IteratorDecl;
+TrueIteratorDecl : IteratorDecl;
 
 Pattern ::= BaseSet;
 
 OptMethodPattern : Pattern ::= Modifiers [TypeAccess:Access] <ID:String> Parameter:TypeAccess* Exception:Access*  [PatternMethodDecl];
-OptNestedMethodPattern : OptMethodPattern ::= <IsPositive:boolean>;
+OptNestedMethodPattern : OptMethodPattern ::= <IsPositive:boolean> <IsErrorCondition:boolean>;
 
 OptFieldPattern : Pattern ::= Modifiers [TypeAccess:Access] <ID:String>;
-OptNestedFieldPattern : OptFieldPattern ::= <IsPositive:boolean>;
+OptNestedFieldPattern : OptFieldPattern ::= <IsPositive:boolean> <IsErrorCondition:boolean>;
 
 MethodPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* Exception:Access*  [PatternMethodDecl] SubMethodPattern:MethodPattern*;
 
@@ -47,8 +48,8 @@ StaticFieldPattern : FieldPattern;
 
 FieldPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String> [PatternFieldDeclaration] SubFieldPattern:FieldPattern*;
 
-NestedMethodPattern : MethodPattern ::= <IsPositive:boolean>;
-NestedFieldPattern : FieldPattern ::= <IsPositive:boolean>;
+NestedMethodPattern : MethodPattern ::= <IsPositive:boolean> <IsErrorCondition:boolean>;
+NestedFieldPattern : FieldPattern ::= <IsPositive:boolean> <IsErrorCondition:boolean>;
 
 TrueNestedPattern : Pattern;
 
