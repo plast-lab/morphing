@@ -54,7 +54,8 @@ aspect MJRewrites {
 		return new NestedFieldPattern(getBaseSet(), getModifiers(),
 					      getTypeAccess(), getID(),
 					      new Opt(), new List(),
-					      getIsPositive());
+					      getIsPositive(),
+					      getIsErrorCondition());
 	    else {
 		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List());	
 		R.addedByPatternRewrite = true;
@@ -63,7 +64,8 @@ aspect MJRewrites {
 		return new NestedFieldPattern(getBaseSet(), getModifiers(),
 					      R.createQualifiedAccess(),
 					      getID(), new Opt(), new List(),
-					      getIsPositive());
+					      getIsPositive(),
+					      getIsErrorCondition());
 	    }
 	}
     }
@@ -98,7 +100,8 @@ aspect MJRewrites {
 					       getParameterList(), 
 					       getExceptionList(), 
 					       new Opt(), new List(),
-					       getIsPositive());
+					       getIsPositive(),
+					       getIsErrorCondition());
 					       
 	    } else {
 		// generate a type variable with fresh name.
@@ -111,7 +114,8 @@ aspect MJRewrites {
 					       getParameterList(), 
 					       getExceptionList(), 
 					       new Opt(), new List(),
-					       getIsPositive());
+					       getIsPositive(),
+					       getIsErrorCondition());
 	    }
 	}
     }
@@ -144,7 +148,8 @@ aspect MJRewrites {
 					   getParameterList(),
 					   new List().add(E.createQualifiedAccess()),
 					   new Opt(), new List(),
-					   getIsPositive());
+					   getIsPositive(),
+					   getIsErrorCondition());
 	}
     }
 

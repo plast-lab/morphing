@@ -84,7 +84,7 @@ IteratorDecl staticfor_stmt_header =
     pattern_type_parameter_list_2.l? pattern_name_parameter_list.n? 
     FOR LPAREN pattern_in_stmt.p nested_patterns.np? RPAREN 
     {: return new IteratorDecl(l, n, p, np, new List()); :}
-    ;
+  ;
 
 Pattern pattern_in_stmt = 
      modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b 
@@ -108,8 +108,13 @@ IteratorDecl staticfor_header =
   ;  
 
 IteratorDecl staticif_header =
-    pattern_type_parameter_list.l? pattern_name_parameter_list.n? IF LPAREN nested_patterns_2.np? RPAREN
-    {: return new IteratorDecl(l, n, new EmptyPrimaryPattern(), np, new List()); :}
+    pattern_type_parameter_list.l? pattern_name_parameter_list.n? IF LPAREN nested_patterns_2.np RPAREN
+    {: return new IteratorDecl(l, n, 
+    new EmptyPrimaryPattern(new BaseSet(new AllMatchingTypeVariable(new Modifiers(), "", new List(), new List()).createBoundAccess(), new RefElmt("methods"))),
+    np, new List()); :}
+  | pattern_type_parameter_list.l? pattern_name_parameter_list.n? ERRORIF LPAREN nested_patterns_errorif.np RPAREN
+    {: return new IteratorDecl(l, n, 
+        new EmptyPrimaryPattern(new BaseSet(new AllMatchingTypeVariable(new Modifiers(), "", new List(), new List()).createBoundAccess(), new RefElmt("methods"))), np, new List()); :}
   ;
 
 List pattern_type_parameter_list =
@@ -173,19 +178,39 @@ List nested_patterns_2 =
   | nested_patterns.l SEMICOLON nested_pattern.p {: return l.add(p); :}
   ;
 
+List nested_patterns_errorif = 
+    nested_pattern_errorif.p {: return new List().add(p); :}
+  | nested_patterns_errorif.l SEMICOLON nested_pattern_errorif.p {: return l.add(p); :}
+  ;
+
 Pattern nested_pattern =
      NO modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-     {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), false); :}
+     {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), false, false); :}
   |  NO modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-    {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), false); :}
+    {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), false, false); :}
   |  NO modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
-     {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, false); :}
+     {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, false, false); :}
   |  SOME modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-     {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), true); :}
+     {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), true, false); :}
   |  SOME modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-     {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), true); :}
+     {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), true, false); :}
   |  SOME modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
-     {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, true); :}
+     {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, true, false); :}
+  ;	
+
+Pattern nested_pattern_errorif =
+     NO modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+     {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), false, true); :}
+  |  NO modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+    {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), false, true); :}
+  |  NO modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
+     {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, false, true); :}
+  |  SOME modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+     {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), true, true); :}
+  |  SOME modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+     {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), true, true); :}
+  |  SOME modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
+     {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, true, true); :}
   ;	
 
 Modifier modifier = 
@@ -209,52 +234,4 @@ RefElmt reflection_elmt =
   | FIELDS  {: return new RefElmt("fields"); :}
   ;
 
-/*
-Access name = 
-  simple_name.t LT type_argument_list_1.tl 
-  {: return new ParTypeAccess(t, tl); :}
-  ;
 
-List type_argument_list_4 =
-		type_argument_4.a {:  return new List().add(a);  :}
-	|	type_argument_list.l COMMA type_argument_4.a {:  return l.add(a);  :}
-	;
-
-Access type_argument_4 =
-		reference_type_1.t {:  return t;  :}
-	|	wildcard_1.w {: return w; :}
-	;
-
-Access reference_type_4 =
-		reference_type.t GT {:  return t;  :}
-	|	class_or_interface.t LT type_argument_list_2.l {:  return new ParTypeAccess(t, l);  :}
-	;
-
-Access wildcard_4 =
-		QUESTION GT                          {: return new Wildcard(); :}
-	|	QUESTION EXTENDS reference_type_1.t  {: return new WildcardExtends(t); :}
-	|	QUESTION SUPER reference_type_1.t    {: return new WildcardSuper(t); :}
-	;
-*/
-
-
-/*
-Access method_invocation =
-    name.q LT type_argument_list_1.tl simple_name.n LPAREN argument_list.l? RPAREN 
-    {: 
-       if(n instanceof AbstractDot) {    
-       	    AbstractDot d = (AbstractDot)n; 
-            ParseName pn = (ParseName)d.extractLast();
-            MethodAccess m = new MethodAccess(pn.getID(), l);
-            m.setStart(n.getStart()); // add location information
-            m.setEnd(RPAREN.getEnd()); // add location information
-            d.replaceLast(m);
-            return d;
-       } else {
-            ParseName pn = (ParseName)n;
-            return new MethodAccess(pn.getID(), l);
-       }
-//         return new MethodAccess(((ParseName) n).getID(), l);
-    :}
-;
-*/

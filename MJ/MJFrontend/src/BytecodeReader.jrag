@@ -678,8 +678,13 @@ aspect BytecodeReader {
 	  void parseNestedPatterns () {
 	      nestedPatterns = new List();
 
+	      boolean isErrorCondition = false;
 	      boolean isPositive = true;
 	      while ( !eof()) {
+		  if ( next("error")) {
+		      eat("error");
+		      isErrorCondition = true;
+		  }
 		  if ( next("-")) {
 		      eat("-");
 		      isPositive = false;
@@ -691,14 +696,14 @@ aspect BytecodeReader {
 
 		  Pattern p = parsePattern();
 		  
-		  nestedPatterns.add(p.makeNestedPattern(isPositive));
+		  nestedPatterns.add(p.makeNestedPattern(isPositive, isErrorCondition));
 	      }
 	  }
       
 	  Pattern parsePattern() {
 	      if ( next(";"))  {
 		  eat(";");
-		  return new EmptyPrimaryPattern();
+		  return new EmptyPrimaryPattern(new BaseSet(new AllMatchingTypeVariable(new Modifiers(), "", new List(), new List()).createBoundAccess(), new RefElmt("methods")));
 	      }
 	      if ( next("(")) 
 		  return parseMethodPattern();

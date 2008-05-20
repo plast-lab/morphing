@@ -1,26 +1,26 @@
 aspect MJLookupVariable {
-
     eq StaticForStmt.getStmt(int index).lookupVariable(String name) {
-	if ( isNameVariable(name) || containsNameVariable(name)) {
-	    Identifier id = new Identifier(name, refIterator());
 
-	    SimpleSet vars = lookupVariable(id);
-	    if ( vars.size() > 0 )
-		return vars;
-
-		// TODO: check declare before use.
-		// && declaredBeforeUse(v, index))
+	//	if ( isNameVariable(name) || containsNameVariable(name)) {
+	Identifier id = new Identifier(name, refIterator());
+	
+	SimpleSet vars = lookupVariable(id);
+	if ( vars.size() > 0 )
+	    return vars;
+	
+	// TODO: check declare before use.
+	// && declaredBeforeUse(v, index))
+	// }
+    //	return lookupVariable(name);
+    }
+    eq StaticForStmt.declaresVariable(Identifier id) {
+	for ( int i=0; i<getNumStmt(); i++) {
+	    if ( getStmt(i).declaresVariable(id)) return true;
 	}
-	return lookupVariable(name);
+	return false;
     }
 
-    refine LookupVariable eq AbstractDot.getRight().lookupVariable(String name) {
-	if ( isNameVariable(name) || containsNameVariable(name))
-	    return getLeft().qualifiedLookupVariable(new Identifier(name, enclosingRefIterator()));
-	return LookupVariable.AbstractDot.getRight().lookupVariable(name);
-    }
 
-    // lookupVariable(Identifier name) shows the variables in scope named name
     inh lazy SimpleSet TypeDecl.lookupVariable(Identifier id);
     inh lazy SimpleSet BodyDecl.lookupVariable(Identifier id);
     inh SimpleSet Stmt.lookupVariable(Identifier id);
@@ -33,19 +33,15 @@ aspect MJLookupVariable {
     
     eq Program.getChild().lookupVariable(Identifier id) = SimpleSet.emptySet;
 
-    eq StaticForStmt.getStmt(int index).lookupVariable(Identifier id) {
-	// check whether nv is captured by the primary pattern as a variable,
-	// or captured by a nested pattern where the range is exactly one.
-	Pattern p = getIteratorDecl().getPattern();
-	if ( p.isFieldPattern() && id.equals(p.identifier()))
-	    return ((FieldPattern) p).patternFieldDeclaration();
-	return lookupVariable(id);
-    }
     // 6.5.6.1
     eq TypeDecl.getBodyDecl(int i).lookupVariable(Identifier id) {
 	SimpleSet list = memberFields(id);
 	if(!list.isEmpty()) return list;
 	list = lookupVariable(id);
+	if(inStaticContext() || isStatic())
+	    list = removeInstanceVariables(list);
+	return list;
+    /*
 	if(inStaticContext() || isStatic())
 	    list = removeInstanceVariables(list);
 	else if(isAnonymous() && inExplicitConstructorInvocation()) {
@@ -59,22 +55,37 @@ aspect MJLookupVariable {
 	    }
 	    return newSet;
 	}
-	return list;
+	return list;*/
     }
+
+    
     eq MethodDecl.getBlock().lookupVariable(Identifier id) {
 	SimpleSet set = parameterDeclaration(id);
-	if ( !set.isEmpty()) return set;
+	// A declaration of a method parameter name shadows any other variable declarations
+	if(!set.isEmpty()) return set;
+	// Delegate to other declarations in scope
 	return lookupVariable(id);
     }
+    // A method declaration may only declare one parameter named name
+    // This is enforced by a check that the declaration in scope for a declaration is itself
     eq MethodDecl.getParameter().lookupVariable(Identifier id) = parameterDeclaration(id);
+    
     eq ConstructorDecl.getBlock().lookupVariable(Identifier id) {
 	SimpleSet set = parameterDeclaration(id);
 	if(!set.isEmpty()) return set;
 	return lookupVariable(id);
     }
+
     eq ConstructorDecl.getConstructorInvocation().lookupVariable(Identifier id) {
 	SimpleSet set = parameterDeclaration(id);
 	if(!set.isEmpty()) return set;
+	for(Iterator iter = lookupVariable(id).iterator(); iter.hasNext(); ) {
+	    Variable v = (Variable)iter.next();
+	    if(!hostType().memberFields(id).contains(v) || v.isStatic())
+		set = set.add(v);
+	}
+	return set;
+	/*
 	set = hostType().memberFields(id); // search members
 	if(!set.isEmpty()) {
 	    set = removeInstanceVariables(set);
@@ -83,10 +94,12 @@ aspect MJLookupVariable {
 	if(hostType().isNestedType() || hostType().isAnonymous())
 	    return hostType().lookupVariable(id);
 	return SimpleSet.emptySet;
+	*/
     }
    
     eq ConstructorDecl.getParameter().lookupVariable(Identifier id) = parameterDeclaration(id);
-
+    
+    // The scope of a local variable declaration in a block is the rest of
     // the block in which the declaration appears
     eq Block.getStmt(int index).lookupVariable(Identifier id) {
 	VariableDeclaration v = localVariableDeclaration(id);
@@ -94,21 +107,22 @@ aspect MJLookupVariable {
 	if(v != null && declaredBeforeUse(v, index))
 	    return v;
 	return lookupVariable(id);
-    }    
-    syn lazy SimpleSet MethodDecl.parameterDeclaration(Identifier id) {
-	for(int i = 0; i < getNumParameter(); i++)
-	    if(getParameter(i).identifier().equals(id))
-		return (ParameterDeclaration)getParameter(i);
-	return SimpleSet.emptySet;
     }
-    syn lazy SimpleSet ConstructorDecl.parameterDeclaration(Identifier id) {
-	for(int i = 0; i < getNumParameter(); i++)
-	    if(getParameter(i).identifier().equals(id))
-		return (ParameterDeclaration)getParameter(i);
-	return SimpleSet.emptySet;
+
+    // The scope of the parameter of an exception handler that is declared in a
+    // catch clause of a try statement is the entire block associated with the catch
+    eq CatchClause.getBlock().lookupVariable(Identifier id) {
+	SimpleSet set = parameterDeclaration(id);
+	if(!set.isEmpty()) return set;
+	return lookupVariable(id);
     }
-    syn lazy SimpleSet CatchClause.parameterDeclaration(Identifier id) =
-	getParameter().identifier().equals(id) ? (ParameterDeclaration)getParameter() : SimpleSet.emptySet;
+    eq CatchClause.getParameter().lookupVariable(Identifier id) = parameterDeclaration(id);
+
+    // The scope of a local variable declared in the ForInit part of the for
+    // statement includes all of the following:
+    eq ForStmt.getInitStmt().lookupVariable(Identifier id) = localLookup(id);
+    eq ForStmt.getCondition().lookupVariable(Identifier id) = localLookup(id);
+    eq ForStmt.getUpdateStmt().lookupVariable(Identifier id) = localLookup(id);
     eq ForStmt.getStmt().lookupVariable(Identifier id) = localLookup(id);
     syn lazy SimpleSet ForStmt.localLookup(Identifier id) {
 	VariableDeclaration v = localVariableDeclaration(id);
@@ -116,8 +130,76 @@ aspect MJLookupVariable {
 	return lookupVariable(id);
     }
 
+    // Return the first variable declaration named name
+    syn lazy SimpleSet MethodDecl.parameterDeclaration(Identifier id) {
+	if ( !id.isNameVariable()) {
+	    for(int i = 0; i < getNumParameter(); i++)
+		if(getParameter(i).name().equals(id.varname))
+		    return (ParameterDeclaration)getParameter(i);
+	}
+	return SimpleSet.emptySet;
+    }
+    syn lazy SimpleSet ConstructorDecl.parameterDeclaration(Identifier id) {
+	if ( !id.isNameVariable()) {	
+	    for(int i = 0; i < getNumParameter(); i++)
+		if(getParameter(i).name().equals(id.varname))
+		    return (ParameterDeclaration)getParameter(i);
+	}
+	return SimpleSet.emptySet;
+    }
+    syn lazy SimpleSet CatchClause.parameterDeclaration(Identifier id) {
+	if ( !id.isNameVariable() &&
+	     getParameter().name().equals(id.varname))
+	    return (ParameterDeclaration)getParameter() ;
+	return SimpleSet.emptySet;
+    }
+
+    syn lazy VariableDeclaration Block.localVariableDeclaration(Identifier id) {
+	for ( int i=0; i<getNumStmt(); i++) {
+	    if ( getStmt(i).declaresVariable(id))
+		return getStmt(i).getVariableDeclaration(id);
+	}
+	return null;
+    }
+    syn lazy VariableDeclaration ForStmt.localVariableDeclaration(Identifier id) {
+	for(int i = 0; i < getNumInitStmt(); i++)
+	    if(getInitStmt(i).declaresVariable(id))
+		return (VariableDeclaration)getInitStmt(i);
+	return null;
+    }
+
+    syn boolean Stmt.declaresVariable(Identifier id) = false;
+    eq VariableDeclaration.declaresVariable(Identifier id) {
+	if ( !id.name().equals(name())) return false;
+	return enclosingRefIterator() == null ? 
+	    IteratorDecl.TrueIteratorDecl.subsumes(id.enclosingRefIterator(), new HashMap())
+	    : enclosingRefIterator().subsumes(id.enclosingRefIterator(), new HashMap());
+    }
+
+    eq MethodAccess.getArg().lookupVariable(Identifier id) = unqualifiedScope().lookupVariable(id);
+    eq ConstructorAccess.getArg().lookupVariable(Identifier id) = unqualifiedScope().lookupVariable(id);
+    eq SuperConstructorAccess.getArg().lookupVariable(Identifier id) = unqualifiedScope().lookupVariable(id);
+    eq ArrayAccess.getExpr().lookupVariable(Identifier id) = unqualifiedScope().lookupVariable(id);
+    eq ArrayTypeWithSizeAccess.getExpr().lookupVariable(Identifier id) = unqualifiedScope().lookupVariable(id);
+    eq ClassInstanceExpr.getArg().lookupVariable(Identifier id) = unqualifiedScope().lookupVariable(id);
+    
+    refine LookupVariable eq AbstractDot.getRight().lookupVariable(String name) {
+	// if enclosingRefIterator() is not null, then we need to lookup
+	// name as an identifier.
+	if ( enclosingRefIterator() != null ) {
+	    //if ( isNameVariable(name) || containsNameVariable(name)) {
+	    return getLeft().qualifiedLookupVariable(new Identifier(name, enclosingRefIterator()));
+	} else {
+	    return getLeft().qualifiedLookupVariable(new Identifier(name, IteratorDecl.TrueIteratorDecl));
+	}
+	//	return LookupVariable.AbstractDot.getRight().lookupVariable(name);
+    }
+    eq AbstractDot.getRight().lookupVariable(Identifier id) = getLeft().qualifiedLookupVariable(id);
 
     // Copied from LookupVariable, for IDentifier.
+    eq ParseName.qualifiedLookupVariable(Identifier id) = SimpleSet.emptySet;
+    eq PackageOrTypeAccess.qualifiedLookupVariable(Identifier id) = SimpleSet.emptySet;
+    eq AmbiguousAccess.qualifiedLookupVariable(Identifier id) = SimpleSet.emptySet;
     syn SimpleSet Expr.qualifiedLookupVariable(Identifier id) {
 	if(type().accessibleFrom(hostType()))
 	    return keepAccessibleFields(type().memberFields(id));
@@ -133,12 +215,83 @@ aspect MJLookupVariable {
 	}
 	return SimpleSet.emptySet;
     }
+
+    inh SimpleSet EnhancedForStmt.lookupVariable(Identifier id);
+    eq EnhancedForStmt.getVariableDeclaration().lookupVariable(Identifier id) = localLookupVariable(id);
+    eq EnhancedForStmt.getExpr().lookupVariable(Identifier id) = localLookupVariable(id);
+    eq EnhancedForStmt.getStmt().lookupVariable(Identifier id) = localLookupVariable(id);
+
+    syn SimpleSet EnhancedForStmt.localLookupVariable(Identifier id) {
+	VariableDeclaration v = getVariableDeclaration();
+	if ( v.declaresVariable(id))
+	    return SimpleSet.emptySet.add(getVariableDeclaration());
+	/*
+	if(getVariableDeclaration().name().equals(name)) {
+	    return SimpleSet.emptySet.add(getVariableDeclaration());
+	}
+	*/
+	return lookupVariable(id);
+    }
+
+    eq ConstCase.getValue().lookupVariable(Identifier id)
+	= switchType().isEnumDecl() ? switchType().memberFields(id) 
+	: lookupVariable(id);
+    
+    eq CompilationUnit.getTypeDecl().lookupVariable(Identifier id) {
+	SimpleSet set = importedFields(id);
+	if(!set.isEmpty()) return set;
+	set = importedFieldsOnDemand(id);
+	if(!set.isEmpty()) return set;
+	return lookupVariable(id);
+    }
+    inh SimpleSet CompilationUnit.lookupVariable(Identifier id);
+    syn SimpleSet CompilationUnit.importedFields(Identifier id) {
+	SimpleSet set = SimpleSet.emptySet;
+	for(int i = 0; i < getNumImportDecl(); i++)
+	    if(!getImportDecl(i).isOnDemand())
+		for(Iterator iter = getImportDecl(i).importedFields(id).iterator(); iter.hasNext(); )
+		    set = set.add(iter.next());
+	return set;
+    }
+    syn SimpleSet CompilationUnit.importedFieldsOnDemand(Identifier id) {
+	SimpleSet set = SimpleSet.emptySet;
+	for(int i = 0; i < getNumImportDecl(); i++)
+	    if(getImportDecl(i).isOnDemand())
+		for(Iterator iter = getImportDecl(i).importedFields(id).iterator(); iter.hasNext(); )
+		    set = set.add(iter.next());
+	return set;
+    }
+
+    syn lazy SimpleSet ImportDecl.importedFields(Identifier id) = SimpleSet.emptySet;
+    eq StaticImportDecl.importedFields(Identifier id) {
+	SimpleSet set = SimpleSet.emptySet;
+	for(Iterator iter = type().memberFields(id).iterator(); iter.hasNext(); ) {
+	    FieldDeclaration decl = (FieldDeclaration)iter.next();
+	    if(decl.isStatic() &&
+	       (decl.isPublic() || (!decl.isPrivate() && decl.hostType().topLevelType().packageName().equals(packageName()))))
+		set = set.add(decl);
+	}
+	return set;
+    }
+
+    eq StaticForStmt.getStmt(int index).lookupVariable(Identifier id) {
+	// check whether nv is captured by the primary pattern as a variable,
+	// or captured by a nested pattern where the range is exactly one.
+	Pattern p = getIteratorDecl().getPattern();
+	if ( p.isFieldPattern() && id.equals(p.identifier()))
+	    return ((FieldPattern) p).patternFieldDeclaration();
+	return lookupVariable(id);
+    }
     
     refine LookupVariable eq Block.getStmt(int index).lookupVariable(String name) {
 	VariableDeclaration v = null;
 	// need to figure out whether name is a name variable.
+	if ( getStmt(index) instanceof StaticForStmt ?
+	     getStmt(index).refIterator() != null 
+	     : getStmt(index).enclosingRefIterator() != null ) {
+	    /*
 	if ( getStmt(index).isNameVariable(name) || 
-	     getStmt(index).containsNameVariable(name)) {
+	getStmt(index).containsNameVariable(name)) { */
 	    Identifier id =
 		getStmt(index) instanceof StaticForStmt ?
 		new Identifier(name, getStmt(index).refIterator()) :
@@ -160,33 +313,6 @@ aspect MJLookupVariable {
 	} 
     }
 
-    syn lazy VariableDeclaration Block.localVariableDeclaration(Identifier id) {
-	for ( int i=0; i<getNumStmt(); i++) {
-	    if ( getStmt(i).declaresVariable(id))
-		return getStmt(i).getVariableDeclaration(id);
-	}
-	return null;
-    }
-    syn lazy VariableDeclaration ForStmt.localVariableDeclaration(Identifier id) {
-	for(int i = 0; i < getNumInitStmt(); i++)
-	    if(getInitStmt(i).declaresVariable(id))
-		return (VariableDeclaration)getInitStmt(i);
-	return null;
-    }
-
-    syn boolean Stmt.declaresVariable(Identifier id) = false;
-    eq VariableDeclaration.declaresVariable(Identifier id) {
-	if ( !id.name().equals(name())) return false;
-	return enclosingRefIterator() == null ? false : 
-	    enclosingRefIterator().subsumes(id.enclosingRefIterator(), new HashMap());
-    }
-    eq StaticForStmt.declaresVariable(Identifier id) {
-	for ( int i=0; i<getNumStmt(); i++) {
-	    if ( getStmt(i).declaresVariable(id)) return true;
-	}
-	return false;
-    }
-
     syn lazy VariableDeclaration Stmt.getVariableDeclaration(Identifier id) = null;
     eq StaticForStmt.getVariableDeclaration(Identifier id) {
 	for ( int i=0; i<getNumStmt(); i++) {
@@ -201,7 +327,34 @@ aspect MJLookupVariable {
 	return null;
     }
 
-    refine LookupVariable eq VarAccess.decls() {
+    refine LookupVariable eq VarAccess.decls() {	
+	Identifier nameIdent = null;
+	if ( enclosingRefIterator() != null )
+	    nameIdent = new Identifier(name(), enclosingRefIterator());
+	else
+	    nameIdent = new Identifier(name(), IteratorDecl.TrueIteratorDecl);
+
+	SimpleSet set = lookupVariable(nameIdent);
+	if(set.size() == 1) {
+	    Variable v = (Variable)set.iterator().next();
+	    
+	    if(!isQualified() && inStaticContext()) {
+		if(v.isInstanceVariable()) {
+		    Identifier vid = enclosingRefIterator() != null ? 
+			new Identifier(v.name(), enclosingRefIterator())
+			: new Identifier(v.name(), IteratorDecl.TrueIteratorDecl);
+		    if ( !hostType().memberFields(vid).isEmpty())
+			return SimpleSet.emptySet;
+		}
+	    }
+	    else if(isQualified() && qualifier().staticContextQualifier()) {
+		if(v.isInstanceVariable())
+		    return SimpleSet.emptySet;
+	    }
+	}
+	return set;	
+	
+	/*
 	SimpleSet set = lookupVariable(name());
 	if(set.size() == 1) {
 	    Variable v = (Variable)set.iterator().next();
@@ -222,6 +375,7 @@ aspect MJLookupVariable {
 	    }
 	}
 	return set;	
+	*/
     }
 }
 
@@ -257,14 +411,13 @@ aspect MJFields {
 	for ( Iterator<StaticForFieldDeclaration> rfIt = refFields.iterator(); 
 	      rfIt.hasNext(); ) {
 	    StaticForFieldDeclaration fd = rfIt.next();
-	    //	    if ( fd.usesTypeVariable()) {
-		BodyDecl bd = fd.p(this);
-		bd.is$Final = true;
-		addBodyDecl((StaticForFieldDeclaration)bd);
-		substitutedFields.add((StaticForFieldDeclaration)bd);
-		/*	    } else 
-		substitutedFields.add((StaticForFieldDeclaration)fd);
-		*/
+	    BodyDecl bd = fd.findSubstitutedFieldDeclaration(this);
+	    /*
+	      BodyDecl bd = fd.p(this);
+	      bd.is$Final = true;
+	      addBodyDecl((StaticForFieldDeclaration)bd);
+	    */
+	    substitutedFields.add((StaticForFieldDeclaration)bd);
 	}
 	return substitutedFields;
     }
@@ -275,8 +428,10 @@ aspect MJFields {
 	// we can only expand fields if the iterator decl is fully grounded.
 	IteratorDecl id = getIteratorDecl();
 	if ( !id.expandable()) {
+	    return new List<FieldDeclaration>();
+	    /*
 	    throw new Error("Static for field declaration " +
-			    getID() + " is not expandable.");
+	    getID() + " is not expandable.");*/
 	}
 
 	ParTypeDecl ht = (ParTypeDecl) hostType();
@@ -309,7 +464,19 @@ aspect MJFields {
 	SimpleSet set = Generics.ParTypeDecl.fields(name);
     */
     refine Generics eq MemberSubstitutor.localFields(String name) {
-	SimpleSet set = Generics.MemberSubstitutor.localFields(name);
+	// from original.
+	SimpleSet set = SimpleSet.emptySet;
+	for(Iterator iter = original().localFields(name).iterator(); iter.hasNext(); ) {
+	    FieldDeclaration f = (FieldDeclaration)iter.next();
+	    if(!f.isStatic() && (f.usesTypeVariable() || isRawType())) {
+		BodyDecl b = f.findSubstitutedFieldDeclaration(this); // f.p(this);
+		/*		b.is$Final = true;
+		addBodyDecl(b);*/
+		f = (FieldDeclaration)b;
+	    }
+	    set = set.add(f);
+	}
+
 	// find reflectively declared, expandable fields
 	for ( Iterator refIt = reflectiveFields().iterator(); 
 	      refIt.hasNext(); ) {
@@ -330,13 +497,14 @@ aspect MJFields {
 	// exclude reflectively declared fields.
 	HashMap map = new HashMap();
 	for(int i = 0; i < getNumBodyDecl(); i++) {
-	    if(getBodyDecl(i) instanceof FieldDeclaration &&
-	       !getBodyDecl(i).isReflectiveDecl()) {
+	    if(getBodyDecl(i) instanceof FieldDeclaration ) {
 		FieldDeclaration decl = (FieldDeclaration)getBodyDecl(i);
-		SimpleSet fields = (SimpleSet)map.get(decl.name());
-		if(fields == null) fields = SimpleSet.emptySet;
-		fields = fields.add(decl);
-		map.put(decl.name(), fields);
+		if ( ! decl.isReflectiveDecl() ) {
+		    SimpleSet fields = (SimpleSet)map.get(decl.name());
+		    if(fields == null) fields = SimpleSet.emptySet;
+		    fields = fields.add(decl);
+		    map.put(decl.name(), fields);
+		}
 	    }
 	}
 	return map;	
@@ -403,6 +571,66 @@ aspect MJFields {
 	}
 	return fields;
     }
+
+    eq ParTypeDecl.unrestrictedFields() {
+	SimpleSet fields = SimpleSet.emptySet;
+	GenericTypeDecl gt = (GenericTypeDecl) genericDecl();
+	for ( int i=0; i<gt.getNumBodyDecl(); i++) {
+	    if ( gt.getBodyDecl(i) instanceof FieldDeclaration ) {
+		FieldDeclaration fd = (FieldDeclaration) gt.getBodyDecl(i);
+		FieldDeclaration pfd = fd.findSubstitutedFieldDeclaration(this);
+
+		if ( pfd instanceof StaticForFieldDeclaration ) {
+		    List efs = pfd.expandedFields();
+		    for ( int j=0; j< efs.getNumChild(); j++ )
+			fields = fields.add(efs.getChild(j));
+		} else
+		    fields = fields.add(pfd);
+	    }
+	}
+	return fields;
+    }
+
+    public FieldDeclaration FieldDeclaration.findSubstitutedFieldDeclaration(MemberSubstitutor t) {
+
+	for ( int i=0; i<t.getNumBodyDecl(); i++) {
+	    if ( t.getBodyDecl(i) instanceof FieldDeclarationSubstituted ) {
+		FieldDeclarationSubstituted sfd = (FieldDeclarationSubstituted) t.getBodyDecl(i);
+		if ( sfd.getOriginal() == this )
+		    return sfd;
+	    }
+	}
+	
+	// not found. make one.
+	FieldDeclaration sfd = (FieldDeclaration) this.p(t);
+	sfd.is$Final = true;
+	t.addBodyDecl(sfd);
+	
+	return sfd;
+    }
+    public StaticForFieldDeclaration StaticForFieldDeclaration.findSubstitutedFieldDeclaration(MemberSubstitutor t) {
+
+	for ( int i=0; i<t.getNumBodyDecl(); i++) {
+	    if ( t.getBodyDecl(i) instanceof StaticForFieldDeclarationSubstituted ) {
+		StaticForFieldDeclarationSubstituted sfd =
+		    (StaticForFieldDeclarationSubstituted) t.getBodyDecl(i);
+		if ( sfd.getOriginal() == this )
+		    return sfd;
+	    } 
+	}
+	
+	// not found. make one.
+	StaticForFieldDeclaration sfd = (StaticForFieldDeclaration) this.p(t);
+	sfd.is$Final = true;
+
+	return sfd;
+    }
+
+    public BodyDecl MemberSubstitutor.getBodyDecl(int i);
+    public int MemberSubstitutor.getNumBodyDecl();
+    public BodyDecl GenericTypeDecl.getBodyDecl(int i);
+    public int GenericTypeDecl.getNumBodyDecl();
+
     eq TypeVariable.unrestrictedFields() {
 	// create an abstraction of all fields over TypeVariable.
 	SimpleSet fields = SimpleSet.emptySet;
@@ -482,6 +710,15 @@ aspect MJFields {
 		    }
 		}
 	    }
+
+	    // if identifier is not a name variable, then call lookup
+	    // on the static part.
+	    if ( !id.isNameVariable()) {
+		SimpleSet staticFields = localFields(id.varname);
+		for ( Iterator fIt = staticFields.iterator(); fIt.hasNext(); ) {
+		    fields = fields.add(fIt.next());
+		}
+	    }
 	}
 	return fields;
     }
@@ -503,11 +740,7 @@ aspect MJFields {
 		if ( gd.getBodyDecl(i) instanceof StaticForFieldDeclaration) {
 		    StaticForFieldDeclaration fd = (StaticForFieldDeclaration) gd.getBodyDecl(i);
 		    HashMap uniMap = new HashMap();
-		    StaticForFieldDeclarationSubstituted fds =
-			(StaticForFieldDeclarationSubstituted) fd.p(this);
-		    
-		    this.addBodyDecl(fds);
-		    
+		    StaticForFieldDeclaration fds = fd.findSubstitutedFieldDeclaration(this);
 		    if ( fds.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
 			Identifier fid = fds.identifier().substitutedIdentifier(uniMap);
 			Identifier idid = id.substitutedIdentifier(uniMap);
@@ -520,6 +753,18 @@ aspect MJFields {
 	}
 	return fields;
     }
+
+    /*
+    refine LookupVariable eq TypeDecl.localFields(String name) {
+	SimpleSet fields = LookupVariable.TypeDecl.localFields(name);
+
+	SimpleSet refFields = localFields(new Identifier(name, IteratorDecl.TrueIteratorDecl));
+	for ( Iterator fIt = refFields.iterator(); fIt.hasNext(); ) 
+	    fields = fields.add(fIt.next());
+
+	return fields;
+    }
+    */
 
     syn SimpleSet TypeDecl.fields(Identifier id) = localFields(id);
     eq TypeVariable.fields(Identifier id) {

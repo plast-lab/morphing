@@ -68,7 +68,14 @@ aspect MJPattern {
     syn lazy IteratorDecl Stmt.refIterator() = null;
     eq StaticForStmt.refIterator() = getIteratorDecl();
 
-    syn lazy IteratorDecl Expr.enclosingRefIterator() = enclosingStmt().enclosingRefIterator();
+    //inh IteratorDecl Expr.enclosingRefIterator();
+    syn lazy IteratorDecl Expr.enclosingRefIterator() {
+	if ( enclosingStmt() != null )
+	    return enclosingStmt().enclosingRefIterator();
+	else if ( enclosingBodyDecl() != null )
+	    return enclosingBodyDecl().refIterator();
+	return null;
+    }
 
     inh IteratorDecl Pattern.enclosingRefIterator();
     eq IteratorDecl.getPattern().enclosingRefIterator() = this;
@@ -94,6 +101,7 @@ aspect MJPattern {
 	refIterator() != null ? refIterator().getPattern().reflectiveBaseType() : null;
 
     syn lazy TypeDecl Pattern.reflectiveBaseType() = getBaseSet().getTypeAccess().type();
+    eq EmptyPrimaryPattern.reflectiveBaseType() = null;
 
     syn lazy TypeDecl Stmt.reflectiveBaseType() = enclosingRefIterator() != null ? enclosingRefIterator().getPattern().reflectiveBaseType() : null;
 
@@ -436,9 +444,19 @@ aspect MJPattern {
     }
 
     syn lazy boolean Pattern.isPositiveCondition() = true;
-    syn lazy boolean NestedMethodPattern.isPositiveCondition() = getIsPositive();
-    syn lazy boolean NestedFieldPattern.isPositiveCondition() = getIsPositive();
 
+    // Whether a Nested pattern is "positive" depends on whether it is an
+    // error condition. Being an error condition reverses the actual assumed
+    // condition.
+    syn lazy boolean NestedMethodPattern.isPositiveCondition() 
+	= getIsPositive() ^ getIsErrorCondition();
+    syn lazy boolean NestedFieldPattern.isPositiveCondition()
+	= getIsPositive() ^ getIsErrorCondition();
+
+    syn lazy boolean Pattern.isErrorCondition() = false;
+    syn lazy boolean NestedMethodPattern.isErrorCondition() = getIsErrorCondition();
+    syn lazy boolean NestedFieldPattern.isErrorCondition() = getIsErrorCondition();
+    
     syn lazy TypeDecl BaseSet.type() = getTypeAccess().type();
     
     syn lazy boolean PatternTypeVariable.matchingException() =
@@ -472,11 +490,12 @@ aspect MJPattern {
     syn lazy boolean Pattern.isFieldPattern() = false;
     eq FieldPattern.isFieldPattern() = true;
 
-    public Pattern Pattern.makeNestedPattern(boolean isPositive) {
+    public Pattern Pattern.makeNestedPattern(boolean isPositive, boolean isErrorCondition) {
 	throw new Error("makeNestedPattern(boolean) not supported by " +
 			getClass().getName());
     }
-    public MethodPattern MethodPattern.makeNestedPattern(boolean isPositive) {
+    public MethodPattern MethodPattern.makeNestedPattern(boolean isPositive,
+							 boolean isErrorCondition) {
 	return new NestedMethodPattern(getBaseSet().fullCopy(), 
 				       getModifiers().fullCopy(), 
 				       (Access) getTypeAccess().fullCopy(), 
@@ -484,14 +503,14 @@ aspect MJPattern {
 				       getParameterList().fullCopy(), 
 				       getExceptionList().fullCopy(), 
 				       new Opt(), new List(),
-				       isPositive);
+				       isPositive, isErrorCondition);
     }
-    public FieldPattern FieldPattern.makeNestedPattern(boolean isPositive) {
+    public FieldPattern FieldPattern.makeNestedPattern(boolean isPositive, boolean isErrorCondition) {
 	return new NestedFieldPattern(getBaseSet().fullCopy(), 
 				      getModifiers().fullCopy(), 
 				      (Access) getTypeAccess().fullCopy(), 
 				      getID(), new Opt(), 
-				      new List(), isPositive);
+				      new List(), isPositive, isErrorCondition);
     }
 
     public void Pattern.flipSign() {
@@ -517,4 +536,16 @@ aspect MJPattern {
     syn lazy boolean BaseSet.iterateFields () = getRefElmt().getElmtName().equals("fields");
 
     public void EmptyPrimaryPattern.collectErrors() {}
+
+    public boolean Pattern.errorCondition;
+
+    // TrueIteratorDecl : used to guard regular, non-static code.
+    // This is useful in checking when unguarded code can refer to
+    // reflectively declared members : true when declaration is under
+    // errorif
+    public static TrueIteratorDecl IteratorDecl.TrueIteratorDecl =
+	new TrueIteratorDecl(new List(), new List(), 
+			     new EmptyPrimaryPattern(new BaseSet(new AllMatchingTypeVariable(new Modifiers(), "", new List(), new List()).createBoundAccess(), new RefElmt("methods"))), new List(), new List());
+
+    eq TrueIteratorDecl.isNameVariable(String name) = false;
 }

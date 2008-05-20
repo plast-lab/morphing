@@ -1,5 +1,6 @@
 aspect MJExpansionProperties {
     public Map BodyDecl.expansionSubstitutions = new HashMap();
+    public Parameterization BodyDecl.parameterizedBy = null;
 
     public StaticForConstructorDecl StaticForConstructorDeclSubstituted.original = null;
     public StaticForFieldDeclaration StaticForFieldDeclarationSubstituted.original = null;
@@ -178,6 +179,7 @@ aspect MJExpansionProperties {
 	return baseType.isTypeVariable() || 
 	    (baseType.needsExpansion() && !baseType.grounded());
     }
+    eq TrueNestedPattern.needsExpansion() = false;
     eq EmptyPrimaryPattern.needsExpansion() = false;
 
     eq Block.needsExpansion() {
@@ -220,12 +222,7 @@ aspect MJExpansionProperties {
     }
     eq TypeVariable.shouldErase() = enclosingType().shouldErase();
     eq ArrayDecl.shouldErase() = componentType().shouldErase();
-
-    refine GenericsCodegen eq MethodDeclSubstituted.erasedMethod() = shouldErase() ? GenericsCodegen.MethodDeclSubstituted.erasedMethod() : this;
-    refine GenericsCodegen eq ParMethodDecl.erasedMethod() = shouldErase() ? GenericsCodegen.ParMethodDecl.erasedMethod() : this;
     
     syn lazy boolean BodyDecl.shouldErase() = hostType().shouldErase();
-    refine GenericsCodegen eq FieldDeclarationSubstituted.erasedField() = shouldErase() ? GenericsCodegen.FieldDeclarationSubstituted.erasedField() : this;
-
 }
 
