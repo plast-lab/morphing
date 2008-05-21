@@ -9,13 +9,20 @@ aspect MJExpansion {
 	//	cn.sourceFile = sourceFile();
 
 	// change superclass.
-	if ( hasSuperclass())
-	    cn.superName = superclass().expandedConstantPoolName();
+	if ( hasSuperclass()) {
+	    if ( !superclass().shouldErase())
+		cn.superName = superclass().expandedConstantPoolName();
+	}
 
 	// change interface.
 	java.util.List interfaces = new java.util.ArrayList();
-	for ( int i=0; i<getNumImplements(); i++) 
-	    interfaces.add(getImplements(i).type().expandedConstantPoolName());
+	for ( int i=0; i<getNumImplements(); i++) {
+	    TypeDecl iType = getImplements(i).type();
+	    if (!iType.shouldErase())
+		interfaces.add(iType.expandedConstantPoolName());
+	    else 
+		interfaces.add(iType.constantPoolName());
+	}
 	cn.interfaces = interfaces;
 
 	// transform fields.
@@ -211,6 +218,19 @@ aspect MJExpansion {
 	return newStmts;
     }
     */
+    eq MethodDeclSubstituted.retrieveStaticForStmts(MethodNode mn) {
+	java.util.List stmts = getOriginal().retrieveStaticForStmts(mn);
+	// apply substitution.
+	java.util.List newStmts = new ArrayList();
+	for ( Iterator sIt = stmts.iterator(); sIt.hasNext(); ) {
+	    StaticForStmt s = (StaticForStmt) sIt.next();
+	    StaticForStmt news = s.substitute((ParTypeDecl) hostType());
+	    news.staticForStmtAttr = s.staticForStmtAttr;
+	    newStmts.add(news);
+	}
+	return newStmts;
+    }
+
     eq StaticForMethodDeclSubstituted.retrieveStaticForStmts(MethodNode mn) {
 	java.util.List stmts = original.retrieveStaticForStmts(mn);
 	// apply substitution.
@@ -304,15 +324,27 @@ aspect MJExpansion {
 	    // get the mappings for each element in the iterator decl's range. 
 	    IteratorDecl sid = s.getIteratorDecl();
 	    IteratorDecl sidSub = sid.lookupParIteratorDecl(parClass);
-	    
+
+	    int instr_begin = -1;
+	    int instr_end = -1;
+
 	    for ( Iterator subMaps = sidSub.reflectiveElmts().values().iterator();
 		  subMaps.hasNext(); ) {
 		Map substitutions = (Map) subMaps.next();
 		substitutions.putAll(expansionSubstitutions);
 
 		// create a copy of the instructions to be replicated.
+		/*
 		InsnList toReplicate = NodeCopier.copyInsnList(newNode.instructions,
 							       begin, end);
+		*/
+		InsnCopyVisitor icv =
+		    new InsnCopyVisitor(new org.objectweb.asm.commons.EmptyVisitor(), begin, end);
+		newNode.accept(icv);
+		InsnList toReplicate = icv.instructions;
+		
+		instr_begin = icv.instr_begin;
+		instr_end = icv.instr_end;
 
 		// create replicated instructions.
 		InsnTransformVisitor iv = 
@@ -322,10 +354,15 @@ aspect MJExpansion {
 		replicatedInsns.add(iv.instructions);
 	    }
 
+	    /*	    
 	    newNode.instructions.insert(newNode.instructions.get(end-1), replicatedInsns);
-
 	    // remove instructions used for replication.
 	    NodeCopier.removeInsns(newNode.instructions, begin, end);
+	    */
+	    newNode.instructions.insert(newNode.instructions.get(instr_end-1), replicatedInsns);
+	    
+	    // remove instructions used for replication.
+	    NodeCopier.removeInsns(newNode.instructions, instr_begin, instr_end);
 	}
 
 	InsnTransformVisitor insnVisitor = new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), parClass, this, expansionSubstitutions);

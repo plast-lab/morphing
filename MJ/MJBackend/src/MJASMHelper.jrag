@@ -73,8 +73,10 @@ aspect MJASMHelper {
 	// exclusive.
 	public static InsnList copyInsnList(InsnList instructions, int begin, int end) {
 	    InsnList newList = new InsnList();
+	    
 	    for ( int i = begin; i< end; i++)
 		newList.add(copyInsnNode(instructions.get(i)));
+
 	    return newList;
 	}
 	public static AbstractInsnNode copyInsnNode(AbstractInsnNode n) {

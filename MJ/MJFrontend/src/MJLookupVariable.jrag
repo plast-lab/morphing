@@ -1,4 +1,37 @@
 aspect MJLookupVariable {
+
+    boolean PackageAccess.resolveAmbiguityDone = false;
+    boolean PackageAccess.resolveAmbiguityDone() { 
+	if ( resolveAmbiguityDone ) return true;
+	resolveAmbiguityDone = true;
+	return false;
+    }
+
+    rewrite PackageAccess {
+	when(!resolveAmbiguityDone() && 
+	     !duringSyntacticClassification() && getPackage().length() > 0 )
+	    to Access {
+	    // this might have been mistaken as a pacakge access because
+	    // I cannot refine the AmbigiousAccess rewrite rules to do
+	    // variable loopup by Identifier.
+	    Identifier id = enclosingRefIterator() == null ? new Identifier(getPackage(), IteratorDecl.TrueIteratorDecl) :
+		new Identifier(getPackage(), enclosingRefIterator());
+	    
+	    if(!lookupVariable(id).isEmpty()) {
+		return new VarAccess(getPackage(), start(), end());
+	    }
+	    /* TODO: may have to eventially lookup types by identifier as well.
+	    else if(!lookupType(name()).isEmpty()) {
+		return new TypeAccess(name(), start(), end());
+	    }
+	    */
+	    else {
+		return this;
+	    }
+	}
+    }
+
+
     eq StaticForStmt.getStmt(int index).lookupVariable(String name) {
 
 	//	if ( isNameVariable(name) || containsNameVariable(name)) {
@@ -41,23 +74,7 @@ aspect MJLookupVariable {
 	if(inStaticContext() || isStatic())
 	    list = removeInstanceVariables(list);
 	return list;
-    /*
-	if(inStaticContext() || isStatic())
-	    list = removeInstanceVariables(list);
-	else if(isAnonymous() && inExplicitConstructorInvocation()) {
-	    TypeDecl typeDecl = enclosingType();
-	    SimpleSet newSet = SimpleSet.emptySet;
-	    for(Iterator iter = list.iterator(); iter.hasNext(); ) {
-		Variable v = (Variable)iter.next();
-		if(!v.isInstanceVariable() || 
-		   !typeDecl.memberFields(id).contains(v))
-		    newSet = newSet.add(v);
-	    }
-	    return newSet;
-	}
-	return list;*/
     }
-
     
     eq MethodDecl.getBlock().lookupVariable(Identifier id) {
 	SimpleSet set = parameterDeclaration(id);
@@ -750,9 +767,20 @@ aspect MJFields {
 		    }
 		}
 	    }
+	    // if identifier is not a name variable, then call lookup
+	    // on the static part.
+	    if ( !id.isNameVariable()) {
+		SimpleSet staticFields = localFields(id.varname);
+		for ( Iterator fIt = staticFields.iterator(); fIt.hasNext(); ) {
+		    FieldDeclaration fd = (FieldDeclaration) fIt.next();
+		    FieldDeclaration fds = fd.findSubstitutedFieldDeclaration(this);
+		    fields = fields.add(fds);
+		}
+	    }
 	}
 	return fields;
     }
+
 
     /*
     refine LookupVariable eq TypeDecl.localFields(String name) {
