@@ -715,6 +715,10 @@ aspect MJTypeCheckCore {
 	// Check that types used for instantiation conforms to 
 	// interface/class requirement.
 	TypeDecl td = genericDecl();
+	if ( td.isUnknown()) {
+	    return;
+	}
+
 	GenericTypeDecl gDecl = (GenericTypeDecl) td;
 	for ( int i=0; i<getNumTypeArgument(); i++) {
 	    TypeVariable tv = ((GenericTypeDecl) gDecl.original()).getTypeParameter(i);

@@ -38,8 +38,8 @@ aspect MJAttributes {
 
     public void CodeGeneration.addStaticForStmtBegin(IteratorDecl id)  {
 	StaticForStmtEntry e = new StaticForStmtEntry();
-	e.start_instr = pos()+1;
-	//	e.iterator_sig = constantPool().addUtf8(iteratorSig);
+	e.start_instr = pos();
+
 	e.iterator_decl = id;
 	staticForStmtEntries.add(e);
     }

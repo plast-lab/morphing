@@ -160,7 +160,7 @@ aspect MJLookupMethod {
 	}
 	return results;
     }
-
+    /*
     syn HashMap TypeDecl.memberMethodsAndMap(PatternNameVariable name) {
 	HashMap map = new HashMap();
 	Collection methods = memberMethods(name);
@@ -187,6 +187,7 @@ aspect MJLookupMethod {
 	}
 	return methods;
     }
+    */
     syn HashMap TypeDecl.memberMethodsAndMap(Identifier name) {
 	HashMap map = new HashMap();
 	Collection methods = memberMethods(name);
@@ -215,14 +216,14 @@ aspect MJLookupMethod {
 	}
 	return methods;
     }
-
+    
 
     syn Collection TypeDecl.memberMethods(Identifier id) = Collections.EMPTY_LIST;
     eq ClassDecl.memberMethods(Identifier id) {
 	Collection methods = new ArrayList();
 
 	IteratorDecl idecl = id.enclosingRefIterator();
-	if ( idecl.reflectiveBaseType() == this &&
+	if ( idecl.reflectiveBaseType() == this  &&
 	     idecl.getPattern().isMethodPattern() &&
 	     idecl.getPattern().identifiedBy(id) )
 	    // If the name is exactly what is used to match on the outermost
@@ -230,6 +231,24 @@ aspect MJLookupMethod {
 	    // exactly what is specified by the pattern.
 	    methods.add(idecl.getPattern().patternMethodDecl());
 	else {
+	    for ( int i=0; i<idecl.getNumNestedPattern(); i++) {
+		// otherwise, if :
+		// 1. type is reflective base type for a nested pattern, AND
+		// 2. nested pattern is positieve AND
+		// 3. pattern is a method pattern AND
+		// 4. name is the name variable used in the nested pattern, AND
+		// 5. the nested pattern has a range of exactly one.
+		// then again the method is what's specified by the nested pattern.
+		Pattern np = idecl.getNestedPattern(i);
+		if ( np instanceof TrueNestedPattern ) continue;
+		if ( np.isPositive() && np.getBaseSet().type() == this &&
+		     np.isMethodPattern() && np.identifiedBy(id) &&
+		     np.exactlyRangeOfOne()) {
+		    methods.add(np.patternMethodDecl());
+		}
+	    }
+
+
 	    Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
 	    for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
 		StaticForMethodDecl md = refIt.next();
@@ -290,7 +309,7 @@ aspect MJLookupMethod {
 	}
 	return methods;
     }
-
+    /*
     syn Collection TypeDecl.memberMethods(PatternNameVariable name) = Collections.EMPTY_LIST;
     eq ClassDecl.memberMethods(PatternNameVariable name) {
 	Collection methods = new ArrayList();
@@ -346,7 +365,7 @@ aspect MJLookupMethod {
 	}
 	return methods;
     }
-	
+    */
     syn lazy HashMap TypeDecl.unrestrictedMethodsSignatureMap() 
 	= localMethodsSignatureMap();
     
