@@ -407,7 +407,8 @@ aspect MJFields {
 	return set;
     }
     eq ClassDecl.reflectiveFields() {
-	Collection<StaticForFieldDeclaration> fields = super.reflectiveFields();
+	Collection<StaticForFieldDeclaration> fields = 
+	    new HashSet(super.reflectiveFields());
 	if ( hasSuperclass()) 
 	    fields.addAll(superclass().reflectiveFields());
 	for ( Iterator ifIt = interfacesIterator(); ifIt.hasNext(); )
@@ -421,9 +422,16 @@ aspect MJFields {
 	}
 	return set;
     }
+    /*
+    eq ConstrainedTypeVarialbe.reflectiveFields() {
+	if ( getConstraint().equals("interface"))
+	    return new HashSet();
+	return super.reflectiveFields();
+    }
+    */
     eq ParTypeDecl.reflectiveFields() {
-	Collection<StaticForFieldDeclaration> refFields = 
-	    genericDecl().reflectiveFields();
+	Collection<StaticForFieldDeclaration> refFields = genericDecl().reflectiveFields();
+	    
 	Set<StaticForFieldDeclaration> substitutedFields = new HashSet();
 	for ( Iterator<StaticForFieldDeclaration> rfIt = refFields.iterator(); 
 	      rfIt.hasNext(); ) {
@@ -780,7 +788,6 @@ aspect MJFields {
 	}
 	return fields;
     }
-
 
     /*
     refine LookupVariable eq TypeDecl.localFields(String name) {
