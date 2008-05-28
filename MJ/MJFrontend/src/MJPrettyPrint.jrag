@@ -56,12 +56,15 @@ aspect MJPrettyPrint {
 
     // these methods are used in error reporting.
     public String MethodDecl.infoSignature() {
-	return signature();
+	StringBuffer buf = new StringBuffer(indent());
+	buf.append(signature());
+	return buf.toString();
     }
     public String StaticForMethodDecl.infoSignature() {
 	StringBuffer buf = new StringBuffer();
 	getIteratorDecl().toString(buf);
 	buf.append("\n");
+	buf.append(indent());
 	buf.append(type().name() + " " + super.signature());
 	return buf.toString();
     }

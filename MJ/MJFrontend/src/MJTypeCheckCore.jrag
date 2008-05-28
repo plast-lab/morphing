@@ -131,7 +131,7 @@ aspect MJTypeCheckCore {
 
 	// 1. Is m in the range of this' iterator?
 	Map uniMap = new HashMap();
-	if ( !m.isSubsumedBy(getIteratorDecl(), (HashMap) uniMap)) {
+	if ( !m.isSubsumedBy(getIteratorDecl(), uniMap)) {
 	    // fetch method named by this's name in m's host type.
 	    if ( isNameVariable(getID()) || containsNameVariable(getID())) {
 		Identifier id = new Identifier(getID(), this.getIteratorDecl());
@@ -212,7 +212,7 @@ aspect MJTypeCheckCore {
     }
     */
 
-    syn lazy boolean BodyDecl.isSubsumedBy(IteratorDecl id, HashMap map) {
+    syn lazy boolean BodyDecl.isSubsumedBy(IteratorDecl id, Map map) {
 	// 2. BodyDecl must be within range of the primary pattern.
 	if ( !this.isSubsumedBy(id.getPattern(), map))
 	    return false;
@@ -226,13 +226,13 @@ aspect MJTypeCheckCore {
 	return true;
     }
 
-    syn lazy boolean BodyDecl.isSubsumedBy(Pattern p, HashMap map) = false;
-    eq FieldDeclaration.isSubsumedBy(Pattern p, HashMap map) = 
+    syn lazy boolean BodyDecl.isSubsumedBy(Pattern p, Map map) = false;
+    eq FieldDeclaration.isSubsumedBy(Pattern p, Map map) = 
 	p.subsumesFieldDeclaration(this, map);
-    eq MethodDecl.isSubsumedBy(Pattern p, HashMap map) = p.subsumesMethodDecl(this, map);
+    eq MethodDecl.isSubsumedBy(Pattern p, Map map) = p.subsumesMethodDecl(this, map);
 
-    syn lazy boolean Pattern.subsumesMethodDecl(MethodDecl md, HashMap map) = false;
-    eq MethodPattern.subsumesMethodDecl(MethodDecl md, HashMap map) {
+    syn lazy boolean Pattern.subsumesMethodDecl(MethodDecl md, Map map) = false;
+    eq MethodPattern.subsumesMethodDecl(MethodDecl md, Map map) {
 	// 1, hostType of md has to be a supertype of pattern's base type.
 	if ( !getBaseSet().type().subtype(md.hostType()))
 	    return false;
@@ -252,8 +252,8 @@ aspect MJTypeCheckCore {
 	return true;
     }
 
-    syn lazy boolean Pattern.subsumesFieldDeclaration(FieldDeclaration fd, HashMap map) = false;
-    eq FieldPattern.subsumesFieldDeclaration(FieldDeclaration fd, HashMap map) {
+    syn lazy boolean Pattern.subsumesFieldDeclaration(FieldDeclaration fd, Map map) = false;
+    eq FieldPattern.subsumesFieldDeclaration(FieldDeclaration fd, Map map) {
 	// 1, hostType of fd has to be a supertype of pattern's base type.
 	if ( !getBaseSet().type().subtype(fd.hostType()))
 	    return false;
@@ -283,7 +283,7 @@ aspect MJTypeCheckCore {
 	for ( Iterator mIt = methods.values().iterator(); mIt.hasNext(); ) {
 	    MethodDecl md = (MethodDecl) mIt.next();
 
-	    if ( md.isSubsumedBy(subed, (HashMap) uniMap)) {
+	    if ( md.isSubsumedBy(subed, uniMap)) {
 		// this md is in the range of the pattern,
 		// - if the pattern is a positive one, then it is satisfied.
 		// - if the pattern is negative, then it is definitely not sat.
@@ -332,7 +332,7 @@ aspect MJTypeCheckCore {
 	PatternFieldDeclaration pfd = subed.patternFieldDeclaration();
 	for ( Iterator fIt = fields.iterator(); fIt.hasNext(); ) {
 	    FieldDeclaration fd = (FieldDeclaration) fIt.next();
-	    if ( fd.isSubsumedBy(subed, (HashMap) uniMap)) {
+	    if ( fd.isSubsumedBy(subed, uniMap)) {
 		//		return isPositiveCondition();
 		if ( getIsPositive()) {
 		    if ( getIsErrorCondition()) {

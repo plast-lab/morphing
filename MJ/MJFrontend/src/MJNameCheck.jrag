@@ -126,12 +126,18 @@ aspect MJNameCheck {
 	Collection<? extends FieldDeclaration> refFields = hostType().reflectiveFields();
 	for ( Iterator<? extends FieldDeclaration> fIt = refFields.iterator(); fIt.hasNext(); ) {
 	    FieldDeclaration field = fIt.next();
-	    if ( this.isUniqueFrom(field)) {
-		error("field \n" + 
-		      "       " + infoSignature() + 
-		      "    conflicts with field \n" + 
-		      "       " + field.infoSignature() +
-		      "    in type " + field.hostType().typeName() + 
+	    if ( this.isUniqueFrom(field) && 
+		 // neither fields are retrieved from interfaces.
+		 !this.hostType().isInterfaceDecl() && 
+		 !field.hostType().isInterfaceDecl()) {
+		Program.indent += 3;
+		String s1 = infoSignature();
+		String s2 = field.infoSignature();
+		Program.indent -= 3;
+
+		error("field \n" + s1 + 
+		      "   conflicts with field \n" + s2 + 
+		      "   in type " + field.hostType().typeName() + 
 		      ".");		
 	    }
 	}
@@ -141,22 +147,27 @@ aspect MJNameCheck {
 	// check that it is unqique from all fields.
 	// all statically declared fields.
 	SimpleSet fields = hostType().unrestrictedFields();
-	Collection refFields = hostType().reflectiveFields();
+	Collection refFields = new HashSet(hostType().reflectiveFields());
 
 	for ( Iterator fIt = fields.iterator(); fIt.hasNext(); )
 	    refFields.add(fIt.next());
 
 	for ( Iterator fIt = refFields.iterator(); fIt.hasNext(); ) {
 	    FieldDeclaration field = (FieldDeclaration) fIt.next();
-	    if ( this != field && !this.isUniqueFrom(field) ) {
-		error("field \n" + 
-		      "       " + infoSignature() + 
-		      "    conflicts with field \n" + 
-		      "       " + field.infoSignature() +
-		      "    in type " + field.hostType().typeName());
+	    if ( this != field && !this.isUniqueFrom(field) &&
+		 // neither fields are retrieved from interfaces.
+		 !this.hostType().isInterfaceDecl() && 
+		 !field.hostType().isInterfaceDecl()) {
+		Program.indent += 3;
+		String s1 = infoSignature();
+		String s2 = field.infoSignature();
+		Program.indent -= 3;
+
+		error("field \n" + s1 + 
+		      "   conflicts with field \n" + s2 + 
+		      "   in type " + field.hostType().typeName());
 	    }
 	}
-
     }
 
     refine NameCheck public void MethodDecl.nameCheck() {
@@ -187,11 +198,14 @@ aspect MJNameCheck {
 		if ( md == this ) continue;
 
 		if ( !this.isUniqueFrom(md) ) {
-		    error("method with signature \n" + 
-			  "       " + infoSignature() + 
-			  "    conflicts with method\n" + 
-			  "       " + md.infoSignature() +
-			  "    in type " + md.hostType().typeName() + 
+		    Program.indent += 3;
+		    String s1 = infoSignature();
+		    String s2 = md.infoSignature();
+		    Program.indent -= 3;
+
+		    error("method with signature \n" + s1 + 
+			  "\n   conflicts with method\n" + s2 + 
+			  "\n   in type " + md.hostType().typeName() + 
 			  ".");
 		}
 	    }
@@ -200,7 +214,8 @@ aspect MJNameCheck {
 	    // not conflict with reflectively declared methods in this
 	    // and super host types.
 	    if(!hostType().methodsSignature(signature()).contains(this))
-		error("method with signature " + signature() + " is multiply declared in type " + hostType().typeName());
+		error("method with signature " + signature() + 
+		      " is multiply declared in type " + hostType().typeName());
 	    else {
 		// check that it's disjoint from all other reflective 
 		// declarations.
@@ -208,10 +223,16 @@ aspect MJNameCheck {
 		for ( Iterator mIt = methods.iterator(); mIt.hasNext(); ) {
 		    MethodDecl md = (MethodDecl) mIt.next();
 		    
-		    if ( !this.isUniqueFrom(md) && this != md ) 
-			error("method with signature " + infoSignature() + 
-			      " conflicts with method " + md.infoSignature() +
-			      " in type " + hostType().typeName() + ".");
+		    if ( !this.isUniqueFrom(md) && this != md ) {
+			Program.indent += 3;
+			String s1 = infoSignature();
+			String s2 = md.infoSignature();
+			Program.indent -= 3;
+
+			error("method with signature \n" + s1 + 
+			      "\n   conflicts with method\n " + s2 + 
+			      "\n   in type " + hostType().typeName() + ".");
+		    }
 		}
 	    }
 	}
@@ -224,13 +245,16 @@ aspect MJNameCheck {
 	     ((ClassDecl) hostType()).superclass() instanceof TypeVariable ) {
 	    //.isTypeVariable()) {
 	    MethodDecl md = ((ClassDecl) hostType()).superclass().everyMethod();
-	    if ( !isUniqueFrom(md) )
+	    if ( !isUniqueFrom(md) ) {
+		Program.indent += 3;
+		String s1 = infoSignature();
+		String s2 = md.infoSignature();
+		Program.indent -= 3;
 		// check whether this and md are overriding methods.
-		error("method with signature \n" + 
-		      "       " + infoSignature() + 
-		      "    conflicts with method\n" + 
-		      "       " + md.infoSignature() +
-		      "    in type " + md.hostType().typeName() + ".");
+		error("method with signature \n" + s1 + 
+		      "\n   conflicts with method\n" + s2 + 
+		      "\n   in type " + md.hostType().typeName() + ".");
+	    }
 	}
 	
 	// 8.4.3.4

@@ -26,17 +26,36 @@ aspect MJModifiers {
 	for ( Iterator ifIt = interfacesIterator(); ifIt.hasNext(); ) {
 	    TypeDecl iface = (TypeDecl) ifIt.next();
 	    if ( !iface.isTypeVariable()) continue;
-
-	    Collection<StaticForMethodDecl> filtered = new HashSet<StaticForMethodDecl>();
+	    /*
+	    Collection<StaticForMethodDecl> possibleImpls = new HashSet<StaticForMethodDecl>();
 	    for (Iterator<StaticForMethodDecl> refIt = reflectiveMethods().iterator(); refIt.hasNext(); ) {
 		StaticForMethodDecl md = refIt.next();
-		if ( md.canImplement(iface)) filtered.add(md);
-	    }
+		if ( md.canImplement(iface)) possibleImpls.add(md);
+		}
+	    */
+
+	    Collection<StaticForMethodDecl> possibleImpls = canImplementTypeVariableMethods((TypeVariable) iface);
+	    Collection<StaticForMethodDecl> unimpl = ((TypeVariable) iface).unimplementedBy(possibleImpls);
 	    
-	    Collection<StaticForMethodDecl> unimpl = ((TypeVariable) iface).unimplementedBy(filtered);
 	    c.addAll(unimpl);
 	}
 	return c;
+    }
+
+    // Returns all StaticForMethodDecl's that can possibly implement
+    // a type variable, tv.
+    syn lazy Collection<StaticForMethodDecl> TypeDecl.canImplementTypeVariableMethods(TypeVariable tv) {
+	Collection<StaticForMethodDecl> methods = new HashSet<StaticForMethodDecl>();
+	for ( StaticForMethodDecl md : reflectiveMethods())
+	    if ( md.canImplement(tv)) methods.add(md);
+
+	return methods;
+    }
+    eq ClassDecl.canImplementTypeVariableMethods(TypeVariable tv) {
+	Collection<StaticForMethodDecl> methods = super.canImplementTypeVariableMethods(tv);
+	if ( hasSuperclass())
+	    methods.addAll(superclass().canImplementTypeVariableMethods(tv));
+	return methods;
     }
 
     public boolean StaticForMethodDecl.canImplement(TypeDecl iface) {
