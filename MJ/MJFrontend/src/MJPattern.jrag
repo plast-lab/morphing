@@ -338,7 +338,7 @@ aspect MJPattern {
     }
     // returns a "fake" MethodDecl determined by the pattern of the iterator.
     eq MethodPattern.patternMethodDecl() {
-	List<TypeAccess> paramTypes = getParameterList();
+	List<Access> paramTypes = getParameterList();
 	// turn types into a list of ParameterDeclarations.
 	List<ParameterDeclaration> params = new List();
 	for ( int i=0; i<paramTypes.getNumChild(); i++) {

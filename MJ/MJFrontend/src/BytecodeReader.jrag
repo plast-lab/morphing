@@ -840,6 +840,14 @@ aspect BytecodeReader {
 		  isVector = true;
 		  eat("*");
 	      }
+	      
+	      // may be all matching.
+	      if ( next("%")) {
+		  eat("%");
+		  eat(";");
+		  return new AllMatchingTypeVariable(new Modifiers(new List()),
+						     id, new List(), new List());
+	      }
 
 	      List bounds = new List();
 	      while(next(":")) {

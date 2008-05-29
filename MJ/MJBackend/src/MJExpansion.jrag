@@ -359,10 +359,12 @@ aspect MJExpansion {
 	    // remove instructions used for replication.
 	    NodeCopier.removeInsns(newNode.instructions, begin, end);
 	    */
-	    newNode.instructions.insert(newNode.instructions.get(instr_end-1), replicatedInsns);
-	    
-	    // remove instructions used for replication.
-	    NodeCopier.removeInsns(newNode.instructions, instr_begin, instr_end);
+	    if ( instr_end > -1 && instr_begin > -1 ) {
+		newNode.instructions.insert(newNode.instructions.get(instr_end-1), replicatedInsns);
+		
+		// remove instructions used for replication.
+		NodeCopier.removeInsns(newNode.instructions, instr_begin, instr_end);
+	    }
 	}
 
 	InsnTransformVisitor insnVisitor = new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), parClass, this, expansionSubstitutions);

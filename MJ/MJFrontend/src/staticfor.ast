@@ -35,13 +35,13 @@ TrueIteratorDecl : IteratorDecl;
 
 Pattern ::= BaseSet;
 
-OptMethodPattern : Pattern ::= Modifiers [TypeAccess:Access] <ID:String> Parameter:TypeAccess* Exception:Access*  [PatternMethodDecl];
+OptMethodPattern : Pattern ::= Modifiers [TypeAccess:Access] <ID:String> Parameter:Access* Exception:Access*  [PatternMethodDecl];
 OptNestedMethodPattern : OptMethodPattern ::= <IsPositive:boolean> <IsErrorCondition:boolean>;
 
 OptFieldPattern : Pattern ::= Modifiers [TypeAccess:Access] <ID:String>;
 OptNestedFieldPattern : OptFieldPattern ::= <IsPositive:boolean> <IsErrorCondition:boolean>;
 
-MethodPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:TypeAccess* Exception:Access*  [PatternMethodDecl] SubMethodPattern:MethodPattern*;
+MethodPattern : Pattern ::= Modifiers TypeAccess:Access <ID:String> Parameter:Access* Exception:Access*  [PatternMethodDecl] SubMethodPattern:MethodPattern*;
 
 StaticMethodPattern : MethodPattern;
 StaticFieldPattern : FieldPattern;

@@ -196,6 +196,19 @@ Pattern nested_pattern =
      {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), true, false); :}
   |  SOME modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
      {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, true, false); :}
+  // error conditions.
+  |  ERROR NO modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+     {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), false, true); :}
+  |  ERROR NO modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+    {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), false, true); :}
+  |  ERROR NO modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
+     {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, false, true); :}
+  |  ERROR SOME modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+     {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), true, true); :}
+  |  ERROR SOME modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
+     {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), true, true); :}
+  |  ERROR SOME modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
+     {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, true, true); :}
   ;	
 
 Pattern nested_pattern_errorif =

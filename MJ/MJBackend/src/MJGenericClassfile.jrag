@@ -350,7 +350,12 @@ aspect FixJastadd {
 	}
 	return buf.toString();
     }
-
+    eq AllMatchingTypeVariable.formalTypeParameter() {
+	StringBuffer buf = new StringBuffer();
+	buf.append(name() + "%");
+	buf.append(";");
+	return buf.toString();
+    }
 
     // fixes to casts that assume isClassDecl means the type can be cast
     // to ClassDecl
