@@ -109,8 +109,11 @@ aspect MJLookupMethod {
 	return map;
     }
 
+    // Modified from LookupMethod.jrag
     // Define method lookup by MJIdentifier.
     inh Collection Expr.lookupMethod(Identifier id);
+    inh Collection Stmt.lookupMethod(Identifier id);
+    inh Collection BodyDecl.lookupMethod(Identifier id);
     inh lazy Collection TypeDecl.lookupMethod(Identifier id);
 
     eq MethodAccess.getArg().lookupMethod(Identifier id) = unqualifiedScope().lookupMethod(id);
@@ -129,12 +132,30 @@ aspect MJLookupMethod {
 	return removeInstanceMethods(lookupMethod(id));
     }    
 
+    // in explicit constructor invocation
+    eq ConstructorDecl.getConstructorInvocation().lookupMethod(Identifier id) {
+	Collection c = new ArrayList();
+	for(Iterator iter = lookupMethod(id).iterator(); iter.hasNext(); ) {
+	    MethodDecl m = (MethodDecl)iter.next();
+	    if(!hostType().memberMethods(id).contains(m) || m.isStatic())
+		c.add(m);
+	}
+	return c;
+    }
+    
     // Modify how methods are retrieved.
     refine LookupMethod eq AbstractDot.getRight().lookupMethod(String name) {
+	if ( enclosingRefIterator() != null ) {
+	    //if ( isNameVariable(name) || containsNameVariable(name)) {
+	    return getLeft().type().memberMethods(new Identifier(name, enclosingRefIterator()));
+	} else {
+	    return getLeft().type().memberMethods(new Identifier(name, IteratorDecl.TrueIteratorDecl));
+	}
+	/*
 	if ( isNameVariable(name) || containsNameVariable(name) )
-	    //if ( enclosingRefIterator() != null )
 	    return getLeft().type().unqualifiedLookupMethod(new Identifier(name, this.enclosingRefIterator()));
 	return LookupMethod.AbstractDot.getRight().lookupMethod(name);
+	*/
     }
 
     syn lazy boolean Pattern.identifiedBy(PatternNameVariable name) = false;
@@ -160,34 +181,7 @@ aspect MJLookupMethod {
 	}
 	return results;
     }
-    /*
-    syn HashMap TypeDecl.memberMethodsAndMap(PatternNameVariable name) {
-	HashMap map = new HashMap();
-	Collection methods = memberMethods(name);
-	for ( Iterator mIt = methods.iterator(); mIt.hasNext(); )
-	    map.put(mIt.next(), Collections.EMPTY_MAP);
-	return map;
-    }
-    eq ClassDecl.memberMethodsAndMap(PatternNameVariable name) {
-	HashMap methods = new HashMap();
-	
-	Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
-	for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
-	    StaticForMethodDecl md = refIt.next();
 
-	    // name could be a member method of this if
-	    // 1. its' enclosing iterator decl is subsumed by one of this's
-	    // method's iterator decl.
-	    HashMap uniMap = new HashMap();
-	    if ( md.getIteratorDecl().subsumes(name.enclosingRefIterator(), uniMap)) {
-		// 2. the name it maps to is used in declaring method.
-		if ( md.substitute(uniMap).getID().equals(name.getID()))
-		    methods.put(md, uniMap);
-	    }
-	}
-	return methods;
-    }
-    */
     syn HashMap TypeDecl.memberMethodsAndMap(Identifier name) {
 	HashMap map = new HashMap();
 	Collection methods = memberMethods(name);
@@ -218,8 +212,9 @@ aspect MJLookupMethod {
     }
     
 
-    syn Collection TypeDecl.memberMethods(Identifier id) = Collections.EMPTY_LIST;
-    eq ClassDecl.memberMethods(Identifier id) {
+    syn Collection TypeDecl.memberMethods(Identifier id) { 
+	//= Collections.EMPTY_LIST;
+	//eq ClassDecl.memberMethods(Identifier id) {
 	Collection methods = new ArrayList();
 
 	IteratorDecl idecl = id.enclosingRefIterator();
@@ -241,13 +236,14 @@ aspect MJLookupMethod {
 		// then again the method is what's specified by the nested pattern.
 		Pattern np = idecl.getNestedPattern(i);
 		if ( np instanceof TrueNestedPattern ) continue;
-		if ( np.isPositive() && np.getBaseSet().type() == this &&
+		if ( (  np.isPositive() && !np.isErrorCondition()   
+			|| !np.isPositive() && np.isErrorCondition() )
+		     && np.getBaseSet().type() == this &&
 		     np.isMethodPattern() && np.identifiedBy(id) &&
 		     np.exactlyRangeOfOne()) {
 		    methods.add(np.patternMethodDecl());
 		}
 	    }
-
 
 	    Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
 	    for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {

@@ -33,8 +33,6 @@ aspect MJLookupVariable {
 
 
     eq StaticForStmt.getStmt(int index).lookupVariable(String name) {
-
-	//	if ( isNameVariable(name) || containsNameVariable(name)) {
 	Identifier id = new Identifier(name, refIterator());
 	
 	SimpleSet vars = lookupVariable(id);
