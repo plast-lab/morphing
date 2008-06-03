@@ -202,7 +202,7 @@
     <zipfileset src="${thirdparty}/asm-all-3.1.jar" />
 <!--    <fileset dir="${thirdparty}/asm-3.1" includes="**/*.class"/> -->
     <manifest>
-      <attribute name="Main-Class" value="MJCompiler"/>
+      <attribute name="Main-Class" value="main.MJCompiler"/>
     </manifest>
   </jar>
 </target>
@@ -251,7 +251,7 @@
     
     <!-- include MJBackend -->
     <fileset dir="../../../..">
-      <include name="morphing/MJ/MJBackend/src/MJCompiler.java"/>
+      <include name="morphing/MJ/MJBackend/src/main/MJCompiler.java"/>
       <include name="morphing/MJ/MJBackend/src/**/*.ast"/>
       <include name="morphing/MJ/MJBackend/src/**/*.jrag"/>
       <include name="morphing/MJ/MJBackend/src/**/*.jadd"/>
