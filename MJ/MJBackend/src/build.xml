@@ -209,7 +209,7 @@
 
 <!-- build binary distribution with examples and testcases. -->
 <target name="binary" depends="jar">
-  <tar destfile="mj-binary-0_1.tar">
+  <tar destfile="morphj-binary-0_1.tar">
     <fileset dir="../../../..">
       <include name="morphing/README"/>
       <include name="morphing/MJ/examples/**/*.java"/>
@@ -225,12 +225,12 @@
     </tarfileset>
 -->
   </tar>
-  <gzip zipfile="mj-binary-0_1.tar.gz" src="mj-binary-0_1.tar"/>
+  <gzip zipfile="morphj-binary-0_1.tar.gz" src="morphj-binary-0_1.tar"/>
 </target>
 
 <!-- build a source distribution -->
 <target name="source" depends="build">
-  <tar destfile="mj-src-0_1.tar">
+  <tar destfile="morphj-src-0_1.tar">
     <fileset dir="../../../..">
       <include name="morphing/README"/>
       <include name="morphing/MJ/examples/**/*.java"/>
@@ -332,7 +332,7 @@
     </fileset>
 <!--    <zipfileset src="${thirdparty}/asm-all-3.1.jar"/> -->
   </tar>
-  <gzip zipfile="mj-src-0_1.tar.gz" src="mj-src-0_1.tar"/>
+  <gzip zipfile="morphj-src-0_1.tar.gz" src="morphj-src-0_1.tar"/>
 </target>
 
 </project>
