@@ -60,7 +60,6 @@ public class TestDefaultImplementation extends TestCase {
 	List l = new DefaultImplementation<IncompleteList, List>(il);
 	assertTrue(l.indexOf(null) == 0);
     }
-
 }
 
 class IncompleteList {
