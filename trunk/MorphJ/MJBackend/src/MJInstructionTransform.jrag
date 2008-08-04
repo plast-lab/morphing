@@ -212,6 +212,34 @@ aspect MJInstructionTransform {
 	    return t.typeDescriptor();
 	}
 
+	protected TypeDecl retrieveMethodReturnType(String desc) {
+	    // parse desc name.
+	    Signatures.MethodSignature ms = new Signatures.MethodSignature(desc);
+	    // return type
+	    Access rt = (Access) ms.returnType();
+	    TypeDecl newRt = retrieveTypeFromContext(rt);
+	    return newRt;
+	}
+
+	protected java.util.List<TypeDecl> retrieveMethodParams(String desc) {
+	    // parse desc name.
+	    Signatures.MethodSignature ms = new Signatures.MethodSignature(desc);
+	    ArrayList<TypeDecl> pList = new ArrayList();
+	    
+	    for ( Iterator ptIt = ms.parameterTypes().iterator();
+		  ptIt.hasNext(); ) {
+		// TODO: fix imported from Lime. CHeck whether works.
+		//		TypeAccess ta = (TypeAccess) ptIt.next();
+		Access ta = (Access) ptIt.next();
+		TypeDecl t = retrieveTypeFromContext(ta);
+		List argList = t.expandAccessList(substitutions);
+
+		for ( int i=0; i<argList.getNumChild(); i++)
+		    pList.add(((Access) argList.getChild(i)).type());
+	    }
+	    return pList;
+	}
+
 	protected String retrieveMethodDesc(String desc) {
 	    // parse desc name.
 	    Signatures.MethodSignature ms = new Signatures.MethodSignature(desc);
@@ -255,7 +283,8 @@ aspect MJInstructionTransform {
 	public void visitFieldInsn(int opcode, String owner, String name, String desc) {
 	    // if this is a GET instruction,
 	    // change stack according to field type.
-	    if ( opcode == org.objectweb.asm.Opcodes.GETFIELD ) {
+	    if ( opcode == org.objectweb.asm.Opcodes.GETFIELD ||
+		 opcode == org.objectweb.asm.Opcodes.GETSTATIC ) {
 		TypeDecl ft = retrieveTypeFromDesc(desc);
 		if ( ft.isDouble() || ft.isLong())
 		    maxStack += 2;
@@ -301,6 +330,7 @@ aspect MJInstructionTransform {
 
 	public void visitLdcInsn(Object cst) {
 	    instructions.add(new LdcInsnNode(cst));
+	    changeMaxStack(Bytecode.LDC);
 	}
 
 	public void visitLineNumber(int line, Label start) {
@@ -346,6 +376,21 @@ aspect MJInstructionTransform {
 						retrieveOwner(owner),
 						retrieveName(name), 
 						retrieveMethodDesc(desc)));
+
+	    /*
+	    switch ( opcode ) {
+	    case Bytecode.INVOKEINTERFACE:
+	    case Bytecode.INVOKESPECIAL:
+		break;
+	    case Bytecode.INVOKESTATIC:
+		int size = retrieveMethodReturnType(desc).variableSize();
+		java.util.List<TypeDecl> params = retrieveMethodParams(desc);
+		for ( int i=0; i<params.size(); i++) {
+		    size -= params.get(i).variableSize();
+		}
+		maxStack += size;
+	    }
+	    */
 	}
 
 	public void visitMultiANewArrayInsn(String desc, int dims) {

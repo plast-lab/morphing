@@ -742,8 +742,12 @@ aspect MJExpansion {
     	String td = genericDecl().typeDescriptor();
 	int lastSlash = td.lastIndexOf('/');
 	
-	StringBuffer buf = new StringBuffer(td.substring(0,lastSlash+1) + 
-					    expandedName() + ";");
+	StringBuffer buf = 
+	    lastSlash > 0 ?
+	    new StringBuffer(td.substring(0,lastSlash+1) + 
+			     expandedName() + ";")
+	    : new StringBuffer("L" + expandedName() + ";");
+
 	return buf.toString();	
     }
     eq RawClassDecl.expandedTypeDescriptor() = genericDecl().expandedTypeDescriptor();

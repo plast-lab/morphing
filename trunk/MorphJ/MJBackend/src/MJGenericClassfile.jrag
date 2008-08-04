@@ -54,8 +54,10 @@ aspect MJGenerateClassfile {
 	String outDir = null;
 	String destPath = gt.destinationPath();
 	
-	String filePath = expandedConstantPoolName().substring(0, expandedConstantPoolName().lastIndexOf(File.separator));
-
+	String filePath = expandedConstantPoolName().lastIndexOf(File.separator) > -1 ?	    
+	    expandedConstantPoolName().substring(0, expandedConstantPoolName().lastIndexOf(File.separator))
+	    : "";
+	
 	if ( gt.compilationUnit().fromSource()) 
 	    outDir = destPath + File.separator + filePath;
 	else
