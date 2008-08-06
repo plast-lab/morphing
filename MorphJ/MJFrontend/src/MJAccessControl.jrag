@@ -62,4 +62,18 @@ aspect MJAccessControl {
 
 	return true;
     }
+
+    refine AccessControl eq MethodDecl.accessibleFrom(TypeDecl type) {
+	if ( AccessControl.MethodDecl.accessibleFrom(type) )
+	    return true;
+
+	if (!isPrivate()) {
+	    if(hostPackage().equals(type.hostPackage()))
+		return true;
+	    if(type.withinBodyThatSubclasses(hostType()) != null)
+		return true;
+	    return false;
+	}
+	return false;
+    }
 }

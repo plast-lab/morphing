@@ -17,6 +17,8 @@ StaticForConstructorDeclSubstituted : StaticForConstructorDecl;
 StaticForMethodDecl : MethodDecl ::= IteratorDecl DecompiledAccess:Access* StaticForMethodDeclSubstituted*;
 StaticForMethodDeclSubstituted : StaticForMethodDecl; 
 GroundedStaticForMethodDecl : StaticForMethodDeclSubstituted;
+EveryMethodDecl : StaticForMethodDecl;
+
 /*
 ParStaticForMethodDecl : StaticForMethodDecl ::= ExpandedMethodDecl*; 
 ExpandedMethodDecl : MethodDecl;

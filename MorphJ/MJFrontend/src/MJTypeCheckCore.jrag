@@ -79,16 +79,32 @@ aspect MJTypeCheckCore {
 	return false;
     }
 
+    /**
+     * Refining overrides to call signatureOverrides(m), instead of
+     * simply comparing method signatures as strings.
+     **/
     refine LookupMethod eq MethodDecl.overrides(MethodDecl m) =
 	!isStatic() && !m.isPrivate() && m.accessibleFrom(hostType()) && 
 	hostType().instanceOf(m.hostType()) &&
 	signatureOverrides(m);
 
+    /**
+     * Refining hides to call signatureOverrides(m), instead of
+     * simply comparing method signatures as strings.
+     **/
     refine LookupMethod eq MethodDecl.hides(MethodDecl m) =
 	isStatic() && !m.isPrivate() && m.accessibleFrom(hostType()) && 
 	hostType().instanceOf(m.hostType()) && 
 	signatureOverrides(m);
 
+    /**
+     * If both this and m are staticly declared methods, then just compare
+     * signatures as strings, the way it was done in JastAddJ
+     *
+     * If m is reflectively declared, for this to override m, this must
+     * be subsumed by m's iterator, and the signatures unify after
+     * substitutions.
+     **/
     syn lazy boolean MethodDecl.signatureOverrides(MethodDecl m) {
 	if ( this == m ) return true;
 	// if static, then compare signature. This is how it was specified
@@ -111,9 +127,12 @@ aspect MJTypeCheckCore {
 	return false;
     }
 
+    /**
+     * 
+     **/
     eq StaticForMethodDecl.signatureOverrides(MethodDecl m) {
 	if (this == m) return true;
-	
+
 	// if this method 
 	// 1. copies the signature of a (positive) pattern exactly, and 
 	// 2. the base type of the pattern is a subtype of m's host type 
@@ -135,13 +154,14 @@ aspect MJTypeCheckCore {
 	    // fetch method named by this's name in m's host type.
 	    if ( isNameVariable(getID()) || containsNameVariable(getID())) {
 		Identifier id = new Identifier(getID(), this.getIteratorDecl());
-		//		HashMap possOverrides = m.hostType().memberMethodsAndMap(getNameVariable(getID()));
 		HashMap possOverrides = m.hostType().memberMethodsAndMap(id);
+
 		// is m one of the possible override methods?
 		boolean possOv = false;
 		for ( Iterator ovIt = possOverrides.keySet().iterator(); 
-		      ovIt.hasNext();)
+		      ovIt.hasNext();) 
 		    if ( m == ovIt.next()) { possOv = true; break; }
+		
 		// if m is not a method that could be possibly overriden by
 		// this, then just return.
 		if ( !possOv ) return false;
@@ -162,7 +182,7 @@ aspect MJTypeCheckCore {
 		// this, then just return.
 		if ( !possOv ) return false;		
 
-		uniMap = Collections.EMPTY_MAP;
+		uniMap = new HashMap();
 	    }
 	}
 
