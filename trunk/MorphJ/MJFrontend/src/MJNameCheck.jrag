@@ -76,7 +76,7 @@ aspect MJNameCheck {
     }
 
 
-    syn lazy MethodDecl TypeDecl.everyMethod () {
+    syn lazy EveryMethodDecl TypeDecl.everyMethod () {
 	/**
 	 * pattern: _ m(A) throws E : T.methods
 	 * where _ is the AllMatchingTypeVariable, which matches void.
@@ -103,18 +103,61 @@ aspect MJNameCheck {
 					   new List().add(m),
 					   p, new List(), new List());
 
-	StaticForMethodDecl sfd = 
-	    new StaticForMethodDecl(new Modifiers(),
-				    R.createQualifiedAccess(),
-				    "m", 
-				    new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
-				    new List().add(E.createQualifiedAccess()),
-				    new Opt(),
-				    id, new List(), new List());
-
+	EveryMethodDecl sfd = 
+	    new EveryMethodDecl(new Modifiers(),
+				R.createQualifiedAccess(),
+				"m", 
+				new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
+				new List().add(E.createQualifiedAccess()),
+				new Opt(),
+				id, new List(), new List());
+	
 	sfd.is$Final = true;
 	addBodyDecl(sfd);
 
+	sfd.bypassErrorChecking = true;
+	return sfd;
+    }
+
+    syn lazy EveryMethodDecl TypeDecl.everyNonPrivateMethod () {
+	/**
+	 * pattern: !private _ m(A) throws E : T.methods
+	 * where _ is the AllMatchingTypeVariable, which matches void.
+	 **/
+	AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), "R", new List(), new List());
+	VectorTypeVariable A = new VectorTypeVariable(new Modifiers(), "A",
+						      new List(), 
+						      new List().add(typeNonVoid().createBoundAccess()),
+						      new List());
+	VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), "E",
+						      new List(),
+						      new List().add(typeThrowable().createBoundAccess()),
+						      new List());
+	PatternNameVariable m = new PatternNameVariable("m");
+	Pattern p = new MethodPattern(new BaseSet(createQualifiedAccess(), 
+						  new RefElmt("methods")),
+				      new Modifiers(new List().add(new NegativeModifier("private"))),
+				      R.createQualifiedAccess(),"m",
+				      new List().add(A.createQualifiedAccess()),
+				      new List().add(E.createQualifiedAccess()),
+				      new Opt(), new List());
+				
+	IteratorDecl id = new IteratorDecl(new List().add(R).add(A).add(E),
+					   new List().add(m),
+					   p, new List(), new List());
+
+	EveryMethodDecl sfd = 
+	    new EveryMethodDecl(new Modifiers(),
+				R.createQualifiedAccess(),
+				"m", 
+				new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
+				new List().add(E.createQualifiedAccess()),
+				new Opt(),
+				id, new List(), new List());
+	
+	sfd.is$Final = true;
+	addBodyDecl(sfd);
+	
 	sfd.bypassErrorChecking = true;
 	return sfd;
     }

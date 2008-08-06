@@ -199,15 +199,43 @@ aspect MJLookupVariable {
     eq ClassInstanceExpr.getArg().lookupVariable(Identifier id) = unqualifiedScope().lookupVariable(id);
     
     refine LookupVariable eq AbstractDot.getRight().lookupVariable(String name) {
-	// if enclosingRefIterator() is not null, then we need to lookup
-	// name as an identifier.
+	// need to lookup variable as both constant name and variable name.
+	// then we return whatever is in the nearest lexical scope.
+
+	// Lookup decls as using a constant name.
+	Identifier nameIdent = new Identifier(name, IteratorDecl.TrueIteratorDecl);
+	SimpleSet consSet = getLeft().qualifiedLookupVariable(nameIdent);
+	SimpleSet set = consSet;
+	SimpleSet varSet = SimpleSet.emptySet;
+
 	if ( enclosingRefIterator() != null ) {
-	    //if ( isNameVariable(name) || containsNameVariable(name)) {
-	    return getLeft().qualifiedLookupVariable(new Identifier(name, enclosingRefIterator()));
-	} else {
-	    return getLeft().qualifiedLookupVariable(new Identifier(name, IteratorDecl.TrueIteratorDecl));
+	    varSet = getLeft().qualifiedLookupVariable(new Identifier(name, enclosingRefIterator()));
+	    // Figure out which set contains the closest lexically scoped
+	    // declarations.
+
+	    if ( consSet.isEmpty()) {
+		// If there are no declarations using the constant name, then
+		// the resulting set is simply the varSet.
+		set = varSet;
+	    } else if ( !varSet.isEmpty()) {
+		// If both consSet and varSet are not empty, then
+		// we need to determine which set to use.
+		boolean usCons = false;
+		for ( Iterator cIt = consSet.iterator(); cIt.hasNext(); ) {
+		    Variable v = (Variable) cIt.next();
+		    IteratorDecl vId = v.getEnclosingRefIterator();
+		    if ( vId != null &&
+			 vId.isDescendantTo(enclosingRefIterator())) {
+			// v is in a tighter lexical scope.
+			usCons = true;
+			break;
+		    }
+		}
+		set = usCons ? consSet : varSet;
+	    }
 	}
-	//	return LookupVariable.AbstractDot.getRight().lookupVariable(name);
+
+	return set;
     }
     eq AbstractDot.getRight().lookupVariable(Identifier id) = getLeft().qualifiedLookupVariable(id);
 
@@ -343,19 +371,46 @@ aspect MJLookupVariable {
     }
 
     refine LookupVariable eq VarAccess.decls() {	
-	Identifier nameIdent = null;
-	if ( enclosingRefIterator() != null )
-	    nameIdent = new Identifier(name(), enclosingRefIterator());
-	else
-	    nameIdent = new Identifier(name(), IteratorDecl.TrueIteratorDecl);
+	// variable could be a constant name, or a name variable.
+	// We look up variable under both possibilties, and use the
+	// declaration that in the closest enclosing lexical scope.
 
-	SimpleSet set = lookupVariable(nameIdent);
+	// Lookup decls as using a constant name.
+	Identifier nameIdent = new Identifier(name(), IteratorDecl.TrueIteratorDecl);
+	SimpleSet consSet = lookupVariable(nameIdent);
+	SimpleSet set = consSet;
+
+	SimpleSet varSet = SimpleSet.emptySet;
+	if ( enclosingRefIterator() != null ) {
+	    nameIdent = new Identifier(name(), enclosingRefIterator());
+	    varSet = lookupVariable(nameIdent);
+
+	    if ( consSet.isEmpty())
+		set = varSet;
+	    else if ( !varSet.isEmpty()) {
+		// Figure out which set contains the closest lexically scoped
+		// declarations.
+		boolean usCons = false;
+		for ( Iterator cIt = consSet.iterator(); cIt.hasNext(); ) {
+		    Variable v = (Variable) cIt.next();
+		    IteratorDecl vId = v.getEnclosingRefIterator();
+		    if ( vId != null &&
+			 vId.isDescendantTo(enclosingRefIterator())) {
+			// v is in a tighter lexical scope.
+			usCons = true;
+			break;
+		    }
+		}
+		set = usCons ? consSet : varSet;
+	    }
+	}
+
 	if(set.size() == 1) {
 	    Variable v = (Variable)set.iterator().next();
 	    
 	    if(!isQualified() && inStaticContext()) {
 		if(v.isInstanceVariable()) {
-		    Identifier vid = enclosingRefIterator() != null ? 
+		    Identifier vid = varSet.contains(v) ?
 			new Identifier(v.name(), enclosingRefIterator())
 			: new Identifier(v.name(), IteratorDecl.TrueIteratorDecl);
 		    if ( !hostType().memberFields(vid).isEmpty())
@@ -368,29 +423,6 @@ aspect MJLookupVariable {
 	    }
 	}
 	return set;	
-	
-	/*
-	SimpleSet set = lookupVariable(name());
-	if(set.size() == 1) {
-	    Variable v = (Variable)set.iterator().next();
-	    
-	    if(!isQualified() && inStaticContext()) {
-		if(v.isInstanceVariable()) {
-		    if ( isNameVariable(v.name())) {
-			Identifier vid = new Identifier(getID(), enclosingRefIterator());
-			if (!hostType().memberFields(vid).isEmpty())
-			    return SimpleSet.emptySet;
-		    } else if ( !hostType().memberFields(v.name()).isEmpty())
-			return SimpleSet.emptySet;
-		}
-	    }
-	    else if(isQualified() && qualifier().staticContextQualifier()) {
-		if(v.isInstanceVariable())
-		    return SimpleSet.emptySet;
-	    }
-	}
-	return set;	
-	*/
     }
 }
 

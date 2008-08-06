@@ -205,6 +205,8 @@ aspect MJModifiers {
     }
 
     inh boolean Modifiers.possiblyPublic();
+    eq EveryMethodDecl.getModifiers().possiblyPublic() = 
+	getModifiers().numNegativeModifier("public") == 0;
     eq TypeDecl.getModifiers().possiblyPublic() = getModifiers().isPublic();
     eq FieldDeclaration.getModifiers().possiblyPublic() = getModifiers().isPublic();
     eq MethodDecl.getModifiers().possiblyPublic() = getModifiers().isPublic();
@@ -214,7 +216,22 @@ aspect MJModifiers {
     eq Program.getChild().possiblyPublic() = false;
     eq TypeDecl.getBodyDecl().possiblyPublic() = false;
 
+    inh boolean Modifiers.possiblyFinal();
+    eq EveryMethodDecl.getModifiers().possiblyFinal() = 
+	getModifiers().numNegativeModifier("final") == 0;
+    eq TypeDecl.getModifiers().possiblyFinal() = getModifiers().isFinal();
+    eq FieldDeclaration.getModifiers().possiblyFinal() = getModifiers().isFinal();
+    eq MethodDecl.getModifiers().possiblyFinal() = getModifiers().isFinal();
+    eq ConstructorDecl.getModifiers().possiblyFinal() = getModifiers().isFinal();
+    eq VariableDeclaration.getModifiers().possiblyFinal() = getModifiers().isFinal();
+    eq ParameterDeclaration.getModifiers().possiblyFinal() = getModifiers().isFinal();
+    eq Program.getChild().possiblyFinal() = false;
+    eq TypeDecl.getBodyDecl().possiblyFinal() = false;
+
+
     inh boolean Modifiers.possiblyProtected();
+    eq EveryMethodDecl.getModifiers().possiblyProtected() = 
+	getModifiers().numNegativeModifier("protected") == 0;
     eq TypeDecl.getModifiers().possiblyProtected() = getModifiers().isProtected();
     eq FieldDeclaration.getModifiers().possiblyProtected() = getModifiers().isProtected();
     eq MethodDecl.getModifiers().possiblyProtected() = getModifiers().isProtected();
@@ -223,9 +240,10 @@ aspect MJModifiers {
     eq ParameterDeclaration.getModifiers().possiblyProtected() = getModifiers().isProtected();
     eq Program.getChild().possiblyProtected() = false;
     eq TypeDecl.getBodyDecl().possiblyProtected() = false;
-
-
+    
     inh boolean Modifiers.possiblyPrivate();
+    eq EveryMethodDecl.getModifiers().possiblyPrivate() = 
+	getModifiers().numNegativeModifier("private") == 0;
     eq TypeDecl.getModifiers().possiblyPrivate() = getModifiers().possiblyPrivate();
     eq FieldDeclaration.getModifiers().possiblyPrivate() = getModifiers().possiblyPrivate();
     eq MethodDecl.getModifiers().possiblyPrivate() = getModifiers().possiblyPrivate();
@@ -236,6 +254,7 @@ aspect MJModifiers {
     eq TypeDecl.getBodyDecl().possiblyPrivate() = false;
 
     inh boolean Modifiers.possiblyStatic();
+    eq EveryMethodDecl.getModifiers().possiblyStatic() = true;
     eq TypeDecl.getModifiers().possiblyStatic() = getModifiers().isStatic();
     eq FieldDeclaration.getModifiers().possiblyStatic() = getModifiers().isStatic();
     eq MethodDecl.getModifiers().possiblyStatic() = getModifiers().isStatic();
@@ -244,7 +263,6 @@ aspect MJModifiers {
     eq ParameterDeclaration.getModifiers().possiblyStatic() = getModifiers().isStatic();
     eq Program.getChild().possiblyStatic() = false;
     eq TypeDecl.getBodyDecl().possiblyStatic() = false;
-
 
     eq MethodPattern.getModifiers().possiblyPublic() = 
 	getModifiers().isPublic() || 
@@ -321,6 +339,15 @@ aspect MJModifiers {
 	  getModifiers().numModifier("public") == 0 &&
 	  getModifiers().numNegativeModifier("private") == 0 );
 
+    eq MethodPattern.getModifiers().possiblyFinal() =
+	getModifiers().isFinal() || getModifiers().numNegativeModifier("final") == 0;
+    eq FieldPattern.getModifiers().possiblyFinal() =
+	getModifiers().isFinal() || getModifiers().numNegativeModifier("final") == 0;
+    eq PatternMethodDecl.getModifiers().possiblyFinal() =
+	getModifiers().isFinal() || getModifiers().numNegativeModifier("final") == 0;
+    eq PatternFieldDeclaration.getModifiers().possiblyFinal() =
+	getModifiers().isFinal() || getModifiers().numNegativeModifier("final") == 0;
+
     eq MethodPattern.getModifiers().possiblyStatic() = getModifiers().numNegativeModifier("static") == 0;
     eq FieldPattern.getModifiers().possiblyStatic() = getModifiers().numNegativeModifier("static") == 0;
     eq PatternMethodDecl.getModifiers().possiblyStatic() = getModifiers().numNegativeModifier("static") == 0;
@@ -359,6 +386,14 @@ aspect MJModifiers {
     eq PatternMethodDecl.isPrivate() = super.isPrivate() && 
 	!getModifiers().possiblyPublic() && !getModifiers().possiblyProtected();
 
+    eq EveryMethodDecl.isPublic() = super.isPublic() && 
+	!getModifiers().possiblyPrivate() && 
+	!getModifiers().possiblyProtected();
+    eq EveryMethodDecl.isProtected() = super.isProtected() &&
+	!getModifiers().possiblyPrivate() && !getModifiers().possiblyPublic();
+    eq EveryMethodDecl.isPrivate() = super.isPrivate() && 
+	!getModifiers().possiblyPublic() && !getModifiers().possiblyProtected();
+	
     eq PatternFieldDeclaration.isPublic() = super.isPublic() && 
 	!getModifiers().possiblyPrivate() && 
 	!getModifiers().possiblyProtected();
@@ -367,7 +402,7 @@ aspect MJModifiers {
     eq PatternFieldDeclaration.isPrivate() = super.isPrivate() && 
 	!getModifiers().possiblyPublic() && !getModifiers().possiblyProtected();
 
-
+    
     // make sure that annotations indicated for FIELD can be used for
     // field pattern.
     eq FieldPattern.getModifiers().mayUseAnnotationTarget(String name) = 
@@ -376,4 +411,25 @@ aspect MJModifiers {
 	name.equals("METHOD");
     eq MethodPattern.getParameter().mayUseAnnotationTarget(String name) =
 	name.equals("METHOD");
+
+    syn lazy boolean MethodDecl.possiblyProtected() = getModifiers().possiblyProtected();
+    eq StaticForMethodDeclSubstituted.possiblyProtected() =
+	((StaticForMethodDecl) getOriginal()).possiblyProtected();
+
+    syn lazy boolean MethodDecl.possiblyPublic() = getModifiers().possiblyPublic();
+    eq StaticForMethodDeclSubstituted.possiblyPublic() =
+	((StaticForMethodDecl) getOriginal()).possiblyPublic();
+
+    syn lazy boolean MethodDecl.possiblyPrivate() = getModifiers().possiblyPrivate();
+    eq StaticForMethodDeclSubstituted.possiblyPrivate() =
+	((StaticForMethodDecl) getOriginal()).possiblyPrivate();
+
+    syn lazy boolean MethodDecl.possiblyStatic() = getModifiers().possiblyStatic();
+    eq StaticForMethodDeclSubstituted.possiblyStatic() =
+	((StaticForMethodDecl) getOriginal()).possiblyStatic();
+
+    syn lazy boolean MethodDecl.possiblyFinal() = getModifiers().possiblyFinal();
+    eq StaticForMethodDeclSubstituted.possiblyFinal() = 
+	((StaticForMethodDecl) getOriginal()).possiblyFinal();
+
 }

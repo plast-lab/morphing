@@ -147,4 +147,87 @@ aspect MJTypeHierarchyCheck {
 	    }
 	}
     }
+
+    refine Generics public void TypeDecl.typeCheck () {
+	Generics.TypeDecl.typeCheck();
+
+	// check reflective methods.
+	Collection refMethods = reflectiveMethods();
+	for ( Iterator refIt = refMethods.iterator();refIt.hasNext(); ) {
+	    StaticForMethodDecl m = (StaticForMethodDecl) refIt.next();
+	    ASTNode target = m.hostType() == this ? (ASTNode)m : (ASTNode)this;
+
+	    for(Iterator i2 = m.ancestorMethods(this).iterator(); i2.hasNext(); ) {
+		MethodDecl decl = (MethodDecl)i2.next();
+		if(m.overrides(decl)) {
+		    // 8.4.6.1
+		    if(!m.isStatic() && decl.isStatic())
+			target.error("an instance method may not override a static method");
+		    
+		    // regardless of overriding
+		    // 8.4.6.3
+		    if(!m.mayOverrideReturn(decl))
+			target.error("the return type of method " + m.signature() + " in " + m.hostType().typeName() + " does not match the return type of method " + decl.signature() + " in " + decl.hostType().typeName() + " and may thus not be overriden");
+		    
+		    // regardless of overriding
+		    // 8.4.4
+		    for(int i = 0; i < m.getNumException(); i++) {
+			Access e = m.getException(i);
+			boolean found = false;
+			for(int j = 0; !found && j < decl.getNumException(); j++) {
+			    if(e.type().instanceOf(decl.getException(j).type()))
+				found = true;
+			}
+			if(!found && e.type().isUncheckedException())
+			    target.error(m.signature() + " in " + m.hostType().typeName() + " may not throw more checked exceptions than overridden method " +
+					 decl.signature() + " in " + decl.hostType().typeName());
+		    }
+		    // 8.4.6.3
+		    if(decl.isPublic() && !m.isPublic())
+			target.error("overriding access modifier error");
+		    // 8.4.6.3
+		    if(decl.isProtected() && !(m.isPublic() || m.isProtected()))
+			target.error("overriding access modifier error");
+		    // 8.4.6.3
+		    if((!decl.isPrivate() && !decl.isProtected() && !decl.isPublic()) && m.isPrivate())
+			target.error("overriding access modifier error");
+		    
+		    // regardless of overriding
+		    if(decl.possiblyFinal())
+			target.error("method " + m.signature() + " in " + hostType().typeName() + " can not override final method " + decl.signature() + " in " + decl.hostType().typeName());
+		}
+		if(m.hides(decl)) {
+		    // 8.4.6.2
+		    if(m.isStatic() && !decl.isStatic())
+			target.error("a static method may not hide an instance method");
+		    // 8.4.6.3
+		    if(!m.mayOverrideReturn(decl))
+			target.error("can not hide a method with a different return type");
+		    // 8.4.4
+		    for(int i = 0; i < m.getNumException(); i++) {
+			Access e = m.getException(i);
+			boolean found = false;
+			for(int j = 0; !found && j < decl.getNumException(); j++) {
+			    if(e.type().instanceOf(decl.getException(j).type()))
+				found = true;
+			}
+			if(!found)
+			    target.error("may not throw more checked exceptions than hidden method");
+		    }
+		    // 8.4.6.3
+		    if(decl.isPublic() && !m.isPublic())
+			target.error("hiding access modifier error: public method " + decl.signature() + " in " + decl.hostType().typeName() + " is hidden by non public method " + m.signature() + " in " + m.hostType().typeName());
+		    // 8.4.6.3
+		    if(decl.isProtected() && !(m.isPublic() || m.isProtected()))
+			target.error("hiding access modifier error: protected method " + decl.signature() + " in " + decl.hostType().typeName() + " is hidden by non (public|protected) method " + m.signature() + " in " + m.hostType().typeName());
+		    // 8.4.6.3
+		    if((!decl.isPrivate() && !decl.isProtected() && !decl.isPublic()) && m.isPrivate())
+			target.error("hiding access modifier error: default method " + decl.signature() + " in " + decl.hostType().typeName() + " is hidden by private method " + m.signature() + " in " + m.hostType().typeName());
+		    if(decl.possiblyFinal())
+			target.error("method " + m.signature() + " in " + hostType().typeName() + " can not hide final method " + decl.signature() + " in " + decl.hostType().typeName());
+		}
+	    }
+	}
+    }
+
 }

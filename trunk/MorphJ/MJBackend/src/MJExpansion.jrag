@@ -10,7 +10,8 @@ aspect MJExpansion {
 
 	// change superclass.
 	if ( hasSuperclass()) {
-	    if ( !superclass().shouldErase())
+	    if ( !superclass().isParameterizedType() ||
+		 !superclass().shouldErase())
 		cn.superName = superclass().expandedConstantPoolName();
 	}
 

@@ -62,9 +62,16 @@ aspect MJPattern {
     eq StaticForFieldDeclaration.getTypeAccess().enclosingRefIterator() = getIteratorDecl();
     eq StaticForFieldDeclaration.getInit().enclosingRefIterator() = getIteratorDecl();
 
+    public IteratorDecl Variable.getEnclosingRefIterator() {
+	return enclosingRefIterator();
+    }
+
     inh IteratorDecl IteratorDecl.enclosingRefIterator();
     inh IteratorDecl Stmt.enclosingRefIterator();
+    inh IteratorDecl BodyDecl.enclosingRefIterator();
+
     eq StaticForStmt.getStmt(int index).enclosingRefIterator() = getIteratorDecl();
+
     syn lazy IteratorDecl Stmt.refIterator() = null;
     eq StaticForStmt.refIterator() = getIteratorDecl();
 
