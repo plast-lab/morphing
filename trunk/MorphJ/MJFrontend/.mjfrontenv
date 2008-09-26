@@ -1,0 +1,6 @@
+# .mjfrontenv: contains MorphJ frontend specific environment variables.
+
+MJ_HOME=~/workspace
+MJ_FRONT=$MJ_HOME/MJFrontend
+
+export MJ_HOME MJ_FRONT
