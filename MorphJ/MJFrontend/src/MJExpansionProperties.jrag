@@ -16,6 +16,16 @@ aspect MJExpansionProperties {
 
     syn lazy boolean BodyDecl.isSubstitutedStaticForDecl() { return false; }
     public boolean SubstitutedStaticForDeclaration.isSubstitutedStaticForDecl() { return true; }
+
+    // have SubstitutedStaticForDeclaration inherit start and end from
+    // its original, for error reporting.
+    public int SubstitutedStaticForDeclaration.getStart() { return ((ASTNode) getOriginal()).getStart(); }
+    public int SubstitutedStaticForDeclaration.getEnd() {
+	return ((ASTNode) getOriginal()).getEnd();
+    }
+    public int SubstitutedStaticForDeclaration.lineNumber() {
+	return ((ASTNode) getOriginal()).lineNumber();
+    }
     
     StaticForMethodDeclSubstituted implements SubstitutedStaticForDeclaration;
     StaticForConstructorDeclSubstituted implements SubstitutedStaticForDeclaration;
@@ -38,6 +48,37 @@ aspect MJExpansionProperties {
     }
     eq TypeVariable.grounded() = false;
     eq UnknownType.grounded() = false;
+
+    syn lazy boolean BodyDecl.grounded() circular [false] = true;
+    eq StaticForMethodDecl.grounded() {
+	// the declaration uses no pattern-matched variables,
+	//if ( refIterator().expandable()) return true;
+	if ( !type().grounded()) return false;
+	if ( identifier().isNameVariable()) return false;
+
+	List<ParameterDeclaration> params = getParameters();
+	for ( int i=0; i<params.getNumChild(); i++) {
+	    ParameterDeclaration pd = params.getChild(i);
+	    if ( !pd.type().grounded() || 
+		 pd.identifier().isNameVariable())
+		return false;
+	}
+
+	// check exceptions.
+	List<Access> exceptions = getExceptions();
+	for ( int i=0; i<exceptions.getNumChild(); i++) {
+	    if ( !exceptions.getChild(i).type().grounded())
+		return false;
+	}
+
+	return true;
+    }
+    eq StaticForFieldDeclaration.grounded() {
+	//	if ( refIterator().expandable()) return true;
+	if ( !type().grounded()) return false;
+	if ( identifier().isNameVariable()) return false;
+	return true;
+    }
 
     /**
      * A TypeDecl needs expansion if:

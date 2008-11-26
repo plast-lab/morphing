@@ -8,7 +8,40 @@ aspect MJSubstitution {
     public int ParTypeDecl.getNumBodyDecl();
     public BodyDecl ParTypeDecl.getBodyDecl(int i);
 
-    public StaticForMethodDeclSubstituted StaticForMethodDecl.substitute(Map substitutions) {
+    public boolean StaticForMethodDeclSubstituted.equals(Object o) {
+	if ( o == this ) return true;
+
+	if ( o == null || !(o instanceof StaticForMethodDeclSubstituted))
+	    return false;
+
+	StaticForMethodDeclSubstituted s = (StaticForMethodDeclSubstituted) o;
+
+	// they must have the same original to have a chance of being equal.
+	if ( !original.equals( s.original ) )
+	    return false;
+
+	// every pattern/name variable must have been substituted to the
+	// same thing through substitutions.
+	IteratorDecl thisId = original.refIterator();
+
+	for ( int i=0; i<thisId.getNumPatternTypeParameter(); i++) {
+	    TypeVariable v = thisId.getPatternTypeParameter(i);
+	    TypeDecl vs1 = v.substitute(expansionSubstitutions).type();
+	    TypeDecl vs2 = v.substitute(s.expansionSubstitutions).type();
+	    if ( vs1 != vs2 ) return false;
+	}
+	
+	for ( int i=0; i<thisId.getNumPatternNameParameter(); i++) {
+	    PatternNameVariable v = thisId.getPatternNameParameter(i);
+	    Object vs1 = v.substitute(expansionSubstitutions);
+	    Object vs2 = v.substitute(s.expansionSubstitutions);
+	    if ( !vs1.equals(vs2))
+		return false;
+	}
+	return true;
+    }
+    
+    public StaticForMethodDeclSubstituted StaticForMethodDecl.substitute(Map substitutions, List parent) {
 	StaticForMethodDeclSubstituted m = 
 	    new StaticForMethodDeclSubstituted((Modifiers) getModifiers().fullCopy(),
 					       getTypeAccess().type().substitute(substitutions),
@@ -17,19 +50,50 @@ aspect MJSubstitution {
 					       getExceptionList().expandAccessList(substitutions),
 					       new Opt(),
 					       getIteratorDecl().substitute(substitutions),
-					       new List(), new List());
+					       new List(), new List(), new List());
 	m.original = this;
 	m.is$Final = true;
 	m.expansionSubstitutions.putAll(substitutions);
 
-	this.addStaticForMethodDeclSubstituted(m);
+	parent.addChild(m);
 	
 	m.identifier().namevariable = 
 	    identifier().substitutedNameVariable(substitutions);
 
 	return m;
     }
+
+    public StaticForMethodDeclSubstituted StaticForMethodDeclSubstituted.substitute(Map substitutions, List parent) {
+	// combine substitution with this.expansionSubstitution.
+	Map collapsedSubs = new HashMap(this.expansionSubstitutions);
+	
+	// apply new substitutions to existing.	
+	for ( Object key : expansionSubstitutions.keySet()) {
+	    Object valOld = substitutions.get(key);
+	    if ( valOld instanceof TypeDecl ) {
+		Object subVal = ((TypeDecl) valOld).substitute(substitutions);
+		collapsedSubs.put(key, subVal);
+	    } else if ( valOld instanceof Identifier ) {
+		Object subVal = ((Identifier) valOld).substitutedIdentifier(substitutions);
+		collapsedSubs.put(key, subVal);
+	    } else if ( valOld instanceof PatternNameVariable ) {
+		Object subVal = ((PatternNameVariable) valOld).substitute(substitutions);
+		collapsedSubs.put(key, subVal);
+	    }
+	}
+
+	collapsedSubs.putAll(substitutions);
+	return original.substitute(collapsedSubs, parent);
+    }
     
+    public StaticForMethodDeclSubstituted StaticForMethodDecl.substitute(Map substitutions) {
+	return substitute(substitutions, this.getStaticForMethodDeclSubstitutedList());
+    }
+
+    public StaticForMethodDeclSubstituted StaticForMethodDeclSubstituted.substitute(Map substitutions) {
+	return substitute(substitutions, original.getStaticForMethodDeclSubstitutedList());
+    }
+
     public StaticForFieldDeclarationSubstituted StaticForFieldDeclaration.substitute(Map substitutions) {
 	StaticForFieldDeclarationSubstituted f =
 	    new StaticForFieldDeclarationSubstituted((Modifiers) getModifiers().fullCopy(),
@@ -72,6 +136,7 @@ aspect MJSubstitution {
 	ParIteratorDecl pid = new ParIteratorDecl();
 	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
 	    TypeVariable t = getPatternTypeParameter(i).fullCopy();
+	    t.addedByPatternRewrite = getPatternTypeParameter(i).addedByPatternRewrite;
 	    pid.addPatternTypeParameter((PatternTypeVariable)t.substitute(substitutions).type());
 	}
 	pid.setPatternNameParameterList(getPatternNameParameterList().fullCopy());
@@ -92,6 +157,8 @@ aspect MJSubstitution {
 	    pid.addNestedPattern(getNestedPattern(i).substitute(map).substitute(substitutions));
 	
 	pid.original = this;
+	pid.parameterizationMapping.putAll(substitutions);
+
 	return pid;
     }
 
@@ -122,9 +189,10 @@ aspect MJSubstitution {
 
     public Object PatternNameVariable.substitute(Map uniMap) {
 	if ( uniMap.containsKey(this) ) {
-	    if ( uniMap.get(this) instanceof String )
-		return uniMap.get(this);
-	    return ((PatternNameVariable) uniMap.get(this)).substitute(uniMap);
+	    Object o = uniMap.get(this);
+	    if ( o instanceof String || o instanceof Identifier )
+		return o;
+	    return ((PatternNameVariable) o).substitute(uniMap);
 	} 
 	return this;
     }
@@ -243,7 +311,8 @@ aspect MJSubstitution {
 	    Access argAccess = argType.substitute(submap);
 	    TypeDecl subArgType = argAccess.type();
 
-	    if ( subArgType.isVectorTypeVariable()) {
+	    if ( subArgType.isVectorTypeVariable() 
+		 && subArgType.isMapped(submap)) {
 		List argTypes = subArgType.expandAccessList(submap);
 		for ( int j=0; j<argTypes.getNumChild(); j++) {
 		    ParameterDeclaration newNode = 

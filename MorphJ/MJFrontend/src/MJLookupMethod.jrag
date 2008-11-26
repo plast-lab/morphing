@@ -17,8 +17,7 @@ aspect MJLookupMethod {
      * declared methods the way they are. And use another data structure
      * for reflectively declared methods.
      **/
-
-    syn lazy Collection<StaticForMethodDecl> TypeDecl.reflectiveMethods() {
+    syn lazy Collection<StaticForMethodDecl> TypeDecl.localReflectiveMethods() {
 	Set set = new HashSet();
 	for ( int i=0; i<getNumBodyDecl(); i++) {
 	    if ( getBodyDecl(i).isReflectiveDecl()  &&
@@ -27,8 +26,11 @@ aspect MJLookupMethod {
 	}
 	return set;
     }
+
+    syn lazy Collection<StaticForMethodDecl> TypeDecl.reflectiveMethods() = localReflectiveMethods();
     eq ClassDecl.reflectiveMethods() {
-	Collection<StaticForMethodDecl> methods = super.reflectiveMethods();
+	Collection<StaticForMethodDecl> methods = 
+	    new ArrayList(localReflectiveMethods());
 	if ( hasSuperclass())
 	    methods.addAll(superclass().reflectiveMethods());
 	// interfaces.
@@ -37,7 +39,6 @@ aspect MJLookupMethod {
 	}
 	return methods;
     }
-
     eq TypeVariable.reflectiveMethods() {
 	Set set = new HashSet();
 	for ( int i=0; i<getNumTypeBound(); i++) {
@@ -200,29 +201,6 @@ aspect MJLookupMethod {
 	    map.put(mIt.next(), new HashMap());
 	return map;
     }
-    /*
-    eq ClassDecl.memberMethodsAndMap(Identifier name) {
-	HashMap methods = new HashMap();
-	
-	Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
-	for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
-	    StaticForMethodDecl md = refIt.next();
-
-	    // name could be a member method of this if
-	    // 1. its' enclosing iterator decl is subsumed by one of this's
-	    // method's iterator decl.
-	    HashMap uniMap = new HashMap();
-	    if ( md.getIteratorDecl().subsumes(name.enclosingRefIterator(), uniMap)) {
-		// 2. the name it maps to is used in declaring method.
-		//		if ( md.substitute(uniMap).getID().equals(name.substitutedName()))
-		if ( md.substitute(uniMap).identifier().equals(name)) {
-		    methods.put(md, uniMap);
-		}
-	    }
-	}
-	return methods;
-    }
-    */    
 
     syn Collection TypeDecl.memberMethods(Identifier id) { 
 	Collection methods = new ArrayList();
@@ -266,10 +244,9 @@ aspect MJLookupMethod {
 		HashMap uniMap = new HashMap();
 		if ( em.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
 		    // 2. the name it maps to is used in declaring method.
-		    if ( em.substitute(uniMap).identifier().equals(id)) {
-			StaticForMethodDeclSubstituted smd = em.substitute(uniMap);
+		    StaticForMethodDeclSubstituted smd = em.substitute(uniMap);
+		    if ( smd.identifier().equals(id))
 			methods.add(smd);
-		    }
 		}
 	    }
 	    for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
@@ -281,10 +258,9 @@ aspect MJLookupMethod {
 		HashMap uniMap = new HashMap();
 		if ( md.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
 		    // 2. the name it maps to is used in declaring method.
-		    if ( md.substitute(uniMap).identifier().equals(id)) {
-			StaticForMethodDeclSubstituted smd = md.substitute(uniMap);
+		    StaticForMethodDeclSubstituted smd = md.substitute(uniMap);
+		    if ( smd.identifier().equals(id))
 			methods.add(smd);
-		    }
 		}
 	    }
 	}
@@ -292,7 +268,7 @@ aspect MJLookupMethod {
 	if ( !id.isNameVariable()) {
 	    methods.addAll(memberMethods(id.varname));
 	}
-
+	
 	return methods;
     }
     eq TypeVariable.memberMethods(Identifier id) {
@@ -324,6 +300,21 @@ aspect MJLookupMethod {
 		}
 	    }
 	} 
+
+	// add every method.
+	StaticForMethodDecl em = (StaticForMethodDecl) everyMethod();
+	
+	// id could be a member method of this if
+	// 1. its' enclosing iterator decl is subsumed by one of this's
+	// method's iterator decl.
+	HashMap uniMap = new HashMap();
+	if ( em.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
+	    // 2. the name it maps to is used in declaring method.
+	    StaticForMethodDeclSubstituted smd = em.substitute(uniMap);
+	    if ( smd.identifier().equals(id))
+		methods.add(smd);
+	}
+	
 	// look into bounds.
 	for ( int i=0; i<getNumTypeBound(); i++) {
 	    methods.addAll(getTypeBound(i).type().memberMethods(id));
@@ -463,14 +454,10 @@ aspect MJLookupMethod {
 				  ht.getArgument(i).type());
 	    }
 
-	    StaticForMethodDeclSubstituted md = substitute(substitutions);
-	    //	    md.expansionSubstitutions = substitutions;
-	    // md.is$Final = true;
-	    // addExpandedMethodDecl(md);
+	    StaticForMethodDeclSubstituted md = substitute(substitutions, this.getExpandedMethodsList());
 	}
-
-	//	return getExpandedMethodDeclList();
-	return getStaticForMethodDeclSubstitutedList();
+	
+	return getExpandedMethodsList();
     }
 
     // A map from elements in the reflective range to the mappings 
@@ -655,13 +642,14 @@ aspect AncestorMethods {
       t.ancestorMethods(signature());
 
   eq StaticForMethodDecl.ancestorMethods(TypeDecl t) =
-      t.ancestorMethodsOfReflectiveMethod(this);
-
+      grounded() ? t.ancestorMethods(signature()) 
+      : t.ancestorMethodsOfReflectiveMethod(this);
+  
   syn lazy SimpleSet TypeDecl.ancestorMethodsOfReflectiveMethod(StaticForMethodDecl md) = SimpleSet.emptySet;
 
   eq InterfaceDecl.ancestorMethodsOfReflectiveMethod(StaticForMethodDecl md) {
       SimpleSet set = SimpleSet.emptySet;
-
+      
       for(Iterator outerIter = superinterfacesIterator(); outerIter.hasNext(); ) {
 	  TypeDecl typeDecl = (TypeDecl)outerIter.next();
 	  for(Iterator iter = typeDecl.reflectiveMethods().iterator(); iter.hasNext(); ) {

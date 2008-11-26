@@ -102,19 +102,23 @@ aspect MJPrettyPrint {
 	if ( getNumRealPatternTypeParameter() > 0 ) {
 	    buf.append("<");
 	    int i=0;
+	    boolean appendComma = false;
 	    for ( i=0 ; i<getNumPatternTypeParameter(); i++) {
 		if ( getPatternTypeParameter(i).addedByPatternRewrite())
 		    continue;
+
 		getPatternTypeParameter(i).toString(buf);
+		appendComma = true;
 		i++;
 		break;
 	    }
 	    for ( ; i<getNumPatternTypeParameter(); i++) {
 		if ( getPatternTypeParameter(i).addedByPatternRewrite())
 		    continue;
-
-		buf.append(",");
+		
+		if ( appendComma ) buf.append(",");
 		getPatternTypeParameter(i).toString(buf);
+		appendComma = true;
 	    }
 	    buf.append(">");
 	}

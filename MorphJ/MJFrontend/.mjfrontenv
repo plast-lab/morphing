@@ -2,5 +2,6 @@
 
 MJ_HOME=~/workspace
 MJ_FRONT=$MJ_HOME/MJFrontend
+MJ_EXAMPLES=$MJ_HOME/examples
 
 export MJ_HOME MJ_FRONT

@@ -187,6 +187,10 @@ aspect MJNameCheck {
     }
 
     public void StaticForFieldDeclaration.nameCheck() {
+	// don't check if it is grounded -- in this case, its
+	// expanded fields are checked separately.
+	if ( grounded()) return;
+
 	// check that it is unqique from all fields.
 	// all statically declared fields.
 	SimpleSet fields = hostType().unrestrictedFields();
@@ -213,73 +217,8 @@ aspect MJNameCheck {
 	}
     }
 
-    refine NameCheck public void MethodDecl.nameCheck() {
-	// make sure that method signature is disjoint from all
-	// other method signatures.
-
-	// 8.4
-	// 8.4.2
-
-	// Right now, the implementation for checking reflective method
-	// conflicts are very inefficient (repeated iterator loops).  Maybe
-	// we can improve this later. --SSH
-
-	// We need to check that the method does not conflict with
-	// any of the reflective methods, nor does it conflict with
-	// statically declared methods.
-
-	if ( isReflectiveDecl()) {
-	    // reflectively declared method. check that it is disjoint
-	    // from all other methods in the class.
-	    Collection methods = new ArrayList();
-	    methods.addAll(hostType().methodsSignatureMap().values());
-	    methods.addAll(hostType().reflectiveMethods());
-
-	    for (Iterator mIt = methods.iterator(); mIt.hasNext(); ) {
-		MethodDecl md = (MethodDecl) mIt.next();
-		
-		if ( md == this ) continue;
-
-		if ( !this.isUniqueFrom(md) ) {
-		    Program.indent += 3;
-		    String s1 = infoSignature();
-		    String s2 = md.infoSignature();
-		    Program.indent -= 3;
-
-		    error("method with signature \n" + s1 + 
-			  "\n   conflicts with method\n" + s2 + 
-			  "\n   in type " + md.hostType().typeName() + 
-			  ".");
-		}
-	    }
-	} else {
-	    // static method. But still needs to make sure it does
-	    // not conflict with reflectively declared methods in this
-	    // and super host types.
-	    if(!hostType().methodsSignature(signature()).contains(this))
-		error("method with signature " + signature() + 
-		      " is multiply declared in type " + hostType().typeName());
-	    else {
-		// check that it's disjoint from all other reflective 
-		// declarations.
-		Collection methods = hostType().reflectiveMethods();
-		for ( Iterator mIt = methods.iterator(); mIt.hasNext(); ) {
-		    MethodDecl md = (MethodDecl) mIt.next();
-		    
-		    if ( !this.isUniqueFrom(md) && this != md ) {
-			Program.indent += 3;
-			String s1 = infoSignature();
-			String s2 = md.infoSignature();
-			Program.indent -= 3;
-
-			error("method with signature \n" + s1 + 
-			      "\n   conflicts with method\n " + s2 + 
-			      "\n   in type " + hostType().typeName() + ".");
-		    }
-		}
-	    }
-	}
-	    
+    /*
+    public void MethodDecl.uniqueFromVariableSuperMethods() {
 	// if the superclass is a type variable, then special treatment
 	// is needed: this method needs to be disjoint from a staticfor
 	// declaration representing all methods in the type variable.
@@ -288,18 +227,34 @@ aspect MJNameCheck {
 	     ((ClassDecl) hostType()).superclass() instanceof TypeVariable ) {
 	    //.isTypeVariable()) {
 	    MethodDecl md = ((ClassDecl) hostType()).superclass().everyMethod();
-	    if ( !isUniqueFrom(md) ) {
+	    if ( // Make exception for static void main(String[] argv)
+		!(!this.isReflectiveDecl() &&
+		  name().equals("main") &&
+		  type() == hostType().typeVoid() && 
+		  getParameterList().getNumChild() == 1 &&
+		  getParameter(0).type().isArrayDecl() &&
+		  ((ArrayDecl) getParameter(0).type()).elementType().name().equals("String"))) {
 		Program.indent += 3;
 		String s1 = infoSignature();
 		String s2 = md.infoSignature();
 		Program.indent -= 3;
 		// check whether this and md are overriding methods.
-		error("method with signature \n" + s1 + 
-		      "\n   conflicts with method\n" + s2 + 
-		      "\n   in type " + md.hostType().typeName() + ".");
+		if ( md.isEveryMethod())
+		    error("method with signature \n" + s1 + 
+			  "\n   conflicts with method any method" +
+			  " in type " + md.hostType().typeName() + ".");
+		else
+		    error("method with signature \n" + s1 + 
+			  "\n   conflicts with method\n" + s2 + 
+			  "\n   in type " + md.hostType().typeName() + ".");
 	    }
 	}
-	
+    }
+    */
+
+    public void MethodDecl.nameCheckCommon() {
+	//	uniqueFromVariableSuperMethods();
+
 	// 8.4.3.4
 	if(isNative() && hasBlock())
 	    error("native methods must have an empty semicolon body");
@@ -309,7 +264,108 @@ aspect MJNameCheck {
 	// 8.4.5
 	if(!hasBlock() && !(isNative() || isAbstract()))
 	    error("only abstract and native methods may have an empty semicolon body");
-	
+    }
+
+    refine NameCheck public void MethodDecl.nameCheck() {
+	// 8.4
+	// 8.4.2
+
+	// statically declared method. But still needs to make sure it does
+	// not conflict with reflectively declared methods in this
+	// and super host types.
+	if(!hostType().methodsSignature(signature()).contains(this))
+	    error("method with signature " + signature() + 
+		  " is multiply declared in type " + hostType().typeName());
+	else {
+	    // check that it's disjoint from all other reflective 
+	    // declarations.
+	    Collection methods = hostType().localReflectiveMethods();
+	    for ( Iterator mIt = methods.iterator(); mIt.hasNext(); ) {
+		MethodDecl md = (MethodDecl) mIt.next();
+		
+		if ( !this.isUniqueFrom(md) && this != md ) {
+		    Program.indent += 3;
+		    String s1 = infoSignature();
+		    String s2 = md.infoSignature();
+		    Program.indent -= 3;
+		    
+		    if ( md.isEveryMethod())
+			error("method with signature \n" + s1 + 
+			      "\n   conflicts with any method" +
+			      " in type " + hostType().typeName() + ".");
+		    else
+			error("method with signature \n" + s1 + 
+			      "\n   conflicts with method\n" + s2 + 
+			      "\n   in type " + hostType().typeName() + ".");
+		}
+	    }
+	}
+
+	nameCheckCommon();
+    }
+    
+    // We need to check that the method does not conflict with
+    // any of the reflective methods, nor does it conflict with
+    // statically declared methods.
+    public void StaticForMethodDecl.nameCheck() {
+	if ( grounded() ) {
+	    // do name check on the expanded methods as if they're statically
+	    // declared
+	    if(!hostType().methodsSignature(signature()).contains(this))
+		error("method with signature " + signature() + 
+		      " is multiply declared in type " + hostType().typeName());
+	} else {
+	    // TODO:
+	    // Right now, the implementation for checking reflective method
+	    // conflicts are very inefficient (repeated iterator loops).  Maybe
+	    // we can improve this later. --SSH
+	    
+	    // first, check that this method declaration has a unique
+	    // internal range, i.e. copies the uniquely identifying parts
+	    // if the iterated elements entirely.
+	    if ( !isInternallyUnique())
+		error("method with signature \n" + 
+		      this.infoSignature() + 
+		      "\n could expand to conflicting or duplicating method declarations.");
+	    
+	    // reflectively declared method. check that it is disjoint
+	    // from all other methods in the class.
+	    Collection methods = new ArrayList();
+	    methods.addAll(hostType().methodsSignatureMap().values());
+	    methods.addAll(hostType().localReflectiveMethods());
+	    
+	    for (Iterator mIt = methods.iterator(); mIt.hasNext(); ) {
+		MethodDecl md = (MethodDecl) mIt.next();
+		
+		if ( md == this ) continue;
+		
+		if ( !this.isUniqueFrom(md)) {
+		    Program.indent += 3;
+		    String s1 = infoSignature();
+		    String s2 = md.infoSignature();
+		    Program.indent -= 3;
+		    
+		    // make exception for methods in Object. These conflicts
+		    // are checked at instantiation time.
+		    if (md.hostType() == hostType().typeObject()) 
+			warning("method with signature \n" + s1 + 
+				"\n   may conflict with method\n" + s2 + 
+				"\n   in Object.");
+		    else if ( md.isEveryMethod())
+			error("method with signature \n" + s1 + 
+			      "\n   conflicts with any method " +
+			      "in type " + md.hostType().typeName() + 
+			      ".");
+		    else
+			error("method with signature \n" + s1 + 
+			      "\n   conflicts with method\n" + s2 + 
+			      "\n   in type " + md.hostType().typeName() + 
+			      ".");
+		}
+	    }
+
+	    nameCheckCommon();
+	}
     }
 }
 

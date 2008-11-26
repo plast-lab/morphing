@@ -111,8 +111,10 @@ aspect MJIdentifier {
 		    // mapped to a variable. keep searching.
 		    o = uniMap.get(o);
 		}
-		return ((Identifier) o).absorbPrefix(prefix);		    
-		//		return ((Identifier) uniMap.get(namevariable)).absorbPrefix(prefix);
+		Identifier i = ((Identifier) o).absorbPrefix(prefix);
+		if ( i.namevariable == this.namevariable )
+		    return i;
+		return i.substitutedIdentifier(uniMap);
 	    }
 	    return this;
 	}

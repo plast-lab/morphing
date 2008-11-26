@@ -1,5 +1,70 @@
 aspect MJTypeCheckCore {
 
+    syn lazy boolean BodyDecl.isInternallyUnique() = true;
+    eq StaticForMethodDecl.isInternallyUnique() {
+	// make sure that the method signature copies all the uniquely
+	// identifying parts of the enclosing iterator.
+	return copiesUniquePartsOf(refIterator().getPattern());
+    }
+    eq StaticForFieldDeclaration.isInternallyUnique() {
+	return copiesUniquePartsOf(refIterator().getPattern());
+    }
+
+    syn lazy boolean BodyDecl.copiesUniquePartsOf(Pattern p) = false;
+    eq StaticForMethodDecl.copiesUniquePartsOf(Pattern p) =
+	p.uniquePartsCopiedByMethodDecl(this);
+    eq StaticForFieldDeclaration.copiesUniquePartsOf(Pattern p) =
+	p.uniquePartsCopiedByFieldDeclaration(this);
+    
+    syn lazy boolean Pattern.uniquePartsCopiedByMethodDecl(MethodDecl m) = false;
+    syn lazy boolean Pattern.uniquePartsCopiedByFieldDeclaration(FieldDeclaration f) = false;
+    eq MethodPattern.uniquePartsCopiedByMethodDecl(MethodDecl m) {
+	// m must copy the name and argument types of this.
+	Identifier mid = m.identifier();
+	Identifier pid = identifier();
+
+	if ( mid.isNameVariable() && pid.isNameVariable() &&
+	     mid.getNameVariable() != pid.getNameVariable())
+	    return false;
+
+	List<Access> pList = getParameters();
+	List<ParameterDeclaration> mpList = m.getParameters();
+	if ( pList.getNumChild() > mpList.getNumChild())
+	    return false;
+
+	for ( int i=0; i<pList.getNumChild(); i++) {
+	    Access a = pList.getChild(i);
+	    ParameterDeclaration pd = mpList.getChild(i);
+	    if ( a.type() != pd.type())
+		return false;
+	}
+	return true;
+    }
+
+    public PatternNameVariable Identifier.getNameVariable() {
+	return namevariable;
+    }
+
+    eq FieldPattern.uniquePartsCopiedByMethodDecl(MethodDecl m) {
+	Identifier mid = m.identifier();
+	Identifier pid = identifier();
+
+	if ( mid.isNameVariable() && pid.isNameVariable() &&
+	     mid.getNameVariable() != pid.getNameVariable())
+	    return false;
+	return true;
+    }
+
+    eq FieldPattern.uniquePartsCopiedByFieldDeclaration(FieldDeclaration f) {
+	Identifier fid = f.identifier();
+	Identifier pid = identifier();
+
+	if ( fid.isNameVariable() && pid.isNameVariable() &&
+	     fid.getNameVariable() != pid.getNameVariable())
+	    return false;
+	return true;
+    }
+
     syn lazy boolean FieldDeclaration.isUniqueFrom(FieldDeclaration f) {
 	if ( this == f ) return false;
 	
@@ -71,10 +136,7 @@ aspect MJTypeCheckCore {
 	     !m.hostType().subtype(hostType())) 
 	    return false;
 	
-	// if this one's return type can be unified with m's return type,
-	// then we need to check for possible override.
-	if ( retTypeUnifies )
-	    return this.overrides(m);
+	// possible override is checked in TypeDecl.typeCheck();
 
 	return false;
     }
@@ -109,7 +171,7 @@ aspect MJTypeCheckCore {
 	if ( this == m ) return true;
 	// if static, then compare signature. This is how it was specified
 	// in Jastadd before.
-	if ( !m.isReflectiveDecl())
+	if ( !m.isReflectiveDecl() || m.grounded())
 	    return m.signature().equals(signature());
 
 	StaticForMethodDecl sm = (StaticForMethodDecl) m;
@@ -118,11 +180,10 @@ aspect MJTypeCheckCore {
 	HashMap uniMap = new HashMap();
 	if ( this.isSubsumedBy(sm.getIteratorDecl(), uniMap)) { 
 	    // apply mapping and check signature.
-	    if ( canUnifySignature(sm, uniMap, Collections.EMPTY_LIST,
-				   Collections.EMPTY_LIST)) {
-		// after apply substitutions, type() should be a subtype of m's type.
-		return type().substitute(uniMap).type().subtype(sm.type().substitute(uniMap).type());
-	    }
+	    return canUnifySignature(sm, uniMap, Collections.EMPTY_LIST,
+				     Collections.EMPTY_LIST);
+	    // after apply substitutions, type() should be a subtype of m's type.
+	    //		return type().substitute(uniMap).type().subtype(sm.type().substitute(uniMap).type());
 	}
 	return false;
     }
@@ -131,6 +192,8 @@ aspect MJTypeCheckCore {
      * 
      **/
     eq StaticForMethodDecl.signatureOverrides(MethodDecl m) {
+	if ( this.grounded()) 
+	    return super.signatureOverrides(m);
 	if (this == m) return true;
 
 	// if this method 
@@ -150,27 +213,47 @@ aspect MJTypeCheckCore {
 
 	// 1. Is m in the range of this' iterator?
 	Map uniMap = new HashMap();
-	if ( !m.isSubsumedBy(getIteratorDecl(), uniMap)) {
+
+	// TODO: why did I do this???
+	//	if ( !m.isSubsumedBy(getIteratorDecl(), uniMap)) {
+
 	    // fetch method named by this's name in m's host type.
 	    if ( isNameVariable(getID()) || containsNameVariable(getID())) {
+
+		// check that this and m's signatures can unify.
 		Identifier id = new Identifier(getID(), this.getIteratorDecl());
 		HashMap possOverrides = m.hostType().memberMethodsAndMap(id);
 
 		// is m one of the possible override methods?
 		boolean possOv = false;
 		for ( Iterator ovIt = possOverrides.keySet().iterator(); 
-		      ovIt.hasNext();) 
-		    if ( m == ovIt.next()) { possOv = true; break; }
+		      ovIt.hasNext();) {
+		    MethodDecl om = (MethodDecl) ovIt.next();
+		    if ( om instanceof PatternMethodDecl ) {
+			if ( om.equals(m)) {
+			    possOv = true;
+			    break;
+			}
+		    } else {
+			StaticForMethodDeclSubstituted pm = (StaticForMethodDeclSubstituted) om;
+			StaticForMethodDeclSubstituted msub = (StaticForMethodDeclSubstituted) m.substitute(pm.expansionSubstitutions);
+			if ( msub.equals(pm)) { 
+			    //possOv = true;
+			    //			    uniMap.putAll(((StaticForMethodDeclSubstituted) pm).expansionSubstitutions);
+			    // break; 
+			    
+			    // now unify the signatures.
+			    IteratorDecl mIt = ((StaticForMethodDecl) m).refIterator();
+			    if (this.canUnifySignature(m, uniMap, mIt.patternTypeVariables(), mIt.patternNameVariables()))
+				return true; 
+			}
+		    }
+		}
 		
 		// if m is not a method that could be possibly overriden by
 		// this, then just return.
 		if ( !possOv ) return false;
-		
-		// get the unification map again and check signature and ret type.
-		// TODO: inefficient. already calculated this when getting
-		// possible overrides.
-		// clear uniMap first.
-		uniMap = (Map) possOverrides.get(m);
+
 	    } else {
 		Collection possOverrides = m.hostType().memberMethods(getID());
 		// is m one of the possible override methods?
@@ -184,12 +267,14 @@ aspect MJTypeCheckCore {
 
 		uniMap = new HashMap();
 	    }
-	}
+
+	    //	}
 
 	// check signatures unify using uniMap.
 	if ( substitute(uniMap).canUnifySignature(m.substitute(uniMap), uniMap,
 			       Collections.EMPTY_LIST, Collections.EMPTY_LIST))
-	    return type().substitute(uniMap).type().subtype(m.type().substitute(uniMap).type());
+	    return true;
+	    //	    return type().substitute(uniMap).type().subtype(m.type().substitute(uniMap).type());
 	
 	return false;
     }
@@ -221,6 +306,7 @@ aspect MJTypeCheckCore {
 	*/
 	return true;
     }
+
 
     /*
     syn lazy boolean IteratorDecl.nestedPatternSatisfiedBy(HashMap uniMap) {
@@ -747,11 +833,11 @@ aspect MJTypeCheckCore {
 		     (getTypeArgument(i).type().isTypeVariable() ? 
 		      !((TypeVariable) getTypeArgument(i).type()).mustbeClass() : 
 		      !getTypeArgument(i).type().isClassDecl()))
-		    error("type argument " + i + " is not a class.");
+		    error("type argument " + getTypeArgument(i).type().fullName() + " is not a class.");
 		if ( tv.mustbeInterface() &&
 		     (getTypeArgument(i).type().isTypeVariable() ?
 		      !((TypeVariable) getTypeArgument(i).type()).mustbeInterface() : !getTypeArgument(i).type().isInterfaceDecl()))
-		    error("type argument " + i + " is not an interface.");
+		    error("type argument " + getTypeArgument(i).type().fullName() + " is not an interface.");
 	    }
 	}
 
@@ -772,17 +858,38 @@ aspect MJTypeCheckCore {
 	Collection<StaticForFieldDeclaration> sfields = ptd.reflectiveFields();
 	for ( StaticForFieldDeclaration sfd : sfields ) {
 	    IteratorDecl id = sfd.getIteratorDecl();
-	    if ( id.expandable())
+	    if ( id.expandable()) {
 		// invoking this causes appropriate error msgs to be generated.
 		id.reflectiveElmts();
+		
+		for ( Iterator fid = sfd.expandedFields().iterator(); fid.hasNext(); ) {
+		    FieldDeclaration fd = (FieldDeclaration) fid.next();
+		    fd.nameCheck();
+		    fd.typeCheck();
+		    fd.accessControl();
+		    fd.checkModifiers();
+		}
+	    }
 	}
 
 	Collection<StaticForMethodDecl> smethods = ptd.reflectiveMethods();
 	for ( StaticForMethodDecl smd : smethods ) {
 	    IteratorDecl id = smd.getIteratorDecl();
-	    if ( id.expandable())
+	    if ( id.expandable()) {
 		id.reflectiveElmts();
+		
+		for ( Iterator mid = smd.expandedMethods().iterator(); mid.hasNext(); ) {
+		    MethodDecl md = (MethodDecl) mid.next();
+		    md.nameCheck();
+		    md.typeCheck();
+		    md.accessControl();
+		    md.exceptionHandling();
+		    md.checkModifiers();
+		}
+	    }
 	}
+
+	//	ptd.typeCheck();
     }
 
     //    public void TypeAccess.typeCheck() {

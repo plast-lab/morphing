@@ -42,6 +42,10 @@ aspect MJParameterization {
 
 	m.original = this;
 	m.parameterizedBy = parTypeDecl;
+
+	m.expansionSubstitutions.putAll(pId.parameterizationMapping());
+	m.expansionSubstitutions.putAll(parTypeDecl.parameterizationMapping());
+
 	return m;
     }
     public BodyDecl StaticForFieldDeclaration.p(Parameterization parTypeDecl) {
@@ -61,6 +65,9 @@ aspect MJParameterization {
 
 	f.original = this;
 	f.parameterizedBy = parTypeDecl;
+
+	f.expansionSubstitutions.putAll(pId.parameterizationMapping());
+	f.expansionSubstitutions.putAll(parTypeDecl.parameterizationMapping());
 
 	return f;
     }
@@ -102,7 +109,99 @@ aspect MJParameterization {
 	    pid.addNestedPattern(getNestedPattern(i).substitute(map).substitute(parTypeDecl));
 	
 	pid.original = this;
+	pid.parameterizationMapping.putAll(parTypeDecl.parameterizationMapping());
+	pid.parameterizationMapping.putAll(map);
+	
 	return pid;
+    }
+
+    public Map ParIteratorDecl.parameterizationMapping = new HashMap();
+    public Map ParMethodDecl.parameterizationMapping = new HashMap();
+    public Map GenericClassDeclSubstituted.parameterizationMapping = new HashMap();
+    public Map ClassDeclSubstituted.parameterizationMapping = new HashMap();
+    public Map InterfaceDeclSubstituted.parameterizationMapping = new HashMap();
+    public Map GenericInterfaceDeclSubstituted.parameterizationMapping = new HashMap();
+
+    public Map Parameterization.parameterizationMapping();
+
+    public Map ParIteratorDecl.parameterizationMapping() {
+	return parameterizationMapping;
+    }
+    public Map ParMethodDecl.parameterizationMapping() {
+	return parameterizationMapping;
+    }
+    public Map ClassDeclSubstituted.parameterizationMapping() {
+	return parameterizationMapping;
+    }
+    public Map GenericClassDeclSubstituted.parameterizationMapping() {
+	return parameterizationMapping;
+    }
+    public Map GenericInterfaceDeclSubstituted.parameterizationMapping() {
+	return parameterizationMapping;
+    }
+    public Map InterfaceDeclSubstituted.parameterizationMapping() {
+	return parameterizationMapping;
+    }
+    public Map ParTypeDecl.parameterizationMapping() {
+	Map pMap = new HashMap();
+	GenericTypeDecl t = (GenericTypeDecl) genericDecl();
+	for (int i=0; i<t.getNumTypeParameter(); i++)
+	    pMap.put(t.getTypeParameter(i), this.getArgument(i).type());
+	return pMap;
+    }
+
+    /*
+    inh Map Pattern.parameterizationMapping();
+    eq IteratorDecl.getPattern().parameterizationMapping() = new HashMap();
+    eq ParIteratorDecl.getPattern().parameterizationMapping() = parameterizationMapping();
+    eq IteratorDecl.getNestedPattern(int i).parameterizationMapping() = new HashMap();
+    eq ParIteratorDecl.getNestedPattern(int i).parameterizationMapping() = parameterizationMapping();    
+    inh Map PatternMethodDecl.parameterizationMapping();
+    eq Pattern.getPatternMethodDecl(int i).parameterizationMapping() = parameterizationMapping();
+    */
+
+    refine Generics public ClassDecl GenericClassDecl.p(Parameterization parTypeDecl) {
+	ClassDecl c = Generics.GenericClassDecl.p(parTypeDecl);
+	((GenericClassDeclSubstituted) c).parameterizationMapping.putAll(parTypeDecl.parameterizationMapping());
+	return c;
+    }
+    refine Generics public ClassDecl ClassDecl.p(Parameterization parTypeDecl) {
+	ClassDecl c = Generics.ClassDecl.p(parTypeDecl);
+	((ClassDeclSubstituted) c).parameterizationMapping.putAll(parTypeDecl.parameterizationMapping());
+	return c;
+    }
+    refine Generics public InterfaceDecl InterfaceDecl.p(Parameterization parTypeDecl) {
+	InterfaceDecl c = Generics.InterfaceDecl.p(parTypeDecl);
+	((InterfaceDeclSubstituted) c).parameterizationMapping.putAll(parTypeDecl.parameterizationMapping());
+	return c;
+    }
+    refine GenericMethods public ParMethodDecl GenericMethodDecl.p(ArrayList typeArguments) {
+	ParMethodDecl m = GenericMethods.GenericMethodDecl.p(typeArguments);
+
+	for ( int i=0; i<getNumTypeParameter(); i++) 
+	    m.parameterizationMapping.put(getTypeParameter(i), 
+					  typeArguments.get(i));
+	return m;
+    }
+    refine GenericsSubtype eq TypeVariable.getSubstitutedTypeBound(int i, TypeDecl type) {
+	Access bound = getTypeBound(i);
+	if(!bound.type().usesTypeVariable())
+	    return bound;
+	final TypeDecl typeDecl = type;
+	Access access = bound.type().substitute(
+						new Parameterization() {
+						    public boolean isRawType() { 
+							return false; 
+						    }
+						    public TypeDecl substitute(TypeVariable typeVariable) {
+							return typeVariable == TypeVariable.this ? typeDecl : typeVariable;
+						    } 
+						    public Map parameterizationMapping() { 
+							return new HashMap(); 
+						    }}
+						);
+	access.setParent(this);
+	return access;
     }
 
     public ParIteratorDecl IteratorDecl.lookupParIteratorDecl(ParTypeDecl parTypeDecl) {
