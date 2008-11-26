@@ -73,17 +73,28 @@ aspect StaticFor {
 			getClass().getName());
     }
     public StaticForDeclaration ConstructorDecl.createStaticForDeclarationFrom(IteratorDecl id) {
-	return new StaticForConstructorDecl(getModifiers(), getID(), getParameterList(), getExceptionList(), getConstructorInvocationOpt(), getBlock(), id, new List());
+	StaticForConstructorDecl c = new StaticForConstructorDecl(getModifiers(), getID(), getParameterList(), getExceptionList(), getConstructorInvocationOpt(), getBlock(), id, new List());
+	c.IDstart = this.IDstart;
+	c.IDend = this.IDend;
+	return c;
     }
     public StaticForDeclaration MethodDecl.createStaticForDeclarationFrom(IteratorDecl id) {
-	return new StaticForMethodDecl(getModifiers(), 
-				       getTypeAccess(), getID(), 
-				       getParameterList(),
-				       getExceptionList(),
-				       getBlockOpt(), id, new List(), new List());
+	StaticForMethodDecl m =
+	    new StaticForMethodDecl(getModifiers(), 
+				    getTypeAccess(), getID(), 
+				    getParameterList(),
+				    getExceptionList(),
+				    getBlockOpt(), id, new List(), new List());
+	m.IDstart = this.IDstart;
+	m.IDend = this.IDend;
+	return m;
     }
     public StaticForDeclaration FieldDeclaration.createStaticForDeclarationFrom(IteratorDecl id) {
-	return new StaticForFieldDeclaration(getModifiers(), getTypeAccess(), getID(), getInitOpt(), id, new List());
+	StaticForFieldDeclaration f = 
+	    new StaticForFieldDeclaration(getModifiers(), getTypeAccess(), getID(), getInitOpt(), id, new List());
+	f.IDstart = this.IDstart;
+	f.IDend = this.IDend;
+	return f;
     }
 
     // TODO: MemberClassDecl, MemberInterfaceDecl, StaticInitializer

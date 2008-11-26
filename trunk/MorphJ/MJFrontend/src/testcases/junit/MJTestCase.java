@@ -7,7 +7,7 @@ import AST.*;
 import java.io.File;
 import main.*;
 
-public class MJTestCase extends TestCase {
+public abstract class MJTestCase extends TestCase {
 
     final String MJ_FRONT;
     final String MJ_BACK;
