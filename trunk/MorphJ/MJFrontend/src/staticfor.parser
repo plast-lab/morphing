@@ -62,17 +62,17 @@ List pattern_type_parameter_list_2 =
     LT IDENTIFIER.id GT {: return new List().add(new PatternTypeVariable(new Modifiers(), id, new List(), new List())); :}
   | LT IDENTIFIER.id type_bound.l GT {: return new List().add(new PatternTypeVariable(new Modifiers(), id, new List(), l)); :}
 
-  | LT IDENTIFIER.id MULT GT {: return new List().add(new VectorTypeVariable(new Modifiers(), id, new List(), new List(), new List())); :}
-  | LT IDENTIFIER.id MULT type_bound.l GT {: return new List().add(new VectorTypeVariable(new Modifiers(), id, new List(), l, new List())); :}
+  | LT IDENTIFIER.id MULT GT {: return new List().add(new VectorTypeVariable(new Modifiers(), id, new List(), new List())); :}
+  | LT IDENTIFIER.id MULT type_bound.l GT {: return new List().add(new VectorTypeVariable(new Modifiers(), id, new List(), l)); :}
 
   | LT IDENTIFIER.id COMMA type_parameter_list.tl GT 
     {: return tl.add(new PatternTypeVariable(new Modifiers(), id, new List(), new List())); :}
   | LT IDENTIFIER.id type_bound.l COMMA type_parameter_list.tl GT 
     {: return tl.add(new PatternTypeVariable(new Modifiers(), id, new List(), l)); :}
   | LT IDENTIFIER.id MULT COMMA type_parameter_list.tl GT 
-    {: return tl.add(new VectorTypeVariable(new Modifiers(), id, new List(), new List(), new List())); :}
+    {: return tl.add(new VectorTypeVariable(new Modifiers(), id, new List(), new List())); :}
   | LT IDENTIFIER.id MULT type_bound.l COMMA type_parameter_list.tl GT 
-    {: return tl.add(new VectorTypeVariable(new Modifiers(), id, new List(), l, new List())); :}
+    {: return tl.add(new VectorTypeVariable(new Modifiers(), id, new List(), l)); :}
   ;
  
 List staticfor_body =
@@ -88,7 +88,7 @@ IteratorDecl staticfor_stmt_header =
 
 Pattern pattern_in_stmt = 
      modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b 
-     {: return new MethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List()); :}
+     {: return new OptMethodPattern(b, new Modifiers(m), new Opt(new PrimitiveTypeAccess("void")), id, l, tl, new Opt()); :}
   |  modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b 
      {: return new OptMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt()); :}
   | modifiers.m? type.t? IDENTIFIER.id COLON type.bt reflection_elmt.e?
@@ -141,13 +141,13 @@ List pattern_name_parameter_list =
   ;
 
 TypeVariable type_parameter_1 = 
-    IDENTIFIER.v MULT GT {: return new VectorTypeVariable(new Modifiers(), v, new List(), new List(), new List()); :}
-  | IDENTIFIER.v MULT type_bound_1.l {: return new VectorTypeVariable(new Modifiers(), v, new List(), l, new List()); :}
+    IDENTIFIER.v MULT GT {: return new VectorTypeVariable(new Modifiers(), v, new List(), new List()); :}
+  | IDENTIFIER.v MULT type_bound_1.l {: return new VectorTypeVariable(new Modifiers(), v, new List(), l); :}
   ;
 
 TypeVariable type_parameter = 
-    IDENTIFIER.v MULT {: return new VectorTypeVariable(new Modifiers(), v, new List(), new List(), new List()); :}
-  | IDENTIFIER.v MULT type_bound.l {: return new VectorTypeVariable(new Modifiers(), v, new List(), l, new List()); :}
+    IDENTIFIER.v MULT {: return new VectorTypeVariable(new Modifiers(), v, new List(), new List()); :}
+  | IDENTIFIER.v MULT type_bound.l {: return new VectorTypeVariable(new Modifiers(), v, new List(), l); :}
   ;
 
 List pattern_name_parameters =

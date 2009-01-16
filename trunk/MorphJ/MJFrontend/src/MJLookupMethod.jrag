@@ -1,6 +1,24 @@
 aspect MJLookupMethod {
 
     /**
+     * Refining overrides to call signatureOverrides(m), instead of
+     * simply comparing method signatures as strings.
+     **/
+    refine LookupMethod eq MethodDecl.overrides(MethodDecl m) =
+	!isStatic() && !m.isPrivate() && m.accessibleFrom(hostType()) && 
+	hostType().instanceOf(m.hostType()) &&
+	signatureOverrides(m);
+
+    /**
+     * Refining hides to call signatureOverrides(m), instead of
+     * simply comparing method signatures as strings.
+     **/
+    refine LookupMethod eq MethodDecl.hides(MethodDecl m) =
+	isStatic() && !m.isPrivate() && m.accessibleFrom(hostType()) && 
+	hostType().instanceOf(m.hostType()) && 
+	signatureOverrides(m);
+
+    /**
      * Attribute indicating wether a MethodDecl is a compiler-generated
      * StaticFor method that covers every method of a particular TypeDecl,
      * copying the entire signature.
@@ -308,7 +326,7 @@ aspect MJLookupMethod {
 	// 1. its' enclosing iterator decl is subsumed by one of this's
 	// method's iterator decl.
 	HashMap uniMap = new HashMap();
-	if ( em.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
+	if ( em.getIteratorDecl().subsumes(idecl, uniMap)) {
 	    // 2. the name it maps to is used in declaring method.
 	    StaticForMethodDeclSubstituted smd = em.substitute(uniMap);
 	    if ( smd.identifier().equals(id))
@@ -477,9 +495,15 @@ aspect MJLookupMethod {
 	// type variables.
 	Map ptMap = new HashMap();
 	if ( this instanceof ParIteratorDecl ) {
-	    for ( int i=0; i<getNumPatternTypeParameter(); i++)
-		ptMap.put(((ParIteratorDecl) this).original.getPatternTypeParameter(i),
-			  getPatternTypeParameter(i));
+	    for ( int i=0; i<getNumPatternTypeParameter(); i++) {
+		TypeVariable tv = ((ParIteratorDecl) this).original.getPatternTypeParameter(i);
+		if ( tv.isVectorTypeVariable()) {
+		    ArrayList l = new ArrayList();
+		    l.add(getPatternTypeParameter(i));
+		    ptMap.put(tv,l);
+		} else
+		    ptMap.put(tv,getPatternTypeParameter(i));
+	    }
 	    for ( int i=0; i<getNumPatternNameParameter(); i++)
 		ptMap.put(((ParIteratorDecl) this).original.getPatternNameParameter(i),
 			  getPatternNameParameter(i));
@@ -692,7 +716,7 @@ aspect AncestorMethods {
 		  set = set.add(m);
 	  }
 
-	  if ( superclass() != typeObject()) {
+	  if ( superclass().isTypeVariable()) {
 	      // add a method that encompasses all non-private methods of the
 	      // superclass
 	      StaticForMethodDecl nonPrivateMethod = superclass().everyNonPrivateMethod();
@@ -708,6 +732,26 @@ aspect AncestorMethods {
 		      StaticForMethodDeclSubstituted smd = 
 			  nonPrivateMethod.substitute(uniMap);
 		      set = set.add(smd);
+		  }
+	      }
+	  } else if ( superclass() != typeObject()) {
+	      // fetch all non-private regular methods from superclass.
+	      // A regular method can possibly be an ancestor method if 
+	      // 1) its signature can be unified with md's signature, 
+	      // 2) the primary pattern of this's iterator, after substitution
+	      //    by uniMap, is NOT exactly the same signature --> this
+	      //    prevents users from being warned about overriding 
+	      //    the static methods of Object incorrectly.
+	      for ( Iterator lIt = superclass().localMethodsIterator(); lIt.hasNext(); ) {
+		  MethodDecl lmd = (MethodDecl) lIt.next();
+		  if (lmd.isPrivate()) continue;
+		  Map uniMap =  md.signatureOverridesWithMap(lmd);
+		  if ( uniMap != null ) {
+		      Pattern p = md.getIteratorDecl().getPattern();
+		      if ( p.isMethodPattern() && 
+			   p.substitute(uniMap).patternMethodDecl().signature().equals(lmd.signature()))
+			  continue;
+		      set = set.add(lmd);
 		  }
 	      }
 	  }
@@ -749,4 +793,212 @@ aspect AncestorMethods {
       }
       return set;     
   }
+  
+  refine MethodSignature eq MethodAccess.decls() {
+      SimpleSet decls = MethodSignature.MethodAccess.decls();
+      if ( decls.isEmpty() && !this.isCloned() && 
+	   nonVoidArgIndices().size() > 0 ) {
+	  
+	  java.util.List<Integer> nonVoidArgIndices = nonVoidArgIndices();
+
+	  // if there are argument types that are non-void types,
+	  // then we need to make sure that there is a method decl that
+	  // accommodate each specific non-void argument type.
+	  //
+	  // we need to create all combinations of types for each argument.
+	  // thus, we construct a List of List of argument types.
+	  java.util.List<java.util.List<TypeDecl>> newArgTypesList = 
+	      new ArrayList<java.util.List<TypeDecl>>();
+	  // initialize.
+	  // for i non-void arguments, and j total non-void types,
+	  // there are i*j combinations of argument lists.
+	  for ( int i=0; i<nonVoidArgIndices.size(); i++)
+	      for ( int j=0; j<nonVoidTypes().size(); j++)
+		  newArgTypesList.add(new ArrayList<TypeDecl>());
+	  
+	  for ( int i=0; i<nonVoidArgIndices.size(); i++) {
+	      java.util.List<TypeDecl> nonVoidTypes = nonVoidTypes();
+	      for ( int j=0; j<nonVoidTypes.size(); j++) {
+		  TypeDecl t = nonVoidTypes.get(j);
+		  newArgTypesList.get((i+1)*(j+1)-1).add(t);
+	      }
+	  }
+
+	  // for each possible argument list, see if a declaration exists.
+	  for ( java.util.List<TypeDecl> argList : newArgTypesList ) {
+	      MethodAccess newAccess = this.cloneWithNewArgTypes(argList);
+	      decls = newAccess.decls();
+	      if ( decls.isEmpty())
+		  return decls;
+	  }
+
+	  // if we are here, that means there is a method supporting
+	  // all combinations of non-void argument types.
+	  MethodDecl cloneTarget = null;
+	  if(decls.size() == 1)
+	      cloneTarget = (MethodDecl)decls.iterator().next();
+	  else {
+	      // 8.4.6.4 - only return the first method in case of multply inherited abstract methods
+	      boolean allAbstract = true;
+	      for(Iterator iter = decls.iterator(); 
+		  iter.hasNext() && allAbstract; ) {
+		  MethodDecl m = (MethodDecl)iter.next();
+		  if(!m.isAbstract() && !m.hostType().isObject())
+		      allAbstract = false;
+	      }
+	      if(decls.size() > 1 && allAbstract)
+		  cloneTarget = (MethodDecl)decls.iterator().next();
+	  }
+	  MethodDecl cloned = 
+	      cloneTarget.cloneWithNonVoidTypes(nonVoidArgIndices);
+	  return cloned;
+      }
+      return decls;
+  }
+
+  syn lazy ClonedExpr Expr.cloneWithNewType(TypeDecl t) {
+      BoundTypeAccess a = new BoundTypeAccess();
+      a.setTypeDecl(t);
+      return new ClonedExpr(a);
+  }
+  eq ClonedExpr.type() = getTypeAccess().type();
+
+  syn lazy MethodAccess MethodAccess.cloneWithNewArgTypes(java.util.List<TypeDecl> argTypes) {
+      ClonedMethodAccess ma = new ClonedMethodAccess(this.getID(),
+						     new List());
+
+      int j = 0;
+      for ( int i=0; i<getNumArg(); i++) {
+	  Expr arg = getArg(i);
+	  if ( isNonVoidArgIndex(i))
+	      ma.addArg(arg.cloneWithNewType(argTypes.get(j)));
+	  else
+	      ma.addArg(arg.cloneWithNewType(arg.type()));
+      }
+
+      ma.setBaseMethodAccess(this);
+      ma.setNewArgTypes(argTypes);
+      return ma;
+  }
+  eq ParMethodAccess.cloneWithNewArgTypes(java.util.List<TypeDecl> argTypes) {
+      ClonedParMethodAccess ma = 
+	  new ClonedParMethodAccess(getID(), new List(),
+				    getTypeArguments().fullCopy());
+
+      for ( int i=0; i<nonVoidArgIndices().size(); i++) {
+	  int argIndex = nonVoidArgIndices().get(i).intValue();
+	  BoundTypeAccess a = new BoundTypeAccess();
+	  a.setTypeDecl(argTypes.get(i));
+	  ma.setArg(a, argIndex);
+      }
+
+      int j = 0;
+      for ( int i=0; i<getNumArg(); i++) {
+	  Expr arg = getArg(i);
+	  if ( isNonVoidArgIndex(i))
+	      ma.addArg(arg.cloneWithNewType(argTypes.get(j)));
+	  else
+	      ma.addArg(arg.cloneWithNewType(arg.type()));
+      }
+
+      ma.setBaseMethodAccess(this);
+      ma.setNewArgTypes(argTypes);
+      return ma;
+  }
+
+  syn lazy boolean MethodAccess.isNonVoidArgIndex(int ind) {
+      for ( int i=0; i<nonVoidArgIndices().size(); i++) {
+	  if ( ind == nonVoidArgIndices().get(i).intValue())
+	      return true;
+      }
+      return false;
+  }
+
+  
+  MethodAccess ClonedMethodAccess.baseMethodAccess;
+  java.util.List<TypeDecl> ClonedMethodAccess.newArgTypes;
+  public java.util.List<TypeDecl> ClonedMethodAccess.newArgTypes() { return newArgTypes; }
+  public MethodAccess ClonedMethodAccess.getBaseMethodAccess() { return baseMethodAccess; }
+  public void ClonedMethodAccess.setBaseMethodAccess(MethodAccess a ) {
+      baseMethodAccess = a;
+  }
+  public void ClonedMethodAccess.setNewArgTypes(java.util.List<TypeDecl> args) {
+      newArgTypes = args;
+  }
+
+  MethodAccess ClonedParMethodAccess.baseMethodAccess;
+  java.util.List<TypeDecl> ClonedParMethodAccess.newArgTypes;
+  public java.util.List<TypeDecl> ClonedParMethodAccess.newArgTypes() { return newArgTypes; }
+  public MethodAccess ClonedParMethodAccess.getBaseMethodAccess() { return baseMethodAccess; }
+  public void ClonedParMethodAccess.setBaseMethodAccess(MethodAccess a ) {
+      baseMethodAccess = a;
+  }
+  public void ClonedParMethodAccess.setNewArgTypes(java.util.List<TypeDecl> args) {
+      newArgTypes = args;
+  }
+
+  syn lazy boolean MethodAccess.isCloned() = false;
+  eq ClonedMethodAccess.isCloned() = true;
+  eq ClonedParMethodAccess.isCloned() = true;
+
+  public Collection ClonedMethodAccess.lookupMethod(String name) {
+      return getBaseMethodAccess().lookupMethod(name);
+  }
+  public Collection ClonedParMethodAccess.lookupMethod(String name) {
+      return getBaseMethodAccess().lookupMethod(name);
+  }
+  public Collection ClonedMethodAccess.lookupMethod(Identifier name) {
+      return getBaseMethodAccess().lookupMethod(name);
+  }
+  public Collection ClonedParMethodAccess.lookupMethod(Identifier name) {
+      return getBaseMethodAccess().lookupMethod(name);
+  }
+  public TypeDecl ClonedMethodAccess.hostType() {
+      return getBaseMethodAccess().hostType();
+  }
+  public TypeDecl ClonedParMethodAccess.hostType() {
+      return getBaseMethodAccess().hostType();
+  }
+  public boolean ClonedMethodAccess.inStaticContext() { 
+      return getBaseMethodAccess().inStaticContext();
+  }
+  public boolean ClonedParMethodAccess.inStaticContext() { 
+      return getBaseMethodAccess().inStaticContext();
+  }
+
+  syn lazy MethodDecl MethodDecl.cloneWithNonVoidTypes(java.util.List<Integer> nonVoidArgIndices) {
+      MethodDecl cloned = this.fullCopy();
+      for ( int i=0; i<nonVoidArgIndices.size(); i++) {
+	  int argIndex = nonVoidArgIndices.get(i).intValue();
+	  cloned.getParameter(argIndex).setTypeAccess(typeNonVoid().createBoundAccess());
+      }
+
+      cloned.is$Final = true;
+      hostType().addBodyDecl(cloned);
+      return cloned;
+  }
+
+  syn lazy java.util.List<Integer> MethodAccess.nonVoidArgIndices () {
+	java.util.List<Integer> nonVoidArgIndices = new ArrayList<Integer>();
+	for ( int i=0; i<getNumArg(); i++) {
+	    TypeDecl argType = getArg(i).type();
+	    if ( argType.isNonVoidTypeVariable())
+		nonVoidArgIndices.add(i);
+	}
+	return nonVoidArgIndices;
+  }
+  
+  /*
+  refine MethodSignature eq MethodAccess.applicableByMethodInvocationConversion(MethodDecl m) {
+      if(m.getNumParameter() != getNumArg())
+	  return false;
+      for(int i = 0; i < m.getNumParameter(); i++) {
+	  TypeDecl argType = getArg(i).type();
+	  if ( argType.boundByNonVoidType()) continue;
+	  if( argType.methodInvocationConversionTo(m.getParameter(i).type()))
+	      return false;
+      }
+      return true;
+  }
+  */
 }

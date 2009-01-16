@@ -23,8 +23,6 @@ aspect MJTypeAnalysis {
 
     eq MethodPattern.getPatternMethodDecl().hostType() = getBaseSet().type();
     eq FieldPattern.getPatternFieldDeclaration().hostType() = getBaseSet().type();
-
-
     refine TypeAnalysis public TypeDecl ClassDecl.superclass() {
 	if(isObject())
 	    return null;
@@ -220,35 +218,84 @@ aspect MJCircularity {
     }    
     */
 
-    // NonVoidType.
-    eq NonVoidType.isSupertypeOfClassDecl(ClassDecl type) = true;
-    eq NonVoidType.isSupertypeOfInterfaceDecl(InterfaceDecl type) = true;
-    eq NonVoidType.isSupertypeOfArrayDecl(ArrayDecl type) = true;
-    eq NonVoidType.isSupertypeOfPrimitiveType(PrimitiveType type) = true;
-    eq NonVoidType.isSupertypeOfNullType(NullType type) = true;
-    eq NonVoidType.isSupertypeOfVoidType(VoidType type) = false;
+    syn lazy boolean TypeDecl.isAllMatchingTypeVariable() = false;
+    eq TypeVariable.isAllMatchingTypeVariable ()
+	= getNumTypeBound() == 1 && 
+	getTypeBound(0).type().fullName().equals("mj.lang.EveryType");
 
-    eq NonVoidType.isClassDecl() = true;
-    eq NonVoidType.isInterfaceDecl() = true;
+    //    eq AllMatchingTypeVariable.isAllMatchingTypeVariable() = true;
+
+    syn lazy boolean TypeDecl.isNonVoidTypeVariable() = false;
+    eq TypeVariable.isNonVoidTypeVariable ()
+	= getNumTypeBound() == 1 && 
+	getTypeBound(0).type().fullName().equals("mj.lang.NonVoid");
+
+    /*
+    eq NonVoidTypeVariable.isNonVoidTypeVariable() = true;
+    eq NonVoidVectorTypeVariable.isNonVoidTypeVariable() = true;
+    */
+
+    refine Generics eq TypeVariable.erasure() {
+	if ( isNonVoidTypeVariable() || isAllMatchingTypeVariable())
+	    return this;
+	return Generics.TypeVariable.erasure();
+    }
+
     eq NonVoidType.erasure() = this;
     eq NonVoidType.accessibleFrom(TypeDecl type) = true;
 
-    syn lazy boolean TypeDecl.isNonVoidType() = false;
-    eq NonVoidType.isNonVoidType() = true;
+    eq EveryType.erasure() = this;
+    eq EveryType.accessibleFrom(TypeDecl type) = true;
 
 
-    eq PatternTypeVariable.erasure() {
-	if ( getTypeBound(0).type().isNonVoidType()) 
-	    return this;
-	return super.erasure();
+    //    eq NonVoidMatchedVectorTypeVariable.isNonVoidTypeVariable() = true;
+
+    eq VectorTypeVariable.subtype(TypeDecl type) = this == type;
+
+    /*
+    eq NonVoidTypeVariable.subtype(TypeDecl type) = this == type ||
+	type == typeNonVoid();
+    eq NonVoidMatchedVectorTypeVariable.subtype(TypeDecl type) = this == type || type == typeNonVoid();
+    eq AllMatchingTypeVariable.subtype(TypeDecl type) = this == type;
+    // NonVoidTypeVariable.
+    eq NonVoidType.isSupertypeOfClassDecl(ClassDecl type) = false;
+    eq NonVoidType.isSupertypeOfInterfaceDecl(InterfaceDecl type) = false;
+    eq NonVoidType.isSupertypeOfArrayDecl(ArrayDecl type) = false;
+    eq NonVoidType.isSupertypeOfPrimitiveType(PrimitiveType type) = false;
+    eq NonVoidType.isSupertypeOfNullType(NullType type) = false;
+    eq NonVoidType.isSupertypeOfVoidType(VoidType type) = false;
+    eq NonVoidType.isClassDecl() = false;
+    eq NonVoidType.isInterfaceDecl() = false;
+
+    eq EveryType.isClassDecl() = false;
+    eq EveryType.isInterfaceDecl() = false;
+
+    */
+
+    syn java.util.List<TypeDecl> Program.nonVoidTypes () {
+	java.util.List<TypeDecl> nonVoidTypes = new ArrayList<TypeDecl>();
+	nonVoidTypes.add(typeObject());
+	nonVoidTypes.add(typeBoolean());
+	nonVoidTypes.add(typeChar());
+	nonVoidTypes.add(typeDouble());
+	nonVoidTypes.add(typeFloat());
+       	nonVoidTypes.add(typeInt());
+	nonVoidTypes.add(typeLong());
+
+	return nonVoidTypes;
     }
+    eq Program.getChild().nonVoidTypes() = nonVoidTypes();
+    inh java.util.List<TypeDecl> Expr.nonVoidTypes();
+
+    eq NonVoidTypeVariable.erasure() = this;
+    eq AllMatchingTypeVariable.erasure() = this;
 
     refine GenericsParTypeDecl eq MethodDecl.visibleTypeParameters() = !isStatic() || hostType().needsExpansion();
     refine GenericsParTypeDecl eq FieldDeclaration.visibleTypeParameters() = !isStatic() || hostType().needsExpansion();
     refine GenericsParTypeDecl eq StaticInitializer.visibleTypeParameters() = hostType().needsExpansion();
     refine GenericsParTypeDecl eq MemberTypeDecl.visibleTypeParameters() = !isStatic() || hostType().needsExpansion();
 
-    public boolean NonVoidType.isNestedType() { return false; }
-    public void NonVoidType.java2Transformation() {}
+    public boolean NonVoidTypeVariable.isNestedType() { return false; }
+    public void NonVoidTypeVariable.java2Transformation() {}
 
 }

@@ -138,6 +138,9 @@ aspect LimeJastAddFix {
 		}
 	    } else {
 		TypeDecl arg = getArg(argIndex++).type();
+		// We skip checking NonVoidTypes for now. Will sum 
+		// up later.
+		// if (arg.boundByNonVoidType()) continue;
 		if(!arg.instanceOf(pd.type()))
 		    return false;
 	    }
@@ -199,7 +202,10 @@ aspect LimeJastAddFix {
 		error("a type variable may not be followed by other bounds");
 	}
 	else {
-	    if(!getTypeBound(0).type().isClassDecl() && !getTypeBound(0).type().isInterfaceDecl()) {
+	    if(!isNonVoidTypeVariable() &&
+	       !isAllMatchingTypeVariable() && 
+	       !getTypeBound(0).type().isClassDecl() && 
+	       !getTypeBound(0).type().isInterfaceDecl()) {
 		error("the first type bound must be a class or interface type which " + 
 		      getTypeBound(0).type().fullName() + " is not");
 	    }

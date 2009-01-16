@@ -34,15 +34,17 @@ aspect MJRewrites {
     // is AllMatchingTypeVariable.
     rewrite OptFieldPattern {
 	to FieldPattern {
+	    // if there's no modifier declared, then we use AnyModifier
+	    Modifiers mods = getModifiers().enhanceWithMaybes(Modifiables.FIELD);
 	    if ( hasTypeAccess() )
-		return new FieldPattern(getBaseSet(), getModifiers(),
+		return new FieldPattern(getBaseSet(), mods,
 					getTypeAccess(), getID(),
 					new Opt(), new List());
 	    else {
-		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List());	
+		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeEveryType().createBoundAccess()));	
 		R.addedByPatternRewrite = true;
 		enclosingRefIterator().addPatternTypeParameter(R);
-		return new FieldPattern(getBaseSet(), getModifiers(),
+		return new FieldPattern(getBaseSet(), mods,
 					R.createQualifiedAccess(), getID(),
 					new Opt(), new List());
 	    }
@@ -50,18 +52,19 @@ aspect MJRewrites {
     }
     rewrite OptNestedFieldPattern {
 	to NestedFieldPattern {
+	    Modifiers mods = getModifiers().enhanceWithMaybes(Modifiables.FIELD);
 	    if ( hasTypeAccess() )
-		return new NestedFieldPattern(getBaseSet(), getModifiers(),
+		return new NestedFieldPattern(getBaseSet(), mods,
 					      getTypeAccess(), getID(),
 					      new Opt(), new List(),
 					      getIsPositive(),
 					      getIsErrorCondition());
 	    else {
-		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List());	
+		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeEveryType().createBoundAccess()));	
 		R.addedByPatternRewrite = true;
 
 		enclosingRefIterator().addPatternTypeParameter(R);
-		return new NestedFieldPattern(getBaseSet(), getModifiers(),
+		return new NestedFieldPattern(getBaseSet(), mods,
 					      R.createQualifiedAccess(),
 					      getID(), new Opt(), new List(),
 					      getIsPositive(),
@@ -71,9 +74,10 @@ aspect MJRewrites {
     }
     rewrite OptMethodPattern {
 	to MethodPattern {
+	    Modifiers mods = getModifiers().enhanceWithMaybes(Modifiables.METHOD);
 	    if ( hasTypeAccess()) {
 		return new MethodPattern(getBaseSet(),
-					 getModifiers(),
+					 mods,
 					 getTypeAccess(),
 					 getID(),
 					 getParameterList(),
@@ -81,10 +85,10 @@ aspect MJRewrites {
 					 new Opt(), new List());
 	    } else {
 		// generate a type variable with fresh name.
-		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List());	
+		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeEveryType().createBoundAccess()));	
 		R.addedByPatternRewrite = true;
 		enclosingRefIterator().addPatternTypeParameter(R);
-		return new MethodPattern(getBaseSet(), getModifiers(),
+		return new MethodPattern(getBaseSet(), mods,
 					 R.createQualifiedAccess(),getID(),
 					 getParameterList(), 
 					 getExceptionList(), 
@@ -94,8 +98,9 @@ aspect MJRewrites {
     }
     rewrite OptNestedMethodPattern { 
 	to NestedMethodPattern {
+	    Modifiers mods = getModifiers().enhanceWithMaybes(Modifiables.METHOD);
 	    if ( hasTypeAccess()) {
-		return new NestedMethodPattern(getBaseSet(), getModifiers(),
+		return new NestedMethodPattern(getBaseSet(), mods,
 					       getTypeAccess(),getID(),
 					       getParameterList(), 
 					       getExceptionList(), 
@@ -105,10 +110,10 @@ aspect MJRewrites {
 					       
 	    } else {
 		// generate a type variable with fresh name.
-		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List());	
+		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeEveryType().createBoundAccess()));	
 		R.addedByPatternRewrite = true;
 		enclosingRefIterator().addPatternTypeParameter(R);
-		return new NestedMethodPattern(getBaseSet(), getModifiers(),
+		return new NestedMethodPattern(getBaseSet(), mods,
 					       R.createQualifiedAccess(),
 					       getID(),
 					       getParameterList(), 
@@ -125,7 +130,7 @@ aspect MJRewrites {
     // TODO: we need to add a way for users to explicitly match NO exceptions.
     rewrite MethodPattern {
 	when ( getNumException() == 0 ) to MethodPattern {
-	    VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeThrowable().createBoundAccess()), new List());
+	    VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeThrowable().createBoundAccess()));
 	    E.addedByPatternRewrite = true;
 	    enclosingRefIterator().addPatternTypeParameter(E);
 	    return new MethodPattern(getBaseSet(), getModifiers(),
@@ -136,10 +141,9 @@ aspect MJRewrites {
 				     new Opt(), new List());
 	}
     }
-
     rewrite NestedMethodPattern {
 	when ( getNumException() == 0 ) to NestedMethodPattern {
-	    VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeThrowable().createBoundAccess()), new List());
+	    VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeThrowable().createBoundAccess()));
 	    E.addedByPatternRewrite = true;
 	    enclosingRefIterator().addPatternTypeParameter(E);
 	    return new NestedMethodPattern(getBaseSet(), getModifiers(),
@@ -161,21 +165,45 @@ aspect MJRewrites {
     // this is to bypass the rewrite for TypeVariable, which adds
     // a bound Object for all type variables.
     rewrite PatternTypeVariable {
-	when ( !isAllMatchingTypeVariable() && /*throwableAdded() &&*/ getNumTypeBound() == 0  ) 
+	when ( getNumTypeBound() == 0  ) 
 	    to PatternTypeVariable {
 	    Access boundAccess = null;
-	    if ( matchingException())
+	    if ( matchingException()) {
 		boundAccess = typeThrowable().createBoundAccess();
-	    else
-		boundAccess = typeNonVoid().createBoundAccess();
-
+	    } else {
+		/*
+		return new NonVoidTypeVariable((Modifiers) getModifiers().fullCopy(),getID(),(List)getBodyDeclsNoTransform().fullCopy(),new List().add(typeNonVoid().createBoundAccess()));
+		*/
+		boundAccess = typeNonVoid().createBoundAccess(); 
+	    }
 	    boundAccess.addedByPatternRewrite = true;
-	    addTypeBound(boundAccess);
-	    
+	    addTypeBound(boundAccess);		
+
 	    return this;
 	}
     }
 
-    syn lazy boolean PatternTypeVariable.isAllMatchingTypeVariable() = false;
-    eq AllMatchingTypeVariable.isAllMatchingTypeVariable() = true;
+    /*
+    rewrite VectorTypeVariable {
+	when ( getNumTypeBound() == 0 )
+	    to VectorTypeVariable {
+	    if ( matchingException()) {
+		Access boundAccess = typeThrowable().createBoundAccess();
+		boundAccess.addedByPatternRewrite = true;
+		addTypeBound(boundAccess);
+		
+		return this;
+	    } else
+		return new NonVoidVectorTypeVariable((Modifiers) getModifiers().fullCopy(),getID(),(List)getBodyDeclsNoTransform().fullCopy(),new List().add(typeNonVoid().createBoundAccess()));
+	}
+    }
+    */
+
+    rewrite AllMatchingTypeVariable {
+	when ( getNumTypeBound() == 0 )
+	    to AllMatchingTypeVariable {
+	    addTypeBound(typeEveryType().createBoundAccess());
+	    return this;
+	}
+    }
 }

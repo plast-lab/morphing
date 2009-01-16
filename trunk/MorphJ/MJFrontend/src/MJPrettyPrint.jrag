@@ -144,7 +144,7 @@ aspect MJPrettyPrint {
     public void EmptyPrimaryPattern.toString(StringBuffer buf) {}
 
     public void MethodPattern.toString(StringBuffer buf) {
-	getModifiers().toString(buf);
+	getModifiers().toStringInPattern(buf);
 	if ( !getTypeAccess().addedByPatternRewrite()) {
 	    getTypeAccess().toString(buf);
 	    buf.append(" ");
@@ -183,7 +183,7 @@ aspect MJPrettyPrint {
 	if ( getIsPositive()) buf.append("some ");
 	else buf.append("no ");
 
-	getModifiers().toString(buf);
+	getModifiers().toStringInPattern(buf);
 	if ( !getTypeAccess().addedByPatternRewrite()) {
 	    getTypeAccess().toString(buf);
 	    buf.append(" ");
@@ -216,7 +216,7 @@ aspect MJPrettyPrint {
 	buf.append(";");
     }
     public void FieldPattern.toString(StringBuffer buf) {
-	getModifiers().toString(buf);
+	getModifiers().toStringInPattern(buf);
 	if ( !getTypeAccess().addedByPatternRewrite()) {
 	    getTypeAccess().toString(buf);
 	    buf.append(" ");
@@ -233,7 +233,7 @@ aspect MJPrettyPrint {
 	if ( getIsPositive()) buf.append("some ");
 	else buf.append("no ");
 
-	getModifiers().toString(buf);
+	getModifiers().toStringInPattern(buf);
 	if ( !getTypeAccess().addedByPatternRewrite()) {
 	    getTypeAccess().toString(buf);
 	    buf.append(" ");
@@ -251,8 +251,23 @@ aspect MJPrettyPrint {
 	buf.append(getRefElmt().getElmtName());
     }
 
+    public void Modifiers.toStringInPattern(StringBuffer buf) {
+	for(int i = 0; i < getNumModifier(); i++) {
+	    if ( getModifier(i).isMaybe())
+		continue;
+
+	    getModifier(i).toString(buf);
+	    buf.append(" ");
+	}
+    }
+
     public void NegativeModifier.toString(StringBuffer buf) {
 	buf.append("!");
+	buf.append(getID());
+    }
+
+    public void MaybeModifier.toString(StringBuffer buf) {
+	buf.append("*");
 	buf.append(getID());
     }
 

@@ -1,0 +1,20 @@
+aspect MJUtilities {
+    public VectorTypeVariable TypeDecl.createNonVoidVectorTypeVariable(String id) {
+	return createVectorTypeVariable(id, 
+					new List().add(typeNonVoid().createBoundAccess()));
+    }
+    public VectorTypeVariable TypeDecl.createThrowableVectorTypeVariable(String id) {
+	return createVectorTypeVariable(id,
+					new List().add(typeThrowable().createBoundAccess()));
+    }
+    public VectorTypeVariable TypeDecl.createVectorTypeVariable(String id, List bounds) {
+	return new VectorTypeVariable(new Modifiers(), 
+				      id,
+				      new List(), bounds);
+    }
+
+    public static AllMatchingTypeVariable TypeDecl.createAllMatchingTypeVariable(String id) {
+	return new AllMatchingTypeVariable(new Modifiers(), id, new List(), 
+					   new List());
+    }
+}

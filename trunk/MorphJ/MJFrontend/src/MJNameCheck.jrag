@@ -36,14 +36,8 @@ aspect MJNameCheck {
     }
 
     public StaticForMethodDecl TypeVariable.makeStaticForMethodWithReturnType(TypeDecl returnType) {
-	VectorTypeVariable A = new VectorTypeVariable(new Modifiers(), "A",
-						      new List(), 
-						      new List().add(typeNonVoid().createBoundAccess()),
-						      new List());
-	VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), "E",
-						      new List(), 
-						      new List().add(typeThrowable().createBoundAccess()),
-						      new List());
+	VectorTypeVariable A = createNonVoidVectorTypeVariable("A");
+	VectorTypeVariable E = createThrowableVectorTypeVariable("E");
 	PatternNameVariable m = new PatternNameVariable("m");
 
 	Pattern p = new MethodPattern(new BaseSet(createQualifiedAccess(), 
@@ -81,19 +75,16 @@ aspect MJNameCheck {
 	 * pattern: _ m(A) throws E : T.methods
 	 * where _ is the AllMatchingTypeVariable, which matches void.
 	 **/
-	AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), "R", new List(), new List());
-	VectorTypeVariable A = new VectorTypeVariable(new Modifiers(), "A",
-						      new List(), 
-						      new List().add(typeNonVoid().createBoundAccess()),
-						      new List());
-	VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), "E",
-						      new List(),
-						      new List().add(typeThrowable().createBoundAccess()),
-						      new List());
+	AllMatchingTypeVariable R = 
+	    new AllMatchingTypeVariable(new Modifiers(), "R", new List(), 
+					new List());
+	VectorTypeVariable A = createNonVoidVectorTypeVariable("A");
+	VectorTypeVariable E = createThrowableVectorTypeVariable("E");
+
 	PatternNameVariable m = new PatternNameVariable("m");
 	Pattern p = new MethodPattern(new BaseSet(createQualifiedAccess(), 
 						  new RefElmt("methods")),
-				      new Modifiers(),
+				      new Modifiers().enhanceWithMaybes(Modifiables.METHOD),
 				      R.createQualifiedAccess(),"m",
 				      new List().add(A.createQualifiedAccess()),
 				      new List().add(E.createQualifiedAccess()),
@@ -104,7 +95,7 @@ aspect MJNameCheck {
 					   p, new List(), new List());
 
 	EveryMethodDecl sfd = 
-	    new EveryMethodDecl(new Modifiers(),
+	    new EveryMethodDecl(new Modifiers().allModifiers(Modifiables.METHOD),
 				R.createQualifiedAccess(),
 				"m", 
 				new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
@@ -125,18 +116,13 @@ aspect MJNameCheck {
 	 * where _ is the AllMatchingTypeVariable, which matches void.
 	 **/
 	AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), "R", new List(), new List());
-	VectorTypeVariable A = new VectorTypeVariable(new Modifiers(), "A",
-						      new List(), 
-						      new List().add(typeNonVoid().createBoundAccess()),
-						      new List());
-	VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), "E",
-						      new List(),
-						      new List().add(typeThrowable().createBoundAccess()),
-						      new List());
+	VectorTypeVariable A = createNonVoidVectorTypeVariable("A");
+	VectorTypeVariable E = createThrowableVectorTypeVariable("E");
+	
 	PatternNameVariable m = new PatternNameVariable("m");
 	Pattern p = new MethodPattern(new BaseSet(createQualifiedAccess(), 
 						  new RefElmt("methods")),
-				      new Modifiers(new List().add(new NegativeModifier("private"))),
+				      new Modifiers(new List().add(new NegativeModifier("private"))).enhanceWithMaybes(Modifiables.METHOD),
 				      R.createQualifiedAccess(),"m",
 				      new List().add(A.createQualifiedAccess()),
 				      new List().add(E.createQualifiedAccess()),
@@ -191,6 +177,12 @@ aspect MJNameCheck {
 	// expanded fields are checked separately.
 	if ( grounded()) return;
 
+
+	if ( !isInternallyUnique())
+	    error("field with signature \n" + 
+		  this.infoSignature() + 
+		  " could expand to conflicting or duplicating field declarations.");
+	
 	// check that it is unqique from all fields.
 	// all statically declared fields.
 	SimpleSet fields = hostType().unrestrictedFields();

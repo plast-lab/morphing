@@ -1,0 +1,98 @@
+aspect MJMatching {
+    public boolean TypeDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars ) {
+	if ( substitute(uniMap) == t.substitute(uniMap))
+	    return true;
+	return false;
+    }
+    public boolean ClassDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return t.matchedByClassDecl(this, uniMap, uniTypeVars); }
+    
+    public boolean InterfaceDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return t.matchedByInterfaceDecl(this, uniMap, uniTypeVars); }
+
+    public boolean ParTypeDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return t.matchedByParTypeDecl(this, uniMap, uniTypeVars); }
+
+    public boolean AllMatchingTypeVariable.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return true; }
+    
+    public boolean NonVoidTypeVariable.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return !t.isVoid(); }
+    
+    public boolean TypeDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars) {
+	return substitute(uniMap).type() == c.substitute(uniMap).type();
+    }
+    public boolean ClassDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars) {
+	if ( super.matchedByClassDecl(c, uniMap,uniTypeVars)) return true;
+
+	if (hasSuperclass() &&
+	    superclass().matchedByClassDecl(c, uniMap, uniTypeVars))
+	    return true;
+	return false;
+    }
+    public boolean InterfaceDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars ) { return c.isObject(); }
+
+    public boolean TypeDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
+	return substitute(uniMap).type() == i.substitute(uniMap).type();
+    }
+
+    public boolean ClassDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
+	if ( super.matchedByInterfaceDecl(i, uniMap,uniTypeVars)) return true;
+
+	if (hasSuperclass() &&
+	    superclass().matchedByInterfaceDecl(i, uniMap, uniTypeVars))
+	    return true;
+	
+	for (Iterator ifIt = interfacesIterator();  ifIt.hasNext(); )
+	    if (((TypeDecl) ifIt.next()).matchedByInterfaceDecl(i, uniMap, uniTypeVars))
+		return true;
+	return false;
+    }
+    public boolean InterfaceDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
+	if ( super.matchedByInterfaceDecl(i, uniMap,uniTypeVars)) return true;
+	for (Iterator ifIt = superinterfacesIterator();  ifIt.hasNext(); )
+	    if (((TypeDecl) ifIt.next()).matchedByInterfaceDecl(i, uniMap, uniTypeVars))
+		return true;
+	return false;
+    }
+
+
+    // The only type that can be matched by a ParTypeDecl is a ParTypeDecl
+    public  boolean TypeDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) {
+	return substitute(uniMap).type() == t.substitute(uniMap).type();
+    }
+
+    public boolean ParClassDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) {
+	if ( genericDecl().equals(t.genericDecl()) ) {
+	    // Same generic decl. The type parameters must be able to match.
+	    for ( int i=0; i<getNumArgument(); i++)
+		if ( ! t.getArgument(i).type().matches(getArgument(i).type(),
+						       uniMap,
+						       uniTypeVars))
+		    return false;
+	    return true;
+	} else {
+	    // check whether this could match t's supertype.
+	    if ( hasSuperclass() &&
+		 superclass().matchedByParTypeDecl(t, uniMap, uniTypeVars))
+		return true;
+	    for (Iterator ifIt = interfacesIterator(); ifIt.hasNext(); )
+		if ( ((TypeDecl) ifIt.next()).matchedByParTypeDecl(t, uniMap, uniTypeVars)) 
+		    return true;
+	}
+	return false;
+    }
+    public boolean ParInterfaceDecl.matchedByParTypeDecl(ParTypeDecl t, Map uniMap, Collection uniTypeVars) {
+	if ( genericDecl().equals(t.genericDecl()) ) {
+	    // Same generic decl. The type parameters must be able to match.
+	    for ( int i=0; i<getNumArgument(); i++)
+		if ( ! t.getArgument(i).type().matches(getArgument(i).type(),
+						       uniMap,
+						       uniTypeVars))
+		    return false;
+	    return true;
+	} else {
+	    // check whether this could match t's supertype.
+	    for (Iterator ifIt = superinterfacesIterator(); ifIt.hasNext(); )
+		if ( ((TypeDecl) ifIt.next()).matchedByParTypeDecl(t, uniMap, uniTypeVars)) 
+		    return true;
+	}
+	return false;
+    }
+
+}

@@ -41,13 +41,35 @@ aspect MJSubstitution {
 	return true;
     }
     
+    public Modifiers Modifiers.substitute(Map substitutions) {
+	Modifiers mods = new Modifiers();
+	for ( int i=0; i<getNumModifier(); i++) {
+	    Modifier m = getModifier(i);
+	    java.util.List<Modifier> newm = m.substitute(substitutions);
+	    mods.addAll(newm);
+	}
+	return mods;
+    }
+    public void Modifiers.addAll(java.util.List<Modifier> mods) {
+	for ( int i=0; i<mods.size(); i++) {
+	    this.addModifier(mods.get(i));
+	}
+    }
+    public java.util.List<Modifier> Modifier.substitute(Map substitutions) {
+
+	if ( substitutions.containsKey(this)) {
+	    return (java.util.List<Modifier>) substitutions.get(this);
+	}
+	return java.util.Collections.emptyList();
+    }
+
     public StaticForMethodDeclSubstituted StaticForMethodDecl.substitute(Map substitutions, List parent) {
 	StaticForMethodDeclSubstituted m = 
-	    new StaticForMethodDeclSubstituted((Modifiers) getModifiers().fullCopy(),
+	    new StaticForMethodDeclSubstituted(getModifiers().substitute(substitutions),
 					       getTypeAccess().type().substitute(substitutions),
 					       substitutedName(substitutions),
 					       getParameterList().expandParameterList(substitutions),
-					       getExceptionList().expandAccessList(substitutions),
+					       List.fromJavaList(getExceptionList().expandAccessList(substitutions)),
 					       new Opt(),
 					       getIteratorDecl().substitute(substitutions),
 					       new List(), new List(), new List());
@@ -96,7 +118,7 @@ aspect MJSubstitution {
 
     public StaticForFieldDeclarationSubstituted StaticForFieldDeclaration.substitute(Map substitutions) {
 	StaticForFieldDeclarationSubstituted f =
-	    new StaticForFieldDeclarationSubstituted((Modifiers) getModifiers().fullCopy(),
+	    new StaticForFieldDeclarationSubstituted(getModifiers().substitute(substitutions),
 						     getTypeAccess().type().substitute(substitutions),
 						     substitutedName(substitutions),
 						     new Opt(),
@@ -144,12 +166,16 @@ aspect MJSubstitution {
 	// create the mapping to be used for pattern and nested pattern
 	// substitution.
 	HashMap map = new HashMap();
-	for ( int i=0; i<getNumPatternTypeParameter(); i++)
-	    map.put(getPatternTypeParameter(i), pid.getPatternTypeParameter(i));
-
+	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
+	    if ( getPatternTypeParameter(i).isVectorTypeVariable() ) {
+		ArrayList l = new ArrayList();
+		l.add(pid.getPatternTypeParameter(i));
+		map.put(getPatternTypeParameter(i),l);
+	    } else
+		map.put(getPatternTypeParameter(i), pid.getPatternTypeParameter(i));
+	}
 	for ( int i=0; i<getNumPatternNameParameter(); i++)
 	    map.put(getPatternNameParameter(i), new Identifier(pid.getPatternNameParameter(i).getID(),pid));
-							       
 	
 	pid.setPattern(getPattern().substitute(map).substitute(substitutions));
 
@@ -171,7 +197,7 @@ aspect MJSubstitution {
     }
 
     public EmptyPrimaryPattern EmptyPrimaryPattern.substitute(Map substitutions) {
-	return new EmptyPrimaryPattern(new BaseSet(new AllMatchingTypeVariable(new Modifiers(), "", new List(), new List()).createBoundAccess(), new RefElmt("methods")));
+	return new EmptyPrimaryPattern(new BaseSet(new AllMatchingTypeVariable(new Modifiers(), "", new List(), new List().add(typeEveryType().createBoundAccess())).createBoundAccess(), new RefElmt("methods")));
     }
 
     public String StaticFieldPattern.substitutedName(String name, Map substitutions) {
@@ -200,7 +226,7 @@ aspect MJSubstitution {
     public FieldPattern FieldPattern.substitute(Map substitutions) {
 	FieldPattern fp =
 	    new FieldPattern(getBaseSet().substitute(substitutions),
-			     (Modifiers) getModifiers().fullCopy(),
+			     getModifiers().substitute(substitutions),
 			     getTypeAccess().type().substitute(substitutions),
 			     identifier().substitutedName(substitutions), // name, 
 			     new Opt(), new List());
@@ -219,7 +245,7 @@ aspect MJSubstitution {
     public NestedFieldPattern NestedFieldPattern.substitute(Map substitutions) {
 	NestedFieldPattern nfp =
 	    new NestedFieldPattern(getBaseSet().substitute(substitutions),
-				   (Modifiers) getModifiers().fullCopy(),
+				   getModifiers().substitute(substitutions),
 				   getTypeAccess().type().substitute(substitutions),
 				   identifier().substitutedName(substitutions), //name,
 				   new Opt(), new List(),
@@ -243,11 +269,13 @@ aspect MJSubstitution {
     public MethodPattern MethodPattern.substitute(Map substitutions) {
 	MethodPattern mp =
 	    new MethodPattern(getBaseSet().substitute(substitutions),
-			      (Modifiers) getModifiers().fullCopy(),
+			      getModifiers().substitute(substitutions),
 			      getTypeAccess().type().substitute(substitutions),
 			      identifier().substitutedName(substitutions), //name,
-			      getParameterList().substituteAccessList(substitutions),
-			      getExceptionList().substituteAccessList(substitutions),
+			      //			      getParameterList().substituteAccessList(substitutions),
+			      //			      getExceptionList().substituteAccessList(substitutions),
+			      List.fromJavaList(getParameterList().expandAccessList(substitutions)),
+			      List.fromJavaList(getExceptionList().expandAccessList(substitutions)),
 			      new Opt(), new List());
 	
 	mp.is$Final = true;
@@ -264,11 +292,13 @@ aspect MJSubstitution {
     public NestedMethodPattern NestedMethodPattern.substitute(Map substitutions) {
 	NestedMethodPattern nmp = 
 	    new NestedMethodPattern(getBaseSet().substitute(substitutions),
-				    (Modifiers) getModifiers().fullCopy(),
+				    getModifiers().substitute(substitutions),
 				    getTypeAccess().type().substitute(substitutions),
 				    identifier().substitutedName(substitutions), //name,
-				    getParameterList().substituteAccessList(substitutions),
-				    getExceptionList().substituteAccessList(substitutions),
+				    //				    getParameterList().substituteAccessList(substitutions),
+				    //				    getExceptionList().substituteAccessList(substitutions),
+				    List.fromJavaList(getParameterList().expandAccessList(substitutions)),
+				    List.fromJavaList(getExceptionList().expandAccessList(substitutions)),
 				    new Opt(), new List(),
 				    getIsPositive(), getIsErrorCondition());	
 	nmp.is$Final = true;
@@ -292,8 +322,11 @@ aspect MJSubstitution {
     }
     
     public java.util.List MethodPattern.substitutedParameterTypes(Map submap) {
-	//	List list = getParameterList().expandAccessList(submap);
-	List list = getParameterList().substituteAccessList(submap);
+	List list = 
+	    List.fromJavaList(getParameterList().expandAccessList(submap));
+	// What is the difference between expand and substituteAccessList?
+
+	//	List list = getParameterList().substituteAccessList(submap);
 	// extract types.
 	java.util.List paramTypes = new ArrayList();
 	for ( int i=0; i<list.getNumChild(); i++)
@@ -308,6 +341,7 @@ aspect MJSubstitution {
 	    TypeDecl argType = node.getTypeAccess().type();
 
 	    // call substitution first.
+	    /** WHAT?
 	    Access argAccess = argType.substitute(submap);
 	    TypeDecl subArgType = argAccess.type();
 
@@ -316,31 +350,26 @@ aspect MJSubstitution {
 		List argTypes = subArgType.expandAccessList(submap);
 		for ( int j=0; j<argTypes.getNumChild(); j++) {
 		    ParameterDeclaration newNode = 
-			new ParameterDeclaration((Modifiers) node.getModifiers().fullCopy(),
+			new ParameterDeclaration(node.getModifiers().substitute(submap),
 						 (Access) argTypes.getChild(j),
 						 node.getID() + j);
 		    list.add(newNode);
 		}
 	    } else {
 		ParameterDeclaration newNode = 
-		    new ParameterDeclaration((Modifiers) node.getModifiers().fullCopy(),
+		    new ParameterDeclaration(node.getModifiers().substitute(submap),
 					     argAccess,
 					     node.getID());
 		list.add(newNode);
 	    }
-	}
-	return list;
-    }
+	    */
+	    java.util.List subTypes = argType.expandAccessList(submap);
+	    for ( int j=0; j<subTypes.size(); j++) {
+		ParameterDeclaration newNode = 
+		    new ParameterDeclaration(node.getModifiers().substitute(submap), (Access) subTypes.get(j), node.getID()+j);
+		list.add(newNode);
+	    }
 
-    public List List.substituteAccessList(Map substitutions) {
-	List list = new List();
-	for ( int i=0; i<getNumChild(); i++) {
-	    Access node = (Access) getChild(i);
-	    List vlist = node.type().substituteToList(substitutions);
-	    for ( int j=0; j<vlist.getNumChild(); j++)
-		list.add(vlist.getChild(j));
-	    
-	    //		list.add(node.type().substitute(substitutions));
 	}
 	return list;
     }
@@ -363,6 +392,13 @@ aspect MJSubstitution {
     public Access RawClassDecl.substitute(Map submap) { return createBoundAccess(); }
     public Access RawInterfaceDecl.substitute(Map submap) { return createBoundAccess(); }
 
+    public static List List.fromJavaList(java.util.List l) {
+	List nl = new List();
+	for ( int i=0; i<l.size(); i++)
+	    nl.add((ASTNode) l.get(i));
+	return nl;
+    }
+    /*
     public List TypeDecl.substituteToList(Map submap) {
 	return new List().add(substitute(submap));
     }
@@ -373,22 +409,42 @@ aspect MJSubstitution {
 	return vlist;
     }
 
-    public List List.expandAccessList(Map submap) {
+    public List List.substituteAccessList(Map substitutions) {
 	List list = new List();
 	for ( int i=0; i<getNumChild(); i++) {
 	    Access node = (Access) getChild(i);
-	    List subs = node.type().expandAccessList(submap);
-	    for ( int j=0; j<subs.getNumChild(); j++)
-		list.add(subs.getChild(j));
+	    List vlist = node.type().substituteToList(substitutions);
+	    for ( int j=0; j<vlist.getNumChild(); j++)
+		list.add(vlist.getChild(j));
 	}
 	return list;
     }
-    syn lazy List TypeDecl.expandAccessList(Map submap ) {
-	return new List().add(substitute(submap));
+    */
+    public java.util.List List.expandAccessList(Map submap) {
+	ArrayList list = new ArrayList();
+	for ( int i=0; i<getNumChild(); i++) {
+	    Access node = (Access) getChild(i);
+	    java.util.List subs = node.type().expandAccessList(submap);
+	    list.addAll(subs);
+	}
+	return list;
+    }
+    syn lazy java.util.List TypeDecl.expandAccessList(Map submap ) {
+	ArrayList l = new ArrayList();
+	l.add(substitute(submap));
+	return l;
     }
     eq VectorTypeVariable.expandAccessList(Map submap) {
-	List subed = new List();
-
+	java.util.List subed = new ArrayList();
+	java.util.List mapped = (java.util.List)submap.get(this);
+	if ( mapped != null ) {
+	    for ( int i=0; i<mapped.size(); i++) {
+		java.util.List expanded = ((TypeDecl)mapped.get(i)).expandAccessList(submap);
+		subed.addAll(expanded);
+	    }
+	}  else
+	    subed.add(this.createBoundAccess());
+	/*
 	// check whether there is a map for this type in submap.
 	if ( submap.containsKey(this))
 	    return ((TypeDecl) submap.get(this)).expandAccessList(submap);
@@ -398,7 +454,7 @@ aspect MJSubstitution {
 	    if ( submap.containsKey(t) && submap.get(t) != null )
 		subed.add(((TypeDecl) submap.get(t)).substitute(submap));
 	}
-
+	*/
 	return subed;
     }
 }

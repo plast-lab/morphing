@@ -1,0 +1,354 @@
+aspect MJUnifyTypeList {
+
+    /**
+     * Determines wether the list1 and list2 can be unified to the same
+     * list of types. Called from comparison of parameters and exceptions.
+     * Because of the existence of vector matching types, we need to use
+     * dynamic programming techniques to make sure that a possible match is 
+     * found if one exists.
+     *
+     * This method modifies list1 and list2
+     **/
+    public static boolean TypeDecl.typeListUnifies(java.util.List list1, 
+						   java.util.List list2,
+						   Map uniMap, 
+						   Collection uniTypeVars) {
+	// first substitute away types in list1 and list2 that's been 
+	// mapped by uniMap
+	/*
+	list1 = substituteList(list1, uniMap);
+	list2 = substituteList(list2, uniMap);
+	*/
+
+	if ( typeListUnifies(list1, 0, list2, 0, uniMap, uniTypeVars)) {
+	    return true;
+	} else 
+	    return typeListUnifies(list2, 0, list1, 0, uniMap, uniTypeVars);
+    }
+    
+    public static java.util.List TypeDecl.substituteList(java.util.List list, Map uniMap) {
+	java.util.List subList = new ArrayList(list.size());
+	for ( int i=0; i<list.size(); i++) {
+	    java.util.List l = ((TypeDecl) list.get(i)).expandAccessList(uniMap);
+	    for ( int j=0; j<l.size(); j++)
+		subList.add(((Access) l.get(j)).type());
+	}
+	return subList;
+    }
+
+    /**
+     * Tries to unify list1 and list2 starting at indeices list1BeginIndex and
+     * list2BeginIndex.
+     **/
+    public static boolean TypeDecl.typeListUnifies(java.util.List list1, 
+						   int list1BeginIndex,
+						   java.util.List list2,
+						   int list2BeginIndex,
+						   Map uniMap, 
+						   Collection uniTypeVars) {
+	if ( list2.size()-list2BeginIndex == 0 &&
+	     list1.size()-list1BeginIndex == 0 ) {
+	    // If both lists are empty, then matched.
+	    return true;
+	} 
+	if ( list1.size()-list1BeginIndex > 0 ) {
+	    TypeDecl t1 = (TypeDecl) list1.get(list1BeginIndex);
+	    for ( int toMatch=0; list2BeginIndex+toMatch<=list2.size(); toMatch++) {
+		HashMap uni2 = new HashMap(uniMap);
+		if (t1.unifiesWith(toMatch, list2, list2BeginIndex, 
+				   uni2, uniTypeVars)) {
+		    if ( typeListUnifies(list1, list1BeginIndex+1,
+					 list2, list2BeginIndex+toMatch,
+					 uni2, uniTypeVars)) {
+			uniMap.putAll(uni2);
+			return true;
+		    }
+		}
+	    }
+	} else if ( list2.size() - list2BeginIndex > 0 )
+	    return typeListUnifies(list2, list2BeginIndex, list1, list1BeginIndex, uniMap, uniTypeVars);
+	
+	return false;
+
+	/*
+	if ( uniTypeVars.contains(t1) && t1.isVectorTypeVariable()) {
+	    // start by matching t1 with 0 types, 
+	    // as many as it can.
+	    for ( int toMatch=0; list2BeginIndex+toMatch<=list2.size(); toMatch++) {
+		// create a list with the first "toMatch" elements of list2
+		ArrayList list2p = new ArrayList(toMatch);
+		for ( int j=list2BeginIndex; j<list2BeginIndex+toMatch; j++)
+		    list2p.add(list2.get(j));
+		
+		// copy uniMap so we can restore it.
+		Map uniMapCopy = new HashMap(uniMap);
+		
+		int matched = ((VectorTypeVariable) t1)
+		    .unifiesWithTypeList(list2p, uniMapCopy, uniTypeVars);
+		
+		if ( matched == toMatch ) {
+		    Map uniMap2 = new HashMap(uniMapCopy);
+
+		    // use uniMap to unify on the rest.
+		    if (typeListUnifies(list1, list1BeginIndex+1, 
+					list2, list2BeginIndex+matched, 
+					uniMap2, uniTypeVars)) {
+			// if succeeds, copy uniMapCopy into uniMap.
+			uniMap.putAll(uniMap2);
+			return true;
+		    } else {
+			// remove any mapping from uniMap.
+			uniMap2 = new HashMap(uniMapCopy);
+			if ( typeListUnifies(list2, list2BeginIndex+matched,
+					     list1, list1BeginIndex+1, 
+					     uniMap2, uniTypeVars)) {
+			    uniMap.putAll(uniMap2);
+			    return true;
+			} 
+		    }
+		    // else, move on to have t1 match more.
+		    ((VectorTypeVariable) t1).setMatchedVectorTypeVariableList(new List());
+		} else {
+		    // did not match all the ones moved to list2p.
+		    // cannot keep going. 
+		    ((VectorTypeVariable) t1).setMatchedVectorTypeVariableList(new List());
+		    return false;
+		}
+	    }
+	    return false;
+	} else { // t1 is just regular parameters.
+	    TypeDecl t2 = (TypeDecl) list2.get(list2BeginIndex);
+	    Map uniMapCopy = new HashMap(uniMap);
+	    if ( t1.unifiesWith(t2, uniMapCopy, uniTypeVars)) {
+		uniMap.putAll(uniMapCopy);
+		
+		// match the rest of the list.
+		uniMapCopy = new HashMap(uniMap);
+		if (typeListUnifies(list1, list1BeginIndex+1,
+				    list2, list2BeginIndex+1,
+				    uniMapCopy, uniTypeVars)) {
+		    uniMap.putAll(uniMapCopy);
+		    return true;
+		} else {
+		    uniMapCopy = new HashMap(uniMap);
+		    if (typeListUnifies(list2, list2BeginIndex+1,
+					list1, list1BeginIndex+1,
+					uniMapCopy, uniTypeVars)) {
+			uniMap.putAll(uniMapCopy);
+			return true;
+		    }
+		}
+		
+		if ( t2.isVectorTypeVariable())
+		    ((VectorTypeVariable) t2).setMatchedVectorTypeVariableList(new List());
+	    } 
+	    return false;
+	}
+	*/
+    }
+
+    /**
+     * Attempt to unify this with exactly <numToMatch> number of types from
+     * list, starting at element <beginIndex>
+     **/
+    public boolean TypeDecl.unifiesWith(int numToMatch, java.util.List list, int beginIndex, Map uniMap, Collection uniTypeVars) {
+	if ( numToMatch != 1 ) return false;
+	if ( list.size()-beginIndex-numToMatch < 0 )
+	    throw new Error("Cannot match more than number of elements in the list.");
+
+	TypeDecl that = (TypeDecl) list.get(beginIndex);
+	Map uniMapCopy = new HashMap(uniMap);
+	if (this.unifiesWith(that, uniMapCopy, uniTypeVars)) {
+	    uniMap.putAll(uniMapCopy);
+	    return true;
+	}
+	return false;
+    }
+    public boolean VectorTypeVariable.unifiesWith(int numToMatch, java.util.List list, int beginIndex, Map uniMap, Collection uniTypeVars) {
+	// Sanity check.
+	if ( list.size()-beginIndex-numToMatch < 0 )
+	    throw new Error("Cannot match more than number of elements in the list.");
+	if ( !uniTypeVars.contains(this)) {
+	    // this is not a unification type variable. No special treatment
+	    // is necessary. Just invoke super.
+	    return super.unifiesWith(numToMatch, list, beginIndex, 
+				     uniMap, uniTypeVars);
+	}
+	if ( uniMap.containsKey(this)) {
+	    // this has been mapped. See whether what it's been mapped to
+	    // unifies with typeList.
+	    java.util.List mapped = (java.util.List) uniMap.get(this);
+	    return typeListUnifies(mapped, 0, list, 0, uniMap, uniTypeVars);
+	} else if ( numToMatch == 0 ) {
+	    // Only have to match empty.
+	    uniMap.put(this, new ArrayList());
+	    return true;
+	} else {
+	    // Try matching as many of list as possible.
+	    for (int i=beginIndex; i<beginIndex+numToMatch; i++) {
+		// Use the original uniMap for each unification effort
+		// to make sure the mapping from this to one element of the
+		// list does not affect the matching of the next.
+		HashMap uniMap2 = new HashMap(uniMap);
+
+		TypeDecl t2 = (TypeDecl) list.get(i);
+		t2 = t2.substitute(uniMap).type();
+
+		if ( !this.unifiesWith(t2, uniMap2,uniTypeVars)) 
+		    return false;
+	    }
+	    // if we're here, that means everything in list has 
+	    // been matched.
+	    uniMap.put(this, list.subList(beginIndex, beginIndex+numToMatch));
+	    return true;
+	}	
+    }	
+
+    /*
+    public int TypeDecl.unifiesWithTypeList(java.util.List typeList,
+					    Map uniMap, Collection uniTypeVars) {
+	if ( typeList.size() == 1 
+	     && unifiesWith((TypeDecl) typeList.get(0), uniMap, uniTypeVars))
+	    return 1;
+	return -1;
+    }
+    */
+    /**
+     * Tries to match this vector type variable to typeList.
+     * modifies typeList and removes all types in the list that's been matched.
+     **/
+    /*
+    public int VectorTypeVariable.unifiesWithTypeList(java.util.List typeList,
+						      Map uniMap,
+						      Collection uniTypeVars) {
+	if ( !uniTypeVars.contains(this)) {
+	    // this is not a unification type variable.
+	    if ( typeList.size() != 1 ||
+		 !unifiesWith((TypeDecl)typeList.get(0), uniMap, uniTypeVars))
+		return -1;
+	    else {
+		typeList.remove(0);
+		return 1;
+	    }
+	}
+
+	if ( uniMap.containsKey(this)) {
+	    // this has been mapped. See whether what it's been mapped to
+	    // unifies with typeList.
+	    java.util.List mapped = (java.util.List) uniMap.get(this);
+
+	    HashMap uniMap2 = new HashMap(uniMap);
+	    if (typeListUnifies(mapped, typeList, uniMap2, uniTypeVars)) {
+		uniMap.putAll(uniMap2);
+		return typeList.size();
+	    } else
+		return -1;
+	} else if ( typeList.size() == 0 ) {
+		uniMap.put(this, new ArrayList());
+		return 0;
+	} else {
+	    // Try matching as many of typeList as possible.
+	    for (int i=0; i<typeList.size(); i++) {
+		TypeDecl t2 = 
+		    ((TypeDecl) typeList.get(i)).substitute(uniMap).type();
+		HashMap uniMap2 = new HashMap(uniMap);
+		if ( !this.unifiesWith(t2, uniMap2,uniTypeVars)) 
+		    return -1;
+	    }
+	    // if we're heer, that means everything in typeList has 
+	    // been matched.
+	    uniMap.put(this, typeList);
+	    return typeList.size();
+	}
+    */
+	/*
+	if ( isMapped(uniMap)) {
+	    // vector type variable has been matched. 
+	    // TODO: wah?
+	    // Match the mapped list with typeList.
+	    // 
+	    ArrayList mapped = retrieveMapped(uniMap);
+	    int l = typeList.size();
+	    // discard the boolean return from typeListUnifies 
+	    // because it is okay to have some left in typeList.
+	    typeListUnifies(mapped, typeList, uniMap, uniTypeVars);
+	    // mapped cannot have anything left.
+	    if ( mapped.size() != 0 ) return -1;
+	    return l-typeList.size();
+	} else {
+	    // this vector type variable has never been matched.
+	    // TODO: right now, use a greedy algorithm and just match 
+	    // as many types as possible.
+	    if ( typeList.size() == 0 ) {
+		MatchedVectorTypeVariable tv = createMatchedTypeVariable();
+		addMatchedVectorTypeVariable(tv);
+		uniMap.put(tv, null);
+		return 0;
+	    } else {
+		int matched = 0;
+		while ( typeList.size() > 0 ) {
+		    // create a new PatternTypeVariable for this vector type.
+		    MatchedVectorTypeVariable tv = createMatchedTypeVariable();
+		    // put into uniTypeVars
+		    uniTypeVars.add(tv);
+
+		    TypeDecl t2 = ((TypeDecl) typeList.get(0)).substitute(uniMap).type();
+		    if (!tv.unifiesWith(t2,uniMap,uniTypeVars)) {
+			uniTypeVars.remove(tv);
+			break;
+		    } else {
+			addMatchedVectorTypeVariable(tv);
+			typeList.remove(0);
+			matched++;
+			
+			// remove from uniTypeVars.
+			uniTypeVars.remove(tv);
+		    }
+		}
+		return matched;
+	    }
+	}
+	*/
+    //    }
+
+    public ArrayList VectorTypeVariable.retrieveMapped(Map uniMap) {
+	return (ArrayList) uniMap.get(this);
+	/*
+	ArrayList mapped = new ArrayList();
+	for ( int i=0; i<getNumMatchedVectorTypeVariable(); i++) {
+	    MatchedVectorTypeVariable t = getMatchedVectorTypeVariable(i);
+	    if ( uniMap.containsKey(t) && uniMap.get(t) != null )
+		mapped.add(uniMap.get(t));
+	}
+	return mapped;
+	*/
+    }
+
+    /*
+    public MatchedVectorTypeVariable VectorTypeVariable.createMatchedTypeVariable() {
+	List boundList = new List();
+	for ( int i=0; i<getNumTypeBound(); i++) {
+	    TypeDecl bound = getTypeBound(i).type();
+	    boundList.add(new BoundTypeAccess(bound.packageName(), bound.name(), bound));
+	}
+	MatchedVectorTypeVariable v = 
+	    new MatchedVectorTypeVariable((Modifiers) getModifiers().fullCopy(),
+					  getID(), 
+					  (List) getBodyDeclList().fullCopy(), 
+					  boundList);
+	v.is$Final = this.is$Final;
+	v.bypassErrorChecking = true;
+	return v;
+    }
+    public MatchedVectorTypeVariable NonVoidVectorTypeVariable.createMatchedTypeVariable() {
+	MatchedVectorTypeVariable v = 
+	    new NonVoidMatchedVectorTypeVariable((Modifiers) getModifiers().fullCopy(),
+						 getID(), 
+						 (List) getBodyDeclList().fullCopy(), 
+						 new List());
+	v.is$Final = this.is$Final;
+	v.bypassErrorChecking = true;
+	return v;
+    }
+    */
+}
