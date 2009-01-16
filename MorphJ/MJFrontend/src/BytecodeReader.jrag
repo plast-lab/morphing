@@ -846,7 +846,9 @@ aspect BytecodeReader {
 		  eat("%");
 		  eat(";");
 		  return new AllMatchingTypeVariable(new Modifiers(new List()),
-						     id, new List(), new List());
+						     id, 
+						     new List(), 
+						     new List());
 	      }
 
 	      List bounds = new List();
@@ -855,7 +857,7 @@ aspect BytecodeReader {
 	      }
 	      if ( bounds.getNumChild() == 0) eat(";");
 	      if ( isVector )
-		  return new VectorTypeVariable(new Modifiers(new List()), id, new List(), bounds, new List());
+		  return new VectorTypeVariable(new Modifiers(new List()), id, new List(), bounds);
 	      else 
 		  return new PatternTypeVariable(new Modifiers(new List()), id, new List(), bounds);
 	  }

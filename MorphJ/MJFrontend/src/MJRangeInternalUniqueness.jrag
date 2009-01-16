@@ -1,0 +1,146 @@
+aspect MJRangeInternalUniqueness {
+
+    syn lazy boolean BodyDecl.isInternallyUnique() = true;
+    eq StaticForMethodDecl.isInternallyUnique() {
+	// make sure that the method signature copies all the uniquely
+	// identifying parts of the enclosing iterator.
+	return copiesUniquePartsOf(refIterator().getPattern());
+    }
+    eq StaticForFieldDeclaration.isInternallyUnique() {
+	return copiesUniquePartsOf(refIterator().getPattern());
+    }
+
+    syn lazy boolean BodyDecl.copiesUniquePartsOf(Pattern p) = false;
+    eq StaticForMethodDecl.copiesUniquePartsOf(Pattern p) =
+	p.uniquePartsCopiedByMethodDecl(this);
+    eq StaticForFieldDeclaration.copiesUniquePartsOf(Pattern p) =
+	p.uniquePartsCopiedByFieldDeclaration(this);
+    
+    syn lazy boolean Pattern.uniquePartsCopiedByMethodDecl(MethodDecl m) = false;
+    syn lazy boolean Pattern.uniquePartsCopiedByFieldDeclaration(FieldDeclaration f) = false;
+    eq MethodPattern.uniquePartsCopiedByMethodDecl(MethodDecl m) {
+	// m must copy the name and argument types of this.
+	Identifier mid = m.identifier();
+	Identifier pid = identifier();
+
+	if ( mid.isNameVariable() ^ pid.isNameVariable())
+	    return false;
+	if ( mid.isNameVariable() && pid.isNameVariable() &&
+	     mid.getNameVariable() != pid.getNameVariable())
+	    return false;
+
+	List<Access> pList = getParameters();
+	List<ParameterDeclaration> mpList = m.getParameters();
+
+	// The order of the argument only matters when comparing to
+	// the *other* methods that are not matched by the pattern.
+	//
+	// Thus, to determine whether m keeps the uniqueness of the
+	// arguments matched by this pattern, we only need to
+	// treat the arguments as an orderless bag.
+	//
+	// Find the intersection between these two bags (where array
+	// types with different dimensions can be treated as intersecting)
+	//
+	// NOTE: m's parameters can be multiples of pattern's
+	// type parameters. That means we repeatedly try to find the whole
+	// of pattern's parameters in m's parameters until 
+	// pattern's parameters are not wholly matched by m's 
+	// parameters.
+	//
+	// The types outside of the intersection must not be (or constructed)
+	// using pattern type variables.
+	ArrayList<TypeDecl> mParamTypes = new ArrayList<TypeDecl>(mpList.getNumChild());
+	for ( int i=0; i<mpList.getNumChild(); i++) 
+	    mParamTypes.add(mpList.getChild(i).type());
+
+	ArrayList<TypeDecl> patternParamTypes = new ArrayList<TypeDecl>(pList.getNumChild());
+	ArrayList<TypeDecl> remainPatternParamTypes = 
+	    new ArrayList<TypeDecl>(pList.getNumChild());
+	for ( int i=0; i<pList.getNumChild(); i++) 
+	    remainPatternParamTypes.add(pList.getChild(i).type());
+	int remainMParamSize = 0;
+
+	
+	// Repeatedly execute if mParamTypes can wholy match all of
+	// pattern's parameters.
+	while ( mParamTypes.size() > 0 && 
+		remainMParamSize != mParamTypes.size()) {
+	    // Keep track of the number of types left in mParamTypes 
+	    // and patternParamTypes at the beginning of this iteration
+	    remainMParamSize = mParamTypes.size();
+	    
+	    for ( int i=0; i<pList.getNumChild(); i++) 
+		patternParamTypes.add(pList.getChild(i).type());
+
+	    for ( int i=0; i<patternParamTypes.size(); i++) {
+		for ( int j=0; j<mParamTypes.size(); j++) {
+		    TypeDecl pParam = patternParamTypes.get(i);
+		    TypeDecl mParam = mParamTypes.get(j);
+		    if ( pParam.uniquelyIddBy(mParam)) {
+			patternParamTypes.remove(i--);
+			mParamTypes.remove(j);
+			break;
+		    }
+		}
+	    }
+
+	    if ( remainMParamSize != mParamTypes.size())
+		remainPatternParamTypes = 
+		    new ArrayList<TypeDecl>(patternParamTypes);
+	}
+
+
+	// What remains in patternParamTypes and mParamTypes cannot 
+	// involve pattern type variables.
+	for ( int i=0; i<remainPatternParamTypes.size(); i++)
+	    if ( remainPatternParamTypes.get(i).uniquelyIddByPatternTypeVariable())
+		return false;
+	for ( int i=0; i<mParamTypes.size(); i++)
+	    if ( mParamTypes.get(i).uniquelyIddByPatternTypeVariable())
+		return false;
+
+	return true;
+    }
+
+    eq FieldPattern.uniquePartsCopiedByMethodDecl(MethodDecl m) {
+	Identifier mid = m.identifier();
+	Identifier pid = identifier();
+
+	return mid.uniquelyIddBy(pid);
+    }
+
+    eq FieldPattern.uniquePartsCopiedByFieldDeclaration(FieldDeclaration f) {
+	Identifier fid = f.identifier();
+	Identifier pid = identifier();
+
+	return fid.uniquelyIddBy(pid);
+    }
+
+    public boolean Identifier.uniquelyIddBy(Identifier id) {
+	if ( isNameVariable() ^ id.isNameVariable())
+	    return false;
+	if ( isNameVariable() && id.isNameVariable() &&
+	     getNameVariable() != id.getNameVariable())
+	    return false;
+	return true;
+    }
+
+    // A type is uniquely identified by another type t if	       
+    // this == t, or
+    // if this or t is an array type, their base element types
+    // are uniquely identified by one another.
+    syn lazy boolean TypeDecl.uniquelyIddBy(TypeDecl t) = t.uniquelyIddByNonArrayType(this);
+    eq ArrayDecl.uniquelyIddBy(TypeDecl t) = t.uniquelyIddBy(elementType());
+
+    syn lazy boolean TypeDecl.uniquelyIddByNonArrayType(TypeDecl t) = this == t;
+    eq ArrayDecl.uniquelyIddByNonArrayType(TypeDecl t) = elementType().uniquelyIddByNonArrayType(t);
+    
+    // A type is uniqeuly identified by a pattern type variable
+    // if it is a pattern type variable, or
+    // it is an array with element type uniquely identified by pattern
+    // type variable.
+    syn lazy boolean TypeDecl.uniquelyIddByPatternTypeVariable() = 
+	this.isPatternTypeVariable();
+    eq ArrayDecl.uniquelyIddByPatternTypeVariable() = elementType().isPatternTypeVariable();
+}

@@ -86,6 +86,33 @@ aspect MJParameterization {
 	return p;
     }
 
+    public Map Modifiers.defaultModifiersMap(Map uniMap) {
+	if ( getNumModifier() == 0 ) return uniMap;
+	
+	Map uni2 = new HashMap(uniMap);
+	for ( int i=0; i<getNumModifier(); i++) {
+	    Modifier m = getModifier(i);
+	    ArrayList l = new ArrayList();
+	    l.add(m.fullCopy());
+	    uni2.put(m, l);
+	}
+	return uni2;
+    }
+
+    public Pattern Pattern.p(Map substitutions) {
+	return substitute(substitutions);
+    }
+    public Pattern MethodPattern.p(Map substitutions) {
+	// enhance substitution with default modifier mappings.
+	// then invoke substitution.
+	Map newSub = getModifiers().defaultModifiersMap(substitutions);
+	return this.substitute(newSub);
+    }
+    public Pattern FieldPattern.p(Map substitutions) {
+	Map newSub = getModifiers().defaultModifiersMap(substitutions);
+	return this.substitute(newSub);
+    }
+
     public ParIteratorDecl IteratorDecl.substitute(Parameterization parTypeDecl) {
 	ParIteratorDecl pid = new ParIteratorDecl();
 
@@ -98,15 +125,21 @@ aspect MJParameterization {
 	// create the mapping to be used for pattern and nested pattern
 	// substitution.
 	HashMap map = new HashMap();
-	for ( int i=0; i<getNumPatternTypeParameter(); i++)
-	    map.put(getPatternTypeParameter(i), pid.getPatternTypeParameter(i));
+	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
+	    if ( getPatternTypeParameter(i).isVectorTypeVariable() ) {
+		ArrayList l = new ArrayList();
+		l.add(pid.getPatternTypeParameter(i));
+		map.put(getPatternTypeParameter(i),l);
+	    } else
+		map.put(getPatternTypeParameter(i), pid.getPatternTypeParameter(i));
+	}
 	for ( int i=0; i<getNumPatternNameParameter(); i++)
 	    map.put(getPatternNameParameter(i), new Identifier(pid.getPatternNameParameter(i).getID(),pid));
 
-	pid.setPattern(getPattern().substitute(map).substitute(parTypeDecl));
+	pid.setPattern(getPattern().p(map).substitute(parTypeDecl));
 
 	for ( int i=0; i<getNumNestedPattern(); i++)
-	    pid.addNestedPattern(getNestedPattern(i).substitute(map).substitute(parTypeDecl));
+	    pid.addNestedPattern(getNestedPattern(i).p(map).substitute(parTypeDecl));
 	
 	pid.original = this;
 	pid.parameterizationMapping.putAll(parTypeDecl.parameterizationMapping());
@@ -234,7 +267,7 @@ aspect MJParameterization {
     }
 
     public EmptyPrimaryPattern EmptyPrimaryPattern.substitute(Parameterization parTypeDecl) { 
-	return new EmptyPrimaryPattern(new BaseSet(new AllMatchingTypeVariable(new Modifiers(), "", new List(), new List()).createBoundAccess(), new RefElmt("methods")));
+	return new EmptyPrimaryPattern(new BaseSet(new AllMatchingTypeVariable(new Modifiers(), "", new List(), new List().add(typeEveryType().createBoundAccess())).createBoundAccess(), new RefElmt("methods")));
     }
     
     // TODO: need to recycle these substituted patterns. Might become

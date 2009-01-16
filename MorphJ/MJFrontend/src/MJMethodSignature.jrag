@@ -1,0 +1,118 @@
+aspect MJMethodSignature {
+
+    syn lazy boolean MethodDecl.signatureOverrides(MethodDecl m) {
+	Map uniMap = this.signatureOverridesWithMap(m);
+	return uniMap != null;
+    }
+
+    syn lazy Map MethodDecl.signatureOverridesWithMap(MethodDecl m) =
+	m.signatureOverriddenByMethodDeclWithMap(this);
+    eq StaticForMethodDecl.signatureOverridesWithMap(MethodDecl m) =
+	m.signatureOverriddenByStaticForMethodDeclWithMap(this);
+
+    // Two statically declared methods. Just compare signature
+    syn lazy Map MethodDecl.signatureOverriddenByMethodDeclWithMap(MethodDecl m) {
+	if ( m.signature().equals(signature()))
+	    return new HashMap();
+	return null;
+    }
+    eq StaticForMethodDecl.signatureOverriddenByMethodDeclWithMap(MethodDecl m) {
+	if ( grounded())
+	    return super.signatureOverriddenByMethodDeclWithMap(m);
+
+	// if not, then there's no way a regular method decl can override
+	// a StaticForMethodDecl 
+	return null;
+    }
+
+    syn lazy Map MethodDecl.signatureOverriddenByStaticForMethodDeclWithMap(StaticForMethodDecl m) {
+	// if m is grounded, then simply invoke the regular
+	// signatureOverriddenByMethodDeclWithMap to compare signature();
+	if ( m.grounded())
+	    return signatureOverriddenByMethodDeclWithMap(m);
+
+	// For a reflectively declared method to override the signature of
+	// a regularly declared method m, their signatures must unify.
+	Map uniMap = new HashMap();
+	if ( canUnifySignature(m, uniMap, 
+			       m.refIterator().patternTypeVariables(),
+			       m.refIterator().patternNameVariables()))
+	    return uniMap;
+	return null;
+    }
+    eq StaticForMethodDecl.signatureOverriddenByStaticForMethodDeclWithMap(StaticForMethodDecl m) {
+	if ( m.grounded())
+	    this.signatureOverriddenByMethodDeclWithMap(m);
+	if ( this.grounded())
+	    return null;
+	if ( this == m ) return new HashMap();
+	
+	Map uniMap = new HashMap();
+
+	// 1. Fetch method named by this's name in m's host type.
+	// 2. Find a unification mapping between the this and that method's 
+	// signature (name and argument types)
+	// 3. Make sure that with this mapping, m's iterator range
+	// is subsumed by this's range
+	if ( m.isNameVariable(m.getID()) || m.containsNameVariable(m.getID())) {
+	    // check that this and m's signatures can unify.
+	    Identifier id = new Identifier(m.getID(), m.getIteratorDecl());
+	    HashMap possOverrides = hostType().memberMethodsAndMap(id);
+	    
+	    // is this one of the possible override methods of m?
+	    boolean possOv = false;
+	    for ( Iterator ovIt = possOverrides.keySet().iterator(); 
+		  ovIt.hasNext();) {
+		MethodDecl om = (MethodDecl) ovIt.next();
+		if ( om instanceof PatternMethodDecl ) {
+		    if ( om.equals(this)) {
+			possOv = true;
+			break;
+		    }
+		} else {
+		    StaticForMethodDeclSubstituted pm 
+			= (StaticForMethodDeclSubstituted) om;
+		    StaticForMethodDeclSubstituted msub 
+			= (StaticForMethodDeclSubstituted) 
+			this.substitute(pm.expansionSubstitutions);
+		    if ( msub.equals(pm)) { 
+			// now unify the signatures.
+			IteratorDecl mIt = refIterator();
+			uniMap = new HashMap();
+			if (canUnifySignature(m, uniMap,
+					      mIt.patternTypeVariables(), 
+					      mIt.patternNameVariables())) {
+			    possOv = true;
+			    break;
+			}
+		    }
+		}
+	    }
+	    
+	    // if m is not a method that could be possibly overriden by
+	    // this, then just return.
+	    if ( !possOv ) 
+		return null;
+	} else {
+	    Collection possOverrides = hostType().memberMethods(m.getID());
+	    // is m one of the possible override methods?
+	    boolean possOv = false;
+	    for ( Iterator ovIt = possOverrides.iterator(); 
+		  ovIt.hasNext();)
+		if ( m == ovIt.next()) { possOv = true; break; }
+	    // if m is not a method that could be possibly overriden by
+	    // this, then just return.
+	    if ( !possOv ) 
+		return null;
+	}
+
+	// the signature of this and m unifies using uniMap.
+	// Now check that with this mapping, m's iterator range
+	// is subsumed by this's range
+	IteratorDecl thisIt = refIterator();
+	IteratorDecl mIt = m.refIterator();
+	if (thisIt.subsumes(mIt, uniMap))
+	    return uniMap;
+	return null;
+    }
+}

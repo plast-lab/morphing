@@ -1,9 +1,14 @@
 PatternTypeVariable : TypeVariable;
-VectorTypeVariable : PatternTypeVariable ::= MatchedVectorTypeVariable*;
-MatchedVectorTypeVariable : PatternTypeVariable;
+VectorTypeVariable : PatternTypeVariable; // ::= MatchedVectorTypeVariable*;
+//NonVoidVectorTypeVariable : VectorTypeVariable;
+//MatchedVectorTypeVariable : PatternTypeVariable;
+//NonVoidMatchedVectorTypeVariable : MatchedVectorTypeVariable;
+
+NonVoidType : TypeDecl;
+EveryType : TypeDecl;
 
 AllMatchingTypeVariable : PatternTypeVariable;
-NonVoidType : TypeDecl;
+NonVoidTypeVariable : PatternTypeVariable;
 
 PatternNameVariable ::= <ID:String>;
 
@@ -70,3 +75,8 @@ PatternFieldDeclaration : FieldDeclaration;
 
 NegativeModifier : Modifier;
 NoModifier : Modifier;
+MaybeModifier : Modifier;
+
+ClonedMethodAccess : MethodAccess;
+ClonedParMethodAccess : ParMethodAccess;
+ClonedExpr : Expr ::= TypeAccess:Access;

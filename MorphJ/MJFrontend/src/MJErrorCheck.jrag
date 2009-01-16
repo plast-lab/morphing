@@ -6,4 +6,11 @@ aspect MJErrorCheck {
 	ErrorCheck.ASTNode.collectErrors();
     }
 
+    protected void ASTNode.errorOrWarn(String s, TypeDecl hostType) {
+	if ( hostType == hostType.typeObject())
+	    warning(s);
+	else
+	    error(s);
+    }
+
 }

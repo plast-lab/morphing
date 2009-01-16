@@ -1,0 +1,130 @@
+aspect Subsumption {
+
+    syn lazy boolean Pattern.subsumes(Pattern p, Map uniMap) = false;
+    eq EmptyPrimaryPattern.subsumes(Pattern p, Map uniMap) = true;
+    eq MethodPattern.subsumes(Pattern p, Map uniMap) = p.subsumedByMethodPattern(this, uniMap);
+    eq FieldPattern.subsumes(Pattern p, Map uniMap) = p.subsumedByFieldPattern(this, uniMap);
+
+    // error nested conditions are always subsumed.
+    eq NestedFieldPattern.subsumedByFieldPattern(FieldPattern p, Map uniMap) {
+	if ( getIsErrorCondition())
+	    return true;
+	return super.subsumedByFieldPattern(p, uniMap);
+    }
+    eq NestedMethodPattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) {
+	if ( getIsErrorCondition()) return true;
+	return super.subsumedByMethodPattern(p, uniMap);
+    }
+
+    syn lazy boolean Pattern.subsumedByFieldPattern(FieldPattern p, Map uniMap) = false;
+    eq FieldPattern.subsumedByFieldPattern(FieldPattern p, Map uniMap) {
+	if ( this == p ) return true;
+
+	if ( !p.reflectiveBaseType().subtype(reflectiveBaseType())) {
+	    /* Doesn't really work without full normalization of all
+	       ranges.
+	    // we can deconstruct this pattern to be a union of patterns,
+	    // matching each field in its base type.
+	    // This is only possible if pRefBase is not a type variable.
+	    TypeDecl pRefBase = this.reflectiveBaseType();
+	    if ( pRefBase instanceof TypeVariable )
+		return false;
+	    
+	    // F1 U F2 U ... Fn
+	    // if Fi can be matched by pattern, Fi << this
+	    // and Fi[this] << p, wher Fi[this] is Fi with substitution from Fi << this applied.
+	    // then the part Fi is subsumed by p.
+	    // Fi for all i needs to be subsumed by p.
+ 	    Collection refFields = pRefBase.bcFields();
+	    for( Iterator rfIt = refFields.iterator(); rfIt.hasNext(); ) {
+		FieldDeclaration fd = (FieldDeclaration) rfIt.next();
+		HashMap map = new HashMap();
+
+		// Want: this << p
+		// If this << fd, and fd << p , then  this << p
+		// first apply reverse of map to fd.
+		if ( this.subsumesFieldDeclaration(fd, map)) {
+
+		    HashMap rMap = new HashMap();
+		    for ( Iterator mkIt = map.keySet().iterator(); mkIt.hasNext(); ) {
+			PatternVariable tv = (PatternVariable) mkIt.next();
+		    	Object mapped = map.get(tv);
+			if ( mapped instanceof PatternVariable )
+			    rMap.put(mapped, tv);
+			else if ( mapped instanceof Identifier ) {
+			    Identifier id = (Identifier) mapped;
+			    if ( id.isPureNameVariable())
+				rMap.put(id.namevariable, 
+					 new Identifier((PatternNameVariable) tv));
+			}
+		    }			    
+		    
+		    if ( fd instanceof StaticForFieldDeclaration ) {
+			StaticForFieldDeclaration sfd = (StaticForFieldDeclaration) fd;
+			StaticForFieldDeclarationSubstituted ssfd = sfd.substitute(rMap);
+			if ( sfd.isSubsumedBy(p, (HashMap) uniMap)) {
+			    // found it.
+			    return true;
+			}
+		    } else {
+			if ( fd.isSubsumedBy(p, (HashMap) uniMap ))
+			    return true;
+		    }
+		}
+	    }
+	    */
+	    return false;
+	}
+
+	PatternFieldDeclaration thisFd = this.patternFieldDeclaration();
+	PatternFieldDeclaration pFd = p.patternFieldDeclaration();
+
+	// this's modifiers must be a subset of p's modifiers.
+	if ( !thisFd.getModifiers().subsumedBy(pFd.getModifiers(), uniMap))
+	    return false;
+	
+	if ( !thisFd.canUnifySignature(pFd, uniMap, p.patternTypeVariables(), p.patternNameVariables()))
+	    return false;
+
+	// check that types can be unified.
+	if (!p.getTypeAccess().type().unifiesWith(getTypeAccess().type(), uniMap, p.patternTypeVariables()))
+	    return false;
+	
+	return false;
+    }
+    syn lazy boolean Pattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) = false;
+    eq MethodPattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) {
+	if ( this == p ) return true;
+
+	// this's modifiers must be a subset of p's modifiers.
+	if ( !getModifiers().subsumedBy(p.getModifiers(), uniMap))
+	    return false;
+
+	// this's base type must be a supertype of p's base type.
+	TypeDecl thisBaseType = reflectiveBaseType().substitute(uniMap).type();
+	TypeDecl pBaseType = p.reflectiveBaseType().substitute(uniMap).type();
+	//	if ( !p.reflectiveBaseType().subtype(reflectiveBaseType()))
+	if ( !pBaseType.subtype(thisBaseType))
+	    return false;
+	
+	// signitures must unify using this' type and name variables.
+	PatternMethodDecl thisMd = patternMethodDecl();
+	PatternMethodDecl pMd = p.patternMethodDecl();
+
+	// name + arg types unify
+	if ( !thisMd.canUnifySignature(pMd, uniMap, p.patternTypeVariables(), p.patternNameVariables())) 
+	    return false;
+
+	// return types unify
+	if ( !pMd.type().unifiesWith(getTypeAccess().type(), uniMap, p.patternTypeVariables()))
+	    return false;
+
+	// exceptions must unify.
+	if ( !TypeDecl.typeListUnifies(exceptionTypes(),p.exceptionTypes(),
+				       uniMap, p.patternTypeVariables()))
+	    return false;
+
+	return true;
+    }
+
+}

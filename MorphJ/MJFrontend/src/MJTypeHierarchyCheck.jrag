@@ -229,12 +229,91 @@ aspect MJTypeHierarchyCheck {
 		checkHide(target, m, md);
 	    }
 	}
+	for ( Iterator ifIt = interfacesIterator(); ifIt.hasNext(); ) {
+	    TypeDecl id = (TypeDecl) ifIt.next();
+	    if ( id.isTypeVariable())  {
+		MethodDecl md = id.everyMethod();
+		if ( // Make exception for static void main(String[] argv)
+		    !(!m.isReflectiveDecl() &&
+		      m.name().equals("main") &&
+		      m.type() == typeVoid() && 
+		      m.getParameterList().getNumChild() == 1 &&
+		      m.getParameter(0).type().isArrayDecl() &&
+		      ((ArrayDecl) m.getParameter(0).type()).elementType().name().equals("String"))) {
+		    ASTNode target = m.hostType() == this ? (ASTNode)m : (ASTNode)this;
+		    checkOverride(target, m, md);
+		    checkHide(target, m, md);
+		}		
+	    }
+	}
     }
+
+    protected void InterfaceDecl.typeCheck(MethodDecl m) {
+	super.typeCheck(m);
+	for ( Iterator ifIt = superinterfacesIterator(); ifIt.hasNext(); ) {
+	    TypeDecl id = (TypeDecl) ifIt.next();
+	    if ( id.isTypeVariable())  {
+		MethodDecl md = id.everyMethod();
+		if ( // Make exception for static void main(String[] argv)
+		    !(!m.isReflectiveDecl() &&
+		      m.name().equals("main") &&
+		      m.type() == typeVoid() && 
+		      m.getParameterList().getNumChild() == 1 &&
+		      m.getParameter(0).type().isArrayDecl() &&
+		      ((ArrayDecl) m.getParameter(0).type()).elementType().name().equals("String"))) {
+		    ASTNode target = m.hostType() == this ? (ASTNode)m : (ASTNode)this;
+		    checkOverride(target, m, md);
+		    checkHide(target, m, md);
+		}		
+	    }
+	}
+    }
+
+    refine GenericMethods eq MethodDecl.mayOverrideReturn(MethodDecl m) {
+	Map uniMap = this.signatureOverridesWithMap(m);
+	if ( uniMap == null ) return false;
+	
+	TypeDecl thisRetType = this.type().substitute(uniMap).type();
+	TypeDecl mRetType= m.type().substitute(uniMap).type();
+	return thisRetType.instanceOf(mRetType);
+    }
+    eq StaticForMethodDecl.mayOverrideReturn(MethodDecl m) {
+	if ( this.grounded()) return super.mayOverrideReturn(m);
+
+	Map uniMap = this.signatureOverridesWithMap(m);
+	if ( uniMap == null ) return false;
+	TypeDecl thisRetType = this.type().substitute(uniMap).type();
+	TypeDecl mRetType = m.type().substitute(uniMap).type();
+	return thisRetType.instanceOf(mRetType);
+	// uniMap does not have the neccessary mapping to
+	// make the two return types equal.  
+	// We apply uniMap to this's iterator and m's (if any),
+	// and resolve the remaining mapping that would make this's 
+	// iterator a subrange of m's.
+	// Then, apply the mapping to return type of both.
+	/*
+	if ( m instanceof StaticForMethodDecl ) {
+	    IteratorDecl mIt = ((StaticForMethodDecl) m).refIterator();
+	    
+	    Map newMap = new HashMap(uniMap);
+	    if (!mIt.subsumes(this.refIterator(), newMap)) {
+		// if subsumption doesn't happen, reset newMap to uniMap
+		newMap = uniMap;
+	    }
+	    TypeDecl thisRetType = this.type().substitute(newMap).type();
+	    TypeDecl mRetType = m.type().substitute(newMap).type();
+	    return thisRetType.instanceOf(mRetType);
+	} else {
+	    TypeDecl thisRetType = this.type().substitute(uniMap).type();
+	    TypeDecl mRetType = m.type().substitute(uniMap).type();
+	    return thisRetType.instanceOf(mRetType);
+	}
+	*/
+    }
+
 
     protected void TypeDecl.checkOverride(ASTNode target, MethodDecl m, MethodDecl decl) {
 	if(m.overrides(decl)) {
-	    // decl's modifiers could be filtered by the patterns of m.
-	    
 	    // 8.4.6.1
 	    if(!m.isStatic() && decl.isStatic())
 		target.error("an instance method may not override a static method");
@@ -242,48 +321,67 @@ aspect MJTypeHierarchyCheck {
 	    // regardless of overriding
 	    // 8.4.6.3
 	    if(!m.mayOverrideReturn(decl)) {
-		if ( decl.isEveryMethod()) 
-		    target.error("the return type of method " + m.signature() + " in " + m.hostType().typeName() + " does not match the return type of method it may override in " + decl.hostType().typeName() + " and may thus not be overriden");
-		else
-		    target.error("the return type of method " + m.signature() + " in " + m.hostType().typeName() + " does not match the return type of method " + decl.signature() + " in " + decl.hostType().typeName() + " and may thus not be overriden");
+		if ( decl.isEveryMethod()) {
+		    target.errorOrWarn("the return type of method " + m.signature() + " in " + m.hostType().typeName() + " does not match the return type of method it may override in " + decl.hostType().typeName() + " and may thus not be overriden", decl.hostType());
+		} else {
+		    target.errorOrWarn("the return type of method " + m.signature() + " in " + m.hostType().typeName() + " does not match the return type of method " + decl.signature() + " in " + decl.hostType().typeName() + " and may thus not be overriden", decl.hostType());
+		}
 	    }
 		
 	    // regardless of overriding
 	    // 8.4.4
+	    Map uniMap = m.signatureOverridesWithMap(decl);
+	    
 	    for(int i = 0; i < m.getNumException(); i++) {
 		Access e = m.getException(i);
 		boolean found = false;
 		for(int j = 0; !found && j < decl.getNumException(); j++) {
-		    if(e.type().instanceOf(decl.getException(j).type()))
+		    TypeDecl eType = decl.getException(j).type().substitute(uniMap).type();
+		    if(e.type().instanceOf(eType))
 			found = true;
 		}
-		if(!found && e.type().isUncheckedException())
-		    target.error(m.signature() + " in " + m.hostType().typeName() + " may not throw more checked exceptions than overridden method " +
-				 decl.signature() + " in " + decl.hostType().typeName());
+		if(!found && e.type().isUncheckedException()) {
+		    target.errorOrWarn(m.signature() + " in " + m.hostType().typeName() + " may not throw more checked exceptions than overridden method " +
+				       decl.signature() + " in " + decl.hostType().typeName(), decl.hostType());
+		}
 	    }
+	    
+	    // if decl is everyMethod, or nonPrivateMethod, then
+	    // its modifier could be determined by the way the
+	    // iterator of this method unifies with the decl's iterator.
+	    Modifiers declMods = decl.getModifiers();
+	    if ( decl.isEveryMethod() && m instanceof StaticForMethodDecl ) {
+		Map newMap = new HashMap(uniMap);
+		if ( ((StaticForMethodDecl) decl).refIterator().subsumes(
+									 ((StaticForMethodDecl) m).refIterator(), newMap))
+		    declMods = declMods.substitute(newMap);
+	    }
+	    
 	    // 8.4.6.3
-	    if(decl.isPublic() && !m.isPublic())
-		target.error("overriding access modifier error");
+	    if(declMods.isPublic() && !m.isPublic())
+		target.errorOrWarn("overriding access modifier error", decl.hostType());
 	    // 8.4.6.3
-	    if(decl.isProtected() && !(m.isPublic() || m.isProtected()))
-		target.error("overriding access modifier error");
+	    if(declMods.isProtected() && !(m.isPublic() || m.isProtected()))
+		target.errorOrWarn("overriding access modifier error", decl.hostType());
 	    // 8.4.6.3
-	    if((!decl.isPrivate() && !decl.isProtected() && !decl.isPublic()) && m.isPrivate())
-		target.error("overriding access modifier error");
+	    if((!declMods.isPrivate() && !declMods.isProtected() && !declMods.isPublic()) && m.isPrivate())
+		target.errorOrWarn("overriding access modifier error", decl.hostType());
 	    
 	    // regardless of overriding
-	    if(decl.possiblyFinal())
+	    if(declMods.possiblyFinal())
 		if ( decl.isEveryMethod() )
-		    target.error("method " + m.signature() + " in " + 
-				 hostType().typeName() + 
-				 " could potentially override a final method in " 
-				 + decl.hostType().typeName());
+		    target.errorOrWarn("method " + m.signature() + " in " + 
+				       hostType().typeName() + 
+				       " could potentially override a final method in " 
+				       + decl.hostType().typeName(),
+				       decl.hostType());
 		else
-		    target.error("method " + m.signature() + " in " + 
-				 hostType().typeName() + 
-				 " can not override (possibly) final method " 
-				 + decl.signature() + " in " + 
-				 decl.hostType().typeName());
+		    target.errorOrWarn("method " + m.signature() + " in " + 
+				       hostType().typeName() + 
+				       " can not override (possibly) final method " 
+				       + decl.signature() + " in " + 
+				       decl.hostType().typeName(),
+				       decl.hostType());
 	}
     }
     

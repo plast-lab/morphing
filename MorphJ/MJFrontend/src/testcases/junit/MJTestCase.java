@@ -74,7 +74,14 @@ public abstract class MJTestCase extends TestCase {
     protected Problem makeError(String errorMsg) {
 	return new Problem(null, errorMsg, 6, Problem.Severity.ERROR);
     }
+    
+    protected Problem makeWarning(String errorMsg) {
+	return new Problem(null, errorMsg, 6, Problem.Severity.WARNING);
+    }
 
+    protected void noProblems(Collection<Problem> actualProblems) {
+	assertTrue(actualProblems.size() == 0 );
+    }
     protected void compareProblems(Collection<Problem> expectedProblems,
 	    Collection<Problem> actualProblems) {
 
