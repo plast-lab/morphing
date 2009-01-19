@@ -20,7 +20,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     // <R,A*>[m] for ( R m (A) : X.methods) R m (A) { }
     @Test
     public void testCopyAll() {
-	Collection<Problem> actualProblems = checkTest("CopyAllOk.java");
+	actualProblems = checkTest("CopyAllOk.java");
 	noProblems(actualProblems);
     }
 
@@ -28,7 +28,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     // <A*>[m] for ( Number m (A) : X.methods ) Integer m (A) { }
     @Test
     public void testChangeReturnToSubtype() {
-	Collection<Problem> actualProblems = checkTest("ChangeReturnSubtypeOk.java");
+	actualProblems = checkTest("ChangeReturnSubtypeOk.java");
 	noProblems(actualProblems);
     }
 
@@ -37,7 +37,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     // <R,A*>[m] for ( R m (A) : Number.methods) R m (A) { ... }
     @Test
     public void testCopySuperSuper() {
-	Collection<Problem> actualProblems = checkTest("CopySuperSuperOk.java");
+	actualProblems = checkTest("CopySuperSuperOk.java");
 	noProblems(actualProblems);
     }
 
@@ -46,7 +46,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     // <R,A*>[m] for ( R m (A) : Y.methods )
     @Test
     public void testCopyVariableSuperSub() {
-	Collection<Problem> actualProblems = checkTest("CopyVariableSuperSubOk.java");
+	actualProblems = checkTest("CopyVariableSuperSubOk.java");
 	noProblems(actualProblems);
     }
 
@@ -55,7 +55,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     // <R,A*>[m] for ( R m (A) : X.methods )
     @Test
     public void testCopyVariableSuperSuper() {
-	Collection<Problem> actualProblems = checkTest("CopyVariableSuperSuperOk.java");
+	actualProblems = checkTest("CopyVariableSuperSuperOk.java");
 	noProblems(actualProblems);
     }
 
@@ -64,8 +64,8 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     // <R,A*>[m] for (R m (A) : T.methods) R m (A) { }
     @Test
     public void testCopyUnrelatedMethods() {
-	Collection<Problem> actualProblems = checkTest("CopyUnrelated.java");
-	Collection<Problem> expectedProblems = new ArrayList<Problem>();
+	actualProblems = checkTest("CopyUnrelated.java");
+	expectedProblems.clear();
 	expectedProblems
 		.add(makeError("the return type of method m1() in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
 	expectedProblems
@@ -95,8 +95,8 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     // <R,A*>[m] for (R m (A) : Y.methods) R m (A) { }
     @Test
     public void testCopyUnrelatedFromVariable() {
-	Collection<Problem> actualProblems = checkTest("CopyUnrelatedVar.java");
-	Collection<Problem> expectedProblems = new ArrayList<Problem>();
+	actualProblems = checkTest("CopyUnrelatedVar.java");
+	expectedProblems.clear();
 	expectedProblems
 		.add(makeError("method with signature \n"
 			+ "      <R extends java.lang.Object,A*>[m]for( R m(A):Y.methods;)\n"
@@ -110,8 +110,8 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     // <R,A*>[m] for ( R m (A) : X.methods) R m (A, T)
     @Test
     public void testAddArgumentToEnd() {
-	Collection<Problem> actualProblems = checkTest("AddArgumentEnd.java");
-	Collection<Problem> expectedProblems = new ArrayList<Problem>();
+	actualProblems = checkTest("AddArgumentEnd.java");
+	expectedProblems.clear();
 	expectedProblems
 		.add(makeError("the return type of method m(A, java.lang.String) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
 	expectedProblems
@@ -123,14 +123,13 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 			+ "\n  may conflict with methods in type X."));
 	compareProblems(expectedProblems, actualProblems);
     }
-    
-    
+
     // ERROR:
     // <R,A*>[m] for ( R m (A) : X.methods) R m (T, A)
     @Test
     public void testAddArgumentToFront() {
-	Collection<Problem> actualProblems = checkTest("AddArgumentBegin.java");
-	Collection<Problem> expectedProblems = new ArrayList<Problem>();
+	actualProblems = checkTest("AddArgumentBegin.java");
+	expectedProblems.clear();
 	expectedProblems
 		.add(makeError("method m(java.lang.String, A) in Mixin could potentially override a final method in X"));
 	expectedProblems
@@ -140,21 +139,93 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 			+ "\n  may conflict with methods in type X."));
 	compareProblems(expectedProblems, actualProblems);
     }
-    
+
     // ERROR:
     // <R,A*>[m] for (R m (A) : X.methods) R m ( T, A, S)
+    @Test
+    public void testAddArgumentBothEnds() {
+	actualProblems = checkTest("AddArgumentBothEnds.java");
+	expectedProblems.clear();
+	expectedProblems
+		.add(makeError("method m(java.lang.String, A, java.lang.Object) in Mixin could potentially override a final method in X"));
+	expectedProblems
+		.add(makeError("method with signature \n"
+			+ "      <R extends java.lang.Object,A*>[m]for( R m(A):X.methods;)\n"
+			+ "      R m(java.lang.String, A, java.lang.Object)"
+			+ "\n  may conflict with methods in type X."));
+	expectedProblems
+		.add(makeError("the return type of method m(java.lang.String, A, java.lang.Object) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
+	compareProblems(expectedProblems, actualProblems);
+    }
+
+    // ERROR
+    // <R,A*>[m] for (R m (A) : X.methods) R m (A, R)
+    @Test
+    public void testAddVariableArgumentToEnd() {
+	actualProblems = checkTest("AddVariableArgumentEnd.java");
+	expectedProblems.clear();
+	expectedProblems
+		.add(makeError("method m(A, java.lang.Object) in Mixin could potentially override a final method in X"));
+	expectedProblems
+		.add(makeError("method with signature \n"
+			+ "      <R extends java.lang.Object,A*>[m]for( R m(A):X.methods;)\n"
+			+ "      R m(A, java.lang.Object)"
+			+ "\n  may conflict with methods in type X."));
+	expectedProblems
+		.add(makeError("the return type of method m(A, java.lang.Object) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
+	expectedProblems
+		.add(makeError("method with signature \n"
+			+ "<R extends java.lang.Object,A*>[m]for( R m(A):X.methods;)\n"
+			+ "R m(A, java.lang.Object)"
+			+ "\n could expand to conflicting or duplicating method declarations."));
+	compareProblems(expectedProblems, actualProblems);
+    }
 
     // ERROR: Changing return type to supertype.
     // <R extends Number,A*>[m] for (R m (A): X.methods) Object m (A)
+    @Test
+    public void testChangeReturnTypeSupertype() {
+	actualProblems = checkTest("ChangeReturnSupertype.java");
+	expectedProblems.clear();
+	expectedProblems
+		.add(makeError("the return type of method m(A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
+	compareProblems(expectedProblems, actualProblems);
+    }
 
     // ERROR: changing return type to unrelated
     // <R,A*>[m] for ( R m (A) : X.methods) String m (A)
+    @Test
+    public void testChangeReturnToUnrelated() {
+	actualProblems = checkTest("ChangeReturnToUnrelated.java");
+	expectedProblems.clear();
+	expectedProblems
+		.add(makeError("the return type of method m(A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
+	compareProblems(expectedProblems, actualProblems);
+    }
 
     // ERROR: changing name
     // <R,A*>[m] for (R m (A) : X.methods) R foo (A)
+    @Test
+    public void testChangeName() {
+	actualProblems = checkTest("ChangeNameToStatic.java");
+	clearExpected();
+
+	addExpected(makeError("method foo(A) in Mixin could potentially override a final method in X"));
+	addExpected(makeError("method with signature \n"
+		+ "<R extends java.lang.Object,A*>[m]for( !final R m(A):X.methods;)\n"
+		+ "R foo(A)"
+		+ "\n could expand to conflicting or duplicating method declarations."));
+	compareProblems();
+    }
 
     // ERROR:
     // <R,A*>[m] for (R m (A): X.methods) R get#m (A)
+    @Test public void testChangeNameToVar () {
+	actualProblems = checkTest("ChangeNameVar.java");
+	clearExpected();
+	
+	compareProblems();
+    }
 
     // ERROR:
     // <R,A*>[m] for (R get#m (A) : X.methods) R m (A)
