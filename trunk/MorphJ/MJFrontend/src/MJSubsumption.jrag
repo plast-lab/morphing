@@ -1,5 +1,33 @@
 aspect Subsumption {
 
+    syn lazy boolean IteratorDecl.subsumes(IteratorDecl that, Map uniMap) {
+	if ( this == that ) return true;
+
+	// first check whether the primary pattern of this subsumes
+	// primary pattern of that.
+	if ( !getPattern().subsumes(that.getPattern(), uniMap))
+	    return false;
+
+	// Each nested pattern of that must be implied by a nested pattern
+	// of this.
+	for ( int i=0; i<that.getNumNestedPattern(); i++) {
+	    boolean sat = false;
+	    for ( int j=0; j<getNumNestedPattern(); j++) {
+		if (getNestedPattern(j).implies(that.getNestedPattern(i), uniMap)) {
+		    sat = true;
+		    break;
+		}
+	    }
+	    if ( !sat ) return false;
+	}
+
+	/*
+	return nestedPatternSatisfiedBy(uniMap) &&
+	    that.nestedPatternSatisfiedBy(uniMap);
+	*/
+	return true;
+    }
+
     syn lazy boolean Pattern.subsumes(Pattern p, Map uniMap) = false;
     eq EmptyPrimaryPattern.subsumes(Pattern p, Map uniMap) = true;
     eq MethodPattern.subsumes(Pattern p, Map uniMap) = p.subsumedByMethodPattern(this, uniMap);
@@ -92,6 +120,7 @@ aspect Subsumption {
 	
 	return false;
     }
+
     syn lazy boolean Pattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) = false;
     eq MethodPattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) {
 	if ( this == p ) return true;
@@ -124,6 +153,63 @@ aspect Subsumption {
 				       uniMap, p.patternTypeVariables()))
 	    return false;
 
+	return true;
+    }
+
+
+    syn lazy boolean BodyDecl.isSubsumedBy(IteratorDecl id, Map map) {
+	// 2. BodyDecl must be within range of the primary pattern.
+	if ( !this.isSubsumedBy(id.getPattern(), map))
+	    return false;
+
+	// 3. All nested patterns must be satisfied by the mapping.
+	for ( int i=0; i<id.getNumNestedPattern(); i++ ) {
+	    if ( !id.getNestedPattern(i).satisfiedBy(map))
+		return false;
+	}
+
+	return true;
+    }
+
+    syn lazy boolean BodyDecl.isSubsumedBy(Pattern p, Map map) = false;
+    eq FieldDeclaration.isSubsumedBy(Pattern p, Map map) = 
+	p.subsumesFieldDeclaration(this, map);
+    eq MethodDecl.isSubsumedBy(Pattern p, Map map) = p.subsumesMethodDecl(this, map);
+
+    syn lazy boolean Pattern.subsumesMethodDecl(MethodDecl md, Map map) = false;
+    eq MethodPattern.subsumesMethodDecl(MethodDecl md, Map map) {
+	// 1, hostType of md has to be a supertype of pattern's base type.
+	if ( !getBaseSet().type().subtype(md.hostType()))
+	    return false;
+
+	PatternMethodDecl patternMd = patternMethodDecl();
+	if ( !md.canUnifySignature(patternMd, map, 
+				   patternTypeVariables(),
+				   patternNameVariables()) ||
+	     // check return type.
+	     !md.type().unifiesWith(patternMd.type(),map, 
+				    patternTypeVariables()) ||
+	     // check modifiers.
+	     !md.getModifiers().subsumedBy(getModifiers(), map))
+	    return false;
+	return true;
+    }
+
+    syn lazy boolean Pattern.subsumesFieldDeclaration(FieldDeclaration fd, Map map) = false;
+    eq FieldPattern.subsumesFieldDeclaration(FieldDeclaration fd, Map map) {
+	// 1, hostType of fd has to be a supertype of pattern's base type.
+	if ( !getBaseSet().type().subtype(fd.hostType()))
+	    return false;
+
+	PatternFieldDeclaration patternFd = patternFieldDeclaration();
+	if ( !fd.canUnifySignature(patternFd, map,
+				   patternTypeVariables(),
+				   patternNameVariables()) ||
+	     !fd.type().unifiesWith(patternFd.type(), map, 
+				    patternTypeVariables()) ||
+	     // check modifiers.
+	     !fd.getModifiers().subsumedBy(getModifiers(),map))
+	    return false;
 	return true;
     }
 

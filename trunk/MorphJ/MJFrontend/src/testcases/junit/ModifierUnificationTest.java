@@ -8,17 +8,17 @@ import main.Modifiables;
 
 public class ModifierUnificationTest extends TestCase {
 
+    // public enhanced with maybes does not include private and protected
     @Test
     public void testMaybeModifiers() {
 	Modifiers mod1 = new Modifiers(new AST.List().add(
 		new Modifier("public")).add(new Modifier("static")));
- 	mod1 = mod1.enhanceWithMaybes(Modifiables.METHOD);
-	assertTrue(mod1
-		.toString()
-		.equals(
-			"public static *abstract *strictfp *final *native *synchronized"));
+	mod1 = mod1.enhanceWithMaybes(Modifiables.METHOD);
+	assertFalse(mod1.isPrivate());
+	assertFalse(mod1.isProtected());
     }
 
+    // abstract enhanced with maybes does not inculde final
     @Test
     public void testMaybeModifiers2() {
 	// Having abstract means final is not an option
@@ -29,7 +29,7 @@ public class ModifierUnificationTest extends TestCase {
 	assertFalse(mod.isFinal());
     }
 
-    // "public static" subsumed by "public" 
+    // "public static" subsumed by "public"
     @Test
     public void testBasic() {
 	// "public static"
@@ -70,7 +70,7 @@ public class ModifierUnificationTest extends TestCase {
 	assertTrue(mod1Sub.isPrivate());
     }
 
-    // !final subsumed by ANY.  
+    // !final subsumed by ANY.
     @Test
     public void testNeg2() {
 	// !final
@@ -80,11 +80,29 @@ public class ModifierUnificationTest extends TestCase {
 
 	// anything
 	Modifiers mod2 = new Modifiers().enhanceWithMaybes(Modifiables.METHOD);
-	
+
+	Map uniMap = new HashMap();
+	assertTrue(mod1.subsumedBy(mod2, uniMap));
+
+	Modifiers mod2sub = mod2.substitute(uniMap);
+	assertFalse(mod2sub.isFinal());
+    }
+
+    // abstract subsumed by *abstract
+    @Test
+    public void testMaybeSubsumesConcrete() {
+	// abstract
+	Modifiers mod1 = new Modifiers(new AST.List<Modifier>()
+		.add(new Modifier("abstract")))
+		.enhanceWithMaybes(Modifiables.METHOD);
+	// *abstract
+	Modifiers mod2 = new Modifiers(new AST.List<Modifier>()
+		.add(new MaybeModifier("abstract")))
+		.enhanceWithMaybes(Modifiables.METHOD);
 	Map uniMap = new HashMap();
 	assertTrue(mod1.subsumedBy(mod2, uniMap));
 	
 	Modifiers mod2sub = mod2.substitute(uniMap);
-	assertFalse(mod2sub.isFinal());
+	assertTrue(mod2sub.isAbstract());
     }
 }

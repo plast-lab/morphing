@@ -26,9 +26,20 @@ aspect MJSubstitution {
 
 	for ( int i=0; i<thisId.getNumPatternTypeParameter(); i++) {
 	    TypeVariable v = thisId.getPatternTypeParameter(i);
+
+	    java.util.List<Access> vs1l = v.expandAccessList(expansionSubstitutions);
+	    java.util.List<Access> vs2l = v.expandAccessList(s.expansionSubstitutions);
+	    if ( vs1l.size() != vs2l.size()) return false;
+	    for ( int j=0; j<vs1l.size(); j++) {
+		TypeDecl vs1 = vs1l.get(j).type();
+		TypeDecl vs2 = vs2l.get(j).type();
+		if ( vs1 != vs2 ) return false;
+	    }
+	    /*
 	    TypeDecl vs1 = v.substitute(expansionSubstitutions).type();
 	    TypeDecl vs2 = v.substitute(s.expansionSubstitutions).type();
 	    if ( vs1 != vs2 ) return false;
+	    */
 	}
 	
 	for ( int i=0; i<thisId.getNumPatternNameParameter(); i++) {
@@ -45,7 +56,7 @@ aspect MJSubstitution {
 	Modifiers mods = new Modifiers();
 	for ( int i=0; i<getNumModifier(); i++) {
 	    Modifier m = getModifier(i);
-	    java.util.List<Modifier> newm = m.substitute(substitutions);
+	    java.util.List<Modifier> newm = m.substitute(substitutions); 
 	    mods.addAll(newm);
 	}
 	return mods;
@@ -56,14 +67,43 @@ aspect MJSubstitution {
 	}
     }
     public java.util.List<Modifier> Modifier.substitute(Map substitutions) {
-
-	if ( substitutions.containsKey(this)) {
-	    return (java.util.List<Modifier>) substitutions.get(this);
-	}
-	return java.util.Collections.emptyList();
+	ArrayList<Modifier> mods = new ArrayList<Modifier>();
+	mods.add(this);
+	return mods;
     }
+    public java.util.List<Modifier> NegativeModifier.substitute(Map substitutions) {
+	ArrayList<Modifier> mods = new ArrayList<Modifier>();
+	if ( substitutions.containsKey(this)) {
+	    java.util.List<Modifier> l = 
+		(java.util.List<Modifier>) substitutions.get(this);
+	    for ( int i=0; i<l.size(); i++) 
+		mods.addAll(l.get(i).substitute(substitutions));
+	} else
+	    mods.add(this);
+	return mods;
+    }
+    public java.util.List<Modifier> MaybeModifier.substitute(Map substitutions) {
+	ArrayList<Modifier> mods = new ArrayList<Modifier>();
+	if ( substitutions.containsKey(this)) {
+	    java.util.List<Modifier> l = 
+		(java.util.List<Modifier>) substitutions.get(this);
+	    for ( int i=0; i<l.size(); i++) {
+		java.util.List<Modifier> sl = 
+		    l.get(i).substitute(substitutions);
+		if ( sl.size() == 0 )
+		    mods.add(l.get(i));
+		else 
+		    mods.addAll(sl);
+	    }
+	}
+	return mods;
+    }
+    
 
     public StaticForMethodDeclSubstituted StaticForMethodDecl.substitute(Map substitutions, List parent) {
+	return substitute(substitutions, parent, true);
+    }
+    public StaticForMethodDeclSubstituted StaticForMethodDecl.substitute(Map substitutions, List parent, boolean subModifiers) {
 	StaticForMethodDeclSubstituted m = 
 	    new StaticForMethodDeclSubstituted(getModifiers().substitute(substitutions),
 					       getTypeAccess().type().substitute(substitutions),
@@ -71,7 +111,7 @@ aspect MJSubstitution {
 					       getParameterList().expandParameterList(substitutions),
 					       List.fromJavaList(getExceptionList().expandAccessList(substitutions)),
 					       new Opt(),
-					       getIteratorDecl().substitute(substitutions),
+					       getIteratorDecl().substitute(substitutions, subModifiers),
 					       new List(), new List(), new List());
 	m.original = this;
 	m.is$Final = true;
@@ -84,8 +124,11 @@ aspect MJSubstitution {
 
 	return m;
     }
-
     public StaticForMethodDeclSubstituted StaticForMethodDeclSubstituted.substitute(Map substitutions, List parent) {
+	return substitute(substitutions, parent, true);
+    }
+
+    public StaticForMethodDeclSubstituted StaticForMethodDeclSubstituted.substitute(Map substitutions, List parent, boolean subModifiers) {
 	// combine substitution with this.expansionSubstitution.
 	Map collapsedSubs = new HashMap(this.expansionSubstitutions);
 	
@@ -105,7 +148,7 @@ aspect MJSubstitution {
 	}
 
 	collapsedSubs.putAll(substitutions);
-	return original.substitute(collapsedSubs, parent);
+	return original.substitute(collapsedSubs, parent, subModifiers);
     }
     
     public StaticForMethodDeclSubstituted StaticForMethodDecl.substitute(Map substitutions) {
@@ -154,7 +197,11 @@ aspect MJSubstitution {
 	
 	return p;
     }
+
     public IteratorDecl IteratorDecl.substitute(Map substitutions) {
+	return substitute(substitutions, true);
+    }
+    public IteratorDecl IteratorDecl.substitute(Map substitutions, boolean subModifiers) {
 	ParIteratorDecl pid = new ParIteratorDecl();
 	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
 	    TypeVariable t = getPatternTypeParameter(i).fullCopy();
@@ -177,13 +224,19 @@ aspect MJSubstitution {
 	for ( int i=0; i<getNumPatternNameParameter(); i++)
 	    map.put(getPatternNameParameter(i), new Identifier(pid.getPatternNameParameter(i).getID(),pid));
 	
-	pid.setPattern(getPattern().substitute(map).substitute(substitutions));
-
+	// add mappings in substitution.
+	map.putAll(substitutions);
+	
+	// If subModifiers == false, then 
+	// map is enhanced with mapping from original modifiers to copied
+	// modifiers.
+	pid.setPattern(getPattern().substitute(map, subModifiers));
 	for ( int i=0; i<getNumNestedPattern(); i++)
-	    pid.addNestedPattern(getNestedPattern(i).substitute(map).substitute(substitutions));
+	    pid.addNestedPattern(getNestedPattern(i).substitute(map, subModifiers));
 	
 	pid.original = this;
-	pid.parameterizationMapping.putAll(substitutions);
+	//	pid.parameterizationMapping.putAll(substitutions);
+	pid.parameterizationMapping.putAll(map);
 
 	return pid;
     }
@@ -192,11 +245,15 @@ aspect MJSubstitution {
 	return (MethodDecl) fullCopy();
     }
     public Pattern Pattern.substitute(Map substitutions) {
+	return substitute(substitutions, true);
+    }
+
+    public Pattern Pattern.substitute(Map substitutions, boolean subModifiers) {
 	throw new Error("substitute(Map) unsupported by " +
 			getClass().getName());
     }
 
-    public EmptyPrimaryPattern EmptyPrimaryPattern.substitute(Map substitutions) {
+    public EmptyPrimaryPattern EmptyPrimaryPattern.substitute(Map substitutions, boolean subModifiers) {
 	return new EmptyPrimaryPattern(new BaseSet(new AllMatchingTypeVariable(new Modifiers(), "", new List(), new List().add(typeEveryType().createBoundAccess())).createBoundAccess(), new RefElmt("methods")));
     }
 
@@ -224,6 +281,11 @@ aspect MJSubstitution {
     }
 
     public FieldPattern FieldPattern.substitute(Map substitutions) {
+	return substitute(substitutions, true);
+    }
+    public FieldPattern FieldPattern.substitute(Map substitutions, boolean subModifiers) {
+	getModifiers().createDefaultMapping(substitutions, subModifiers);
+
 	FieldPattern fp =
 	    new FieldPattern(getBaseSet().substitute(substitutions),
 			     getModifiers().substitute(substitutions),
@@ -243,6 +305,11 @@ aspect MJSubstitution {
     }
 
     public NestedFieldPattern NestedFieldPattern.substitute(Map substitutions) {
+	return substitute(substitutions, true);
+    }
+    public NestedFieldPattern NestedFieldPattern.substitute(Map substitutions, boolean subModifiers) {
+	getModifiers().createDefaultMapping(substitutions, subModifiers);
+
 	NestedFieldPattern nfp =
 	    new NestedFieldPattern(getBaseSet().substitute(substitutions),
 				   getModifiers().substitute(substitutions),
@@ -260,13 +327,18 @@ aspect MJSubstitution {
 
 	return nfp;
     }
-    public StaticFieldPattern StaticFieldPattern.substitute(Map substitutions) {
+    public StaticFieldPattern StaticFieldPattern.substitute(Map substitutions, boolean subModifiers) {
 	return this;
     }
-    public StaticMethodPattern StaticMethodPattern.substitute(Map substitutions) {
+    public StaticMethodPattern StaticMethodPattern.substitute(Map substitutions, boolean subModifiers) {
 	return this;
     }
     public MethodPattern MethodPattern.substitute(Map substitutions) {
+	return substitute(substitutions, true);
+    }
+    public MethodPattern MethodPattern.substitute(Map substitutions, boolean subModifiers) {
+	getModifiers().createDefaultMapping(substitutions, subModifiers);
+
 	MethodPattern mp =
 	    new MethodPattern(getBaseSet().substitute(substitutions),
 			      getModifiers().substitute(substitutions),
@@ -290,6 +362,11 @@ aspect MJSubstitution {
     }
 
     public NestedMethodPattern NestedMethodPattern.substitute(Map substitutions) {
+	return substitute(substitutions, true);
+    }
+    public NestedMethodPattern NestedMethodPattern.substitute(Map substitutions, boolean subModifiers) {
+	getModifiers().createDefaultMapping(substitutions, subModifiers);
+
 	NestedMethodPattern nmp = 
 	    new NestedMethodPattern(getBaseSet().substitute(substitutions),
 				    getModifiers().substitute(substitutions),
@@ -311,7 +388,7 @@ aspect MJSubstitution {
 
 	return nmp;
     }
-    public TrueNestedPattern TrueNestedPattern.substitute(Map substitutions) {
+    public TrueNestedPattern TrueNestedPattern.substitute(Map substitutions, boolean subModifiers) {
 	TrueNestedPattern p = new TrueNestedPattern();
 	p.bypassErrorChecking = true;
 	return p;

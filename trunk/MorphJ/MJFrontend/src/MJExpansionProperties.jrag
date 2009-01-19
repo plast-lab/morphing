@@ -52,7 +52,7 @@ aspect MJExpansionProperties {
     syn lazy boolean BodyDecl.grounded() circular [false] = true;
     eq StaticForMethodDecl.grounded() {
 	// the declaration uses no pattern-matched variables,
-	//if ( refIterator().expandable()) return true;
+	//	if ( refIterator().expandable()) return true;
 	if ( !type().grounded()) return false;
 	if ( identifier().isNameVariable()) return false;
 

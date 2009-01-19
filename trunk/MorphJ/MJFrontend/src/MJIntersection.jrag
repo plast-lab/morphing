@@ -1,0 +1,87 @@
+aspect MJIntersection {
+    syn lazy boolean IteratorDecl.intersects(IteratorDecl id, Map uniMap ) {
+	HashMap newMap = new HashMap(uniMap);
+
+	// if the two primary patterns do not intersect, then these two
+	// iterators defenitely do not interesct.
+	if (getPattern().isMutuallyExclusiveFrom(id.getPattern(), newMap))
+	    return false;
+
+	// if an intersection is found between the two primary patterns,
+	// we need to check whether this intersection satisfies all
+	// nested conditions.
+	for ( int i=0; i<getNumNestedPattern(); i++) {
+	    if (!getNestedPattern(i).satisfiedBy(newMap))
+		return false;
+	}
+	for ( int i=0; i<id.getNumNestedPattern(); i++) {
+	    if (!id.getNestedPattern(i).satisfiedBy(newMap))
+		return false;
+	}
+	return true;
+    }
+
+    syn lazy boolean Pattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = false;
+    eq MethodPattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = p2.isMutuallyExclusiveFromMethodPattern(this, uniMap);
+    eq FieldPattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = p2.isMutuallyExclusiveFromFieldPattern(this, uniMap);
+    
+    syn lazy boolean Pattern.isMutuallyExclusiveFromFieldPattern(FieldPattern p2, Map uniMap) = false;	   
+
+    eq FieldPattern.isMutuallyExclusiveFromFieldPattern(FieldPattern p2, Map uniMap) {
+	if ( isPositiveCondition() && p2.isPositiveCondition()) {
+	    // this and p2 are mutually exclusive if 
+	    // - their host types are in subtyping relationships.
+	    // - their names unify and their types do not unify
+	    // - OR their modifiers exclude one another.
+	    TypeDecl rb = this.reflectiveBaseType().substitute(uniMap).type();
+	    TypeDecl p2rb = p2.reflectiveBaseType().substitute(uniMap).type();
+	    if ( ! rb.subtype(p2rb) && ! p2rb.subtype(rb))
+		return false;
+
+	    if (this.getModifiers().excludedBy(p2.getModifiers()))
+		return true;
+
+	    return identifier().substitutedName(uniMap).equals(p2.identifier().substitutedName(uniMap)) &&
+		!getTypeAccess().type().substitute(uniMap).type().equals(p2.getTypeAccess().type().substitute(uniMap).type());
+	} else if ( isPositiveCondition() ) {
+	    return p2.subsumes(this, uniMap);
+	} else if ( p2.isPositiveCondition()) {
+	    return this.subsumes(p2, uniMap);
+	}
+	return false;
+    }
+
+    syn lazy boolean Pattern.isMutuallyExclusiveFromMethodPattern(MethodPattern p2, Map uniMap) = false;
+    eq MethodPattern.isMutuallyExclusiveFromMethodPattern(MethodPattern p2, Map uniMap) {
+	if ( isPositiveCondition() && p2.isPositiveCondition()) {
+	    // if p1 and p2 have same method argument types and name, but
+	    // different return types, then these conditions
+	    // are disjoint.
+	    TypeDecl rb = this.reflectiveBaseType().substitute(uniMap).type();
+	    TypeDecl p2rb = p2.reflectiveBaseType().substitute(uniMap).type();
+	    if ( ! rb.subtype(p2rb) && ! p2rb.subtype(rb))
+		return false;
+	    
+	    java.util.List p1params = substitutedParameterTypes(uniMap);
+	    java.util.List p2params = p2.substitutedParameterTypes(uniMap);
+
+	    if ( !sameParameterLists(p1params,p2params))
+		return false;
+
+	    // name?
+
+	    if ( !getTypeAccess().type().substitute(uniMap).type().equals(p2.getTypeAccess().type().substitute(uniMap).type()))
+		return true;
+
+	    if (this.getModifiers().substitute(uniMap).excludedBy(p2.getModifiers().substitute(uniMap)))
+		return true;
+	} else if ( isPositiveCondition() ) {
+	    // If this is +, p2 is -, and p2 subsumes this, then 
+	    // this and p2 are mutually exclusive
+	    return p2.subsumes(this, uniMap);
+	} else if ( p2.isPositiveCondition()) {
+	    return this.subsumes(p2, uniMap);
+	}
+	return false;
+    }
+}

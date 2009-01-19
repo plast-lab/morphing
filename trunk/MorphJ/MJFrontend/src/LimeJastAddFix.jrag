@@ -1,4 +1,52 @@
 aspect LimeJastAddFix {
+    // THis is copied over from the typeCheck declared in Generics.jrag.
+    // Main fix is the the check that typeArg is an instanceof the original
+    // type parameter.
+    public void ParTypeAccess.typeCheckInGenerics() {
+	super.typeCheck();
+	if(!genericDecl().isUnknown()) {
+	    TypeDecl type = type();
+	    if(!genericDecl().isGenericType()) {
+		error(genericDecl().typeName() + " is not a generic type but used as one in " + this);
+	    }
+	    else if(!type.isRawType() && type.isNestedType() && type.enclosingType().isRawType())
+		error("Can not access a member type of a raw type as a parameterized type");
+	    else {
+		GenericTypeDecl decl = (GenericTypeDecl)genericDecl();
+		GenericTypeDecl original = (GenericTypeDecl)decl.original();
+		if(original.getNumTypeParameter() != getNumTypeArgument()) {
+		    error(decl.typeName() + " takes " + original.getNumTypeParameter() + " type parameters, not " + getNumTypeArgument() + " as used in " + this);
+		}
+		else {
+		    ParTypeDecl typeDecl = (ParTypeDecl)type();
+		    for(int i = 0; i < getNumTypeArgument(); i++) {
+			if(!getTypeArgument(i).type().withinBoundsOf(original.getTypeParameter(i))) {
+			    error("type argument " + i + " is of type " + getTypeArgument(i).type().typeName() 
+				  + " which is not a subtype of " + original.getTypeParameter(i).typeName());
+			}
+		    }
+		}
+	    }
+	}
+    }
+
+    public boolean TypeDecl.withinBoundsOf(TypeVariable tv) {
+	for ( int i=0; i<tv.getNumTypeBound(); i++) {
+	    if ( this.subtype(tv.getTypeBound(i).type()))
+		return true;
+	}
+	return false;
+    }
+
+    refine GenericsSubtype eq TypeVariable.supertypeTypeVariable(TypeVariable type) {
+	if ( type == this ) return true;
+	for ( int i=0; i<type.getNumTypeBound(); i++) {
+	    if (type.getTypeBound(i).type().subtype(this))
+		return true;
+	}
+	return false;
+    }
+    refine GenericsSubtype eq TypeVariable.supertypeArrayDecl(ArrayDecl type) { return false; }
 
     refine BoundNames public MethodDecl TypeDecl.addMemberMethod(MethodDecl m) {
 	BoundNames.TypeDecl.addMemberMethod(m);

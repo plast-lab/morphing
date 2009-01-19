@@ -311,8 +311,8 @@ aspect MJUnifyTypeList {
 	*/
     //    }
 
-    public ArrayList VectorTypeVariable.retrieveMapped(Map uniMap) {
-	return (ArrayList) uniMap.get(this);
+    public java.util.List VectorTypeVariable.retrieveMapped(Map uniMap) {
+	return (java.util.List) uniMap.get(this);
 	/*
 	ArrayList mapped = new ArrayList();
 	for ( int i=0; i<getNumMatchedVectorTypeVariable(); i++) {

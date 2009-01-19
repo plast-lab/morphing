@@ -15,14 +15,19 @@ public abstract class MJTestCase extends TestCase {
 
     final String MJ_FRONT_TEST_DIR;
     final String MJ_BACK_TEST_DIR;
+    
+    final boolean MJ_PRINT_ERROR;
 
+    String testDir = "";
+    
     public MJTestCase() {
 	MJ_FRONT = setEnvVariable("MJ_FRONT");
 	MJ_BACK = setEnvVariable("MJ_BACK");
 	MJ_EXAMPLES = setEnvVariable("MJ_EXAMPLES");
 	MJ_FRONT_TEST_DIR = MJ_FRONT + "mjtestfiles" + File.separator;
 	MJ_BACK_TEST_DIR = MJ_BACK + "mjtestfiles" + File.separator;
-    }
+	MJ_PRINT_ERROR = new Boolean(System.getenv("MJ_PRINT_ERROR")).booleanValue();
+    }    
 
     protected String setEnvVariable(String varName) {
 	String value = System.getenv(varName);
@@ -42,10 +47,14 @@ public abstract class MJTestCase extends TestCase {
 	return args;
     }
 
+    protected Collection<Problem> checkTest(String fileName) {
+	return checkTest(fileName, new String[0], MJ_PRINT_ERROR);
+    }
+    
     protected Collection<Problem> checkTest(String fileName,
 	    String[] compilerOpts, boolean printErrors) {
 	Collection<Problem> actualProblems = MJChecker.collectProblems(
-		compilerArgs(MJ_FRONT_TEST_DIR + fileName, compilerOpts),
+		compilerArgs(MJ_FRONT_TEST_DIR + testDir + fileName, compilerOpts),
 		printErrors);
 	return actualProblems;
     }
@@ -80,6 +89,11 @@ public abstract class MJTestCase extends TestCase {
     }
 
     protected void noProblems(Collection<Problem> actualProblems) {
+	if ( actualProblems.size() > 0 ) {
+	    System.err.println("Errors caught but not expected:");
+	    for (Problem p : actualProblems)
+		System.err.println(p);
+	}
 	assertTrue(actualProblems.size() == 0 );
     }
     protected void compareProblems(Collection<Problem> expectedProblems,
