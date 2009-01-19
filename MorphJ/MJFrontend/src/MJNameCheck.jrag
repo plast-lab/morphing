@@ -283,7 +283,7 @@ aspect MJNameCheck {
 		    
 		    if ( md.isEveryMethod())
 			error("method with signature \n" + s1 + 
-			      "\n   conflicts with any method" +
+			      "\n  may conflict with methods" +
 			      " in type " + hostType().typeName() + ".");
 		    else
 			error("method with signature \n" + s1 + 
@@ -345,7 +345,7 @@ aspect MJNameCheck {
 				"\n   in Object.");
 		    else if ( md.isEveryMethod())
 			error("method with signature \n" + s1 + 
-			      "\n   conflicts with any method " +
+			      "\n  may conflict with methods " +
 			      "in type " + md.hostType().typeName() + 
 			      ".");
 		    else

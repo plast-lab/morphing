@@ -1,0 +1,167 @@
+aspect MJRange {
+
+    // A map from elements in the reflective range to the mappings 
+    // resulting from the pattern variables to the concrete values in
+    // the element.
+    syn lazy Map IteratorDecl.reflectiveElmts() {
+	// In order to retrieve the reflective elements of an iterator,
+	// it must be expandable.
+	if (!expandable())
+	    // this should never happen.
+	    throw new Error("Cannot return the reflective elements of a " +
+			    "reflective iterator when the base type is " +
+			    "not grounded");
+	
+	Map refElmtsMap = new HashMap();
+	if ( getPattern() instanceof EmptyPrimaryPattern ) {
+	    // check whether nested patterns have error conditions.
+	    boolean npSat = true;
+	    for ( int i=0; i<getNumNestedPattern(); i++) {
+		Pattern np = getNestedPattern(i);
+		if ( !np.satisfiedBy(refElmtsMap)) 
+		    npSat = false;
+	    }
+	    if ( npSat ) 
+		// TODO: what's this again?
+		refElmtsMap.put(getPattern(), new HashMap());
+	} else {
+	    Map patternElmts = getPattern().range();
+	    // check that they satisfy nested patterns.
+	    for ( Object elmt : patternElmts.keySet()) {
+		Map map = (Map) patternElmts.get(elmt);
+		boolean sat = true;
+		for ( int i=0; i<getNumNestedPattern(); i++) {
+		    if (!getNestedPattern(i).satisfiedBy((Map)map)) {
+			sat = false;
+			break;
+		    }
+		}
+		if ( sat )
+		    refElmtsMap.put(elmt, map);
+	    }
+	}
+	return refElmtsMap;
+    }
+
+    eq ParIteratorDecl.reflectiveElmts() {
+	// We need to produce mapping from
+	// original pattern variable --> parameterized pattern variable
+	Map ptMap = parameterizationMapping();
+	    //new HashMap();
+	/*
+	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
+	    TypeVariable tv = this.original.getPatternTypeParameter(i);
+	    if ( tv.isVectorTypeVariable()) {
+		ArrayList l = new ArrayList();
+		l.add(getPatternTypeParameter(i));
+		ptMap.put(tv,l);
+	    } else
+		ptMap.put(tv,getPatternTypeParameter(i));
+	}
+	for ( int i=0; i<getNumPatternNameParameter(); i++)
+	    ptMap.put(this.original.getPatternNameParameter(i),
+		      getPatternNameParameter(i));
+	*/
+
+	Map refElmtsMap = super.reflectiveElmts();
+	// For each unification mapping, enhance it with ptMap.
+	for ( Object o : refElmtsMap.values()) {
+	    Map map = (Map) o;
+	    map.putAll(ptMap);
+	}
+	return refElmtsMap;
+    }
+
+    syn lazy Map Pattern.range() {
+	throw new Error("range() is unsupported by " + getClass().getName());
+    }
+    eq MethodPattern.range() {
+	// Maps from element in the range to the unification map
+	// that resulted in the element being subsumed by the pattern.
+	Map<MethodDecl, Map> rangeElmtsMap = new HashMap<MethodDecl, Map>();
+
+	Map methods = getBaseSet().type().unrestrictedMethodsSignatureMap();
+	// find all methods that fall into the range of this pattern.
+	// Note: methods declared by Object are excluded.
+	for ( Iterator mIt = methods.values().iterator(); mIt.hasNext(); ) {
+	    MethodDecl md = (MethodDecl) mIt.next();
+	    if ( md.hostType() == md.hostType().typeObject()) continue;
+	    
+	    HashMap map = new HashMap();
+	    if ( md.isSubsumedBy(this, map))
+		rangeElmtsMap.put(md, map);
+	}
+	return rangeElmtsMap;
+    }
+    eq FieldPattern.range() {
+	Map<FieldDeclaration,Map> rangeElmtsMap = new HashMap<FieldDeclaration,Map>();
+	// iterate over fields.
+	SimpleSet fields = getBaseSet().type().unrestrictedFields();
+	for ( Iterator fIt = fields.iterator(); fIt.hasNext(); ) {
+	    FieldDeclaration fd = (FieldDeclaration) fIt.next();
+	    if ( fd.hostType() == fd.hostType().typeObject()) continue;
+
+	    HashMap map = new HashMap();
+	    if ( fd.isSubsumedBy(this, map)) {
+		rangeElmtsMap.put(fd, map);
+	    }
+	}
+	return rangeElmtsMap;
+    }
+
+    syn lazy boolean IteratorDecl.rangeEmpty(Map uniMap) = rangeEmpty(uniMap, true);
+    syn lazy boolean IteratorDecl.rangeEmpty(Map uniMap, boolean subModifiers) {
+	// check whether primary pattern is empty
+	if ( getPattern().rangeEmpty(uniMap, subModifiers))
+	    return true;
+
+	// if not, check whether uniMap causes mutual exclusive 
+	// conditions in the patterns.
+	return Program.hasMutualExclusiveConditions(getPatternConditions(), 
+						    uniMap);
+    }
+
+    syn lazy boolean Pattern.rangeEmpty(Map uniMap, boolean subModifiers) {
+	throw new Error("rangeEmpty not supported by " + getClass().getName());
+    }
+    eq MethodPattern.rangeEmpty(Map uniMap, boolean subModifiers) {
+	MethodPattern sub = this.substitute(uniMap, subModifiers);
+	if ( sub.expandable()) {
+	    Map methods = sub.getBaseSet().type().unrestrictedMethodsSignatureMap();
+	    // find all methods that fall into the range of this
+	    // iterator decl.
+	    // Note: methods declared by Object are excluded.
+	    for ( Iterator mIt = methods.values().iterator(); mIt.hasNext(); ) {
+		MethodDecl md = (MethodDecl) mIt.next();
+		if ( md.hostType() == md.hostType().typeObject()) continue;
+		
+		HashMap map = new HashMap();
+		if ( md.isSubsumedBy(sub, map))
+		    return false;
+	    }
+	    return true;
+	} else
+	    // if the substituted pattern is not expandable, that means
+	    // the type iterating over is still variable. So we cannot
+	    // guarantee an empty range.
+	    return false;
+    }
+    eq FieldPattern.rangeEmpty(Map uniMap, boolean subModifiers) {
+	FieldPattern sub = this.substitute(uniMap, subModifiers);
+	if ( sub.expandable()) {
+	    SimpleSet fields = sub.getBaseSet().type().unrestrictedFields();
+	    for ( Iterator fIt = fields.iterator(); fIt.hasNext(); ) {
+		FieldDeclaration fd = (FieldDeclaration) fIt.next();
+		if ( fd.hostType() == fd.hostType().typeObject()) continue;
+
+		HashMap map = new HashMap();
+		if ( fd.isSubsumedBy(sub, map)) {
+		    return false;
+		}
+	    }
+	    return true;
+	} else
+	    return false;
+    }
+
+}

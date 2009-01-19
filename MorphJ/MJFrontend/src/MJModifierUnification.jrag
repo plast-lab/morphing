@@ -88,47 +88,55 @@ aspect ModifierUnification {
     /**
      * The goal is to find a unifying mapping between mods and this
      *
-     * There are 5 types of modifier:
+     * There are 4 types of modifier:
      * regular: public, private, static, etc.
      * negative: !final, etc.
      * nomod: NOMOD
      * maybe: maybe public (added for method or field patterns that did not 
      *        explicitly say public or protected or private
-     * ANY : the ANY modifier is added for patterns that specified no modifier
-     *       at all.
      *
-     * ANY subsumes any modifier.
      * NOMOD subsumes itself and negative modifiers.
      * regular subsumes itself.
      * negative modifiers subsumes themselves, additionally:
      *   !public subsumes {protected, private}, etc.
+     * maybes subsumes regular with the same name., additionally,
+     *   *public subsumes !protected, !private
+     *
      **/
     syn lazy boolean Modifiers.subsumedBy(Modifiers mods, Map uniMap) {
+	boolean subsumed = true;
 	for ( int i=0; i<getNumModifier(); i++) {
 	    Modifier m = getModifier(i);
-	    HashMap tempMap = new HashMap(uniMap);
-	    if (!m.subsumedBy(mods, tempMap))
-		return false;
-	    uniMap.clear();
-	    uniMap.putAll(tempMap);
+	    if (!m.subsumedBy(mods, uniMap)) 
+		subsumed = false;
 	}
-	return true;
+	return subsumed;
     }
-    
-    /**
-     * A modifier is subsumed by mods if it is in mods.
-     **/
+
     syn lazy boolean Modifier.subsumedBy(Modifiers mods, Map uniMap) {
+	boolean subsumed = false;
 	for ( int i=0; i<mods.getNumModifier(); i++) { 
-	    if ( subsumedBy(mods.getModifier(i))) {
-		mods.getModifier(i).mapTo(this, uniMap);
-		return true;
+	    Modifier m = mods.getModifier(i);
+	    if ( subsumedBy(m)) {
+		m.mapTo(this, uniMap);
+		subsumed = true;
+		break;
 	    }
-	    if ( excludedBy(mods.getModifier(i)))
-		return false;
+	}
+
+	if ( subsumed ) {
+	    // now weed out the modifiers that are now allowed.
+	    for ( int i=0; i<mods.getNumModifier(); i++) { 
+		Modifier m = mods.getModifier(i);
+		// if this modifier excludes mods.getModifier(i).
+		// then mods.getModifier(i).should be mapped to its
+		// negated version.
+		if ( excludedBy(m))
+		    m.mapTo(m.negatedModifier(), uniMap);
+	    }
 	}
 	// not subsumed by and not excluded by?
-	return false;
+	return subsumed;
     }
 
     syn lazy boolean Modifier.subsumedBy(Modifier m) = m.subsumesModifier(this);
@@ -143,7 +151,8 @@ aspect ModifierUnification {
     // a NegativeModifier can never subsume any modifier other than
     // the same NegativeModifier.
     eq NegativeModifier.subsumesModifier(Modifier m) = mutuallyExclusive(getID(), m.getID());
-    eq MaybeModifier.subsumesModifier(Modifier m) = !mutuallyExclusive(getID(), m.getID());
+    eq MaybeModifier.subsumesModifier(Modifier m) = getID().equals(m.getID());
+	//!mutuallyExclusive(getID(), m.getID());
 
     // The only modifier that subsumes NoModifier is NoModifier
     syn lazy boolean Modifier.subsumesNoModifier(NoModifier m) = false;
@@ -154,9 +163,10 @@ aspect ModifierUnification {
     // the regular modifier excludes the negative modifier.
     syn lazy boolean Modifier.subsumesNegativeModifier(NegativeModifier m) = false;
     // NoModifier subsumes any negative modifier.
-    eq NoModifier.subsumesNegativeModifier(NegativeModifier m) = false;
+    eq NoModifier.subsumesNegativeModifier(NegativeModifier m) = true;
     eq NegativeModifier.subsumesNegativeModifier(NegativeModifier m) = getID().equals(m.getID());
-    eq MaybeModifier.subsumesNegativeModifier(NegativeModifier m) = !getID().equals(m.getID());
+    eq MaybeModifier.subsumesNegativeModifier(NegativeModifier m) = 
+	mutuallyExclusive(getID(), m.getID());
 
     syn lazy boolean Modifier.excludedBy(Modifier m) = m.excludesModifier(this);
     eq NoModifier.excludedBy(Modifier m) = m.excludesNoModifier(this);
@@ -192,6 +202,9 @@ aspect ModifierUnification {
 	    uniMap.put(this, l);
 	}
     }
+    public void Modifier.mapToEmpty(Map uniMap) {
+	uniMap.put(this, new ArrayList());
+    }
 
     public static boolean Modifier.mutuallyExclusive(String mod1, String mod2) {
 	return  
@@ -204,6 +217,22 @@ aspect ModifierUnification {
 	    (mod1.equals("final") && mod2.equals("abstract")) || 
 	    (mod2.equals("final") && mod1.equals("abstract"));
     }
+
+    public void Modifiers.createDefaultMapping(Map substitutions, 
+					       boolean subModifiers) {
+    	if ( !subModifiers ) {
+	    for ( int i=0; i<getNumModifier(); i++) {
+		Modifier m = getModifier(i);
+		Modifier mCopy = (Modifier) m.fullCopy();
+		ArrayList l = new ArrayList(); 
+		l.add(mCopy);
+		substitutions.put(m, l);
+	    }
+	}
+    }
+
+    syn lazy Modifier Modifier.negatedModifier() = new NegativeModifier(this.getID());
+    eq NegativeModifier.negatedModifier() = new MaybeModifier(getID());
 }
 
 /*

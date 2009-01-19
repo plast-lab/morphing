@@ -1,39 +1,97 @@
 aspect MJMatching {
-    public boolean TypeDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars ) {
+    syn lazy boolean TypeDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars ) {
 	if ( substitute(uniMap) == t.substitute(uniMap))
 	    return true;
 	return false;
     }
-    public boolean ClassDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return t.matchedByClassDecl(this, uniMap, uniTypeVars); }
+    eq ClassDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return t.matchedByClassDecl(this, uniMap, uniTypeVars); }
     
-    public boolean InterfaceDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return t.matchedByInterfaceDecl(this, uniMap, uniTypeVars); }
+    eq InterfaceDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return t.matchedByInterfaceDecl(this, uniMap, uniTypeVars); }
 
-    public boolean ParTypeDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return t.matchedByParTypeDecl(this, uniMap, uniTypeVars); }
+    eq ParTypeDecl.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return t.matchedByParTypeDecl(this, uniMap, uniTypeVars); }
 
-    public boolean AllMatchingTypeVariable.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return true; }
-    
-    public boolean NonVoidTypeVariable.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return !t.isVoid(); }
-    
-    public boolean TypeDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars) {
-	return substitute(uniMap).type() == c.substitute(uniMap).type();
+    eq PatternTypeVariable.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) {
+	if ( uniMap.containsKey(this))
+	    return ((TypeDecl) uniMap.get(this)).matches(t,uniMap,uniTypeVars);	
+	if ( uniTypeVars.contains(this)) {
+	    return t.matchedByPatternTypeVariable(this,uniMap,uniTypeVars);
+	} else
+	    return super.matches(t,uniMap,uniTypeVars);
     }
-    public boolean ClassDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars) {
-	if ( super.matchedByClassDecl(c, uniMap,uniTypeVars)) return true;
+    eq EveryType.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) { return true; }
+    eq NonVoidType.matches(TypeDecl t, Map uniMap,Collection uniTypeVars) { return !t.isVoid(); }
+    eq AllMatchingTypeVariable.matches(TypeDecl t, Map uniMap, Collection uniTypeVars) {
+	if ( uniMap.containsKey(this))
+	    return ((TypeDecl) uniMap.get(this)).matches(t,uniMap,uniTypeVars);
+	if ( uniTypeVars.contains(this)) {
+	    uniMap.put(this, t);
+	    return true;
+	}
+	return super.matches(t,uniMap,uniTypeVars);
+    }
 
+    syn lazy boolean TypeDecl.matchedByPatternTypeVariable(PatternTypeVariable t, Map uniMap, Collection uniTypeVars) {
+	// see if t's mapped.
+	if ( t.substitute(uniMap) == this.substitute(uniMap))
+	    return true;
+
+	// see if the bounds can match t.
+	for ( int i=0; i<t.getNumTypeBound(); i++) {
+	    if (t.getTypeBound(i).type().matches(this, uniMap,uniTypeVars)) {
+		uniMap.put(t, this);
+		return true;
+	    }
+	}
+	return false;
+    }
+    eq PatternTypeVariable.matchedByPatternTypeVariable(PatternTypeVariable t, Map uniMap, Collection uniTypeVars) {
+	if ( super.matchedByPatternTypeVariable(t,uniMap,uniTypeVars))
+	    return true;
+
+	if ( uniTypeVars.contains(this)) {
+	    // see if the bounds can match t.
+	    for ( int i=0; i<getNumTypeBound(); i++) {
+		if (getTypeBound(i).type().matches(t, uniMap,uniTypeVars)) {
+		    uniMap.put(this, t);
+		    return true;
+		}
+	    }
+	}
+	return false;
+    }
+
+    syn lazy boolean TypeDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars)=substitute(uniMap).type() == c.substitute(uniMap).type();
+    eq ClassDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars) {
+	if ( super.matchedByClassDecl(c, uniMap,uniTypeVars)) return true;
+	
 	if (hasSuperclass() &&
 	    superclass().matchedByClassDecl(c, uniMap, uniTypeVars))
 	    return true;
 	return false;
     }
-    public boolean InterfaceDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars ) { return c.isObject(); }
-
-    public boolean TypeDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
-	return substitute(uniMap).type() == i.substitute(uniMap).type();
+    eq InterfaceDecl.matchedByClassDecl(ClassDecl c, Map uniMap, Collection uniTypeVars )=c.isObject();
+    eq PatternTypeVariable.matchedByClassDecl(ClassDecl c, Map uniMap,Collection uniTypeVars) {
+	if ( uniMap.containsKey(this))
+	    return ((TypeDecl) uniMap.get(this)).matchedByClassDecl(c,uniMap,uniTypeVars);
+	if ( uniTypeVars.contains(this))
+	    return c.matchedByPatternTypeVariable(this,uniMap,uniTypeVars);
+	return false;
+    }
+    eq AllMatchingTypeVariable.matchedByClassDecl(ClassDecl c,Map uniMap,Collection uniTypeVars) {
+	if ( uniMap.containsKey(this))
+	    return ((TypeDecl) uniMap.get(this)).matchedByClassDecl(c,uniMap,uniTypeVars);
+	if ( uniTypeVars.contains(this)) {
+	    uniMap.put(this,c);
+	    return true;
+	}
+	return false;
     }
 
-    public boolean ClassDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
-	if ( super.matchedByInterfaceDecl(i, uniMap,uniTypeVars)) return true;
 
+    syn lazy boolean TypeDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) = substitute(uniMap).type() == i.substitute(uniMap).type();
+    eq ClassDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
+	if ( super.matchedByInterfaceDecl(i, uniMap,uniTypeVars)) return true;
+	
 	if (hasSuperclass() &&
 	    superclass().matchedByInterfaceDecl(i, uniMap, uniTypeVars))
 	    return true;
@@ -43,11 +101,27 @@ aspect MJMatching {
 		return true;
 	return false;
     }
-    public boolean InterfaceDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
+    eq InterfaceDecl.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap, Collection uniTypeVars) {
 	if ( super.matchedByInterfaceDecl(i, uniMap,uniTypeVars)) return true;
 	for (Iterator ifIt = superinterfacesIterator();  ifIt.hasNext(); )
 	    if (((TypeDecl) ifIt.next()).matchedByInterfaceDecl(i, uniMap, uniTypeVars))
 		return true;
+	return false;
+    }
+    eq PatternTypeVariable.matchedByInterfaceDecl(InterfaceDecl i, Map uniMap,Collection uniTypeVars) {
+	if ( uniMap.containsKey(this))
+	    return ((TypeDecl) uniMap.get(this)).matchedByInterfaceDecl(i,uniMap,uniTypeVars);
+	if ( uniTypeVars.contains(this))
+	    return i.matchedByPatternTypeVariable(this,uniMap,uniTypeVars);
+	return false;
+    }
+    eq AllMatchingTypeVariable.matchedByInterfaceDecl(InterfaceDecl i,Map uniMap,Collection uniTypeVars) {
+	if ( uniMap.containsKey(this))
+	    return ((TypeDecl) uniMap.get(this)).matchedByInterfaceDecl(i,uniMap,uniTypeVars);
+	if ( uniTypeVars.contains(this)) {
+	    uniMap.put(this,i);
+	    return true;
+	}
 	return false;
     }
 

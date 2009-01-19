@@ -189,7 +189,37 @@ aspect MJTypeHierarchyCheck {
 	}
     }
 
+    boolean ParClassDecl.typeChecked = false;
+    boolean ParInterfaceDecl.typeChecked = false;
+    public boolean ParTypeDecl.typeChecked() { 
+	if ( typeChecked ) return true;
+	else {
+	    typeChecked = true;
+	    return false;
+	}
+    }
     public void ParTypeDecl.typeCheck() {
+	if ( typeChecked()) return;
+	super.typeCheck();
+	/*
+	// check expandable reflective fields.
+	Collection<StaticForFieldDeclaration> sfields = reflectiveFields();
+	for ( StaticForFieldDeclaration sfd : sfields ) {
+	    IteratorDecl id = sfd.getIteratorDecl();
+	    if ( id.expandable()) {
+		// invoking this causes appropriate error msgs to be generated.
+		//		id.reflectiveElmts();
+		
+		for ( Iterator fid = sfd.expandedFields().iterator(); fid.hasNext(); ) {
+		    FieldDeclaration fd = (FieldDeclaration) fid.next();
+		    fd.nameCheck();
+		    fd.typeCheck();
+		    fd.accessControl();
+		    fd.checkModifiers();
+		}
+	    }
+	}
+
 	// check expandable reflective methods.
 	Collection refMethods = localReflectiveMethods();
 	for ( Iterator refIt = refMethods.iterator();refIt.hasNext(); ) {
@@ -197,12 +227,48 @@ aspect MJTypeHierarchyCheck {
 	    if ( m.expandable()) {
 		for ( Iterator mid = m.expandedMethods().iterator(); mid.hasNext(); ) {
 		    MethodDecl smd = (MethodDecl) mid.next();
-		    typeCheck(smd);
+
+		    smd.nameCheck();
+		    smd.typeCheck();
+		    smd.accessControl();
+		    smd.exceptionHandling();
+		    smd.checkModifiers();
+
+		    //		    typeCheck(smd);
 		}
+	    }
+	}
+	*/
+    }
+
+    protected void TypeDecl.typeCheck(MethodDecl m) {
+	m.typeCheckSelf(this);
+    }
+    protected void MethodDecl.typeCheckSelf(TypeDecl t) {
+	t.typeCheckMethod(this);
+    }
+    protected void StaticForMethodDecl.typeCheckSelf(TypeDecl t) {
+	if ( grounded() || !expandable())
+	    super.typeCheckSelf(t);
+	else {
+	    // expand methods and check each expanded one individually.
+	    for ( Iterator mid = this.expandedMethods().iterator(); mid.hasNext(); ) {
+		    MethodDecl m = (MethodDecl) mid.next();
+		    m.typeCheckSelf(t);
 	    }
 	}
     }
 
+    protected void TypeDecl.typeCheckMethod(MethodDecl m) {
+	ASTNode target = m.hostType() == this ? (ASTNode)m : (ASTNode)this;
+	for(Iterator i2 = m.ancestorMethods(this).iterator(); i2.hasNext(); ) {
+	    MethodDecl decl = (MethodDecl)i2.next();
+	    checkOverride(target, m, decl);
+	    checkHide(target, m, decl);
+	}
+    }
+
+    /*
     protected void TypeDecl.typeCheck(MethodDecl m) {
 	ASTNode target = m.hostType() == this ? (ASTNode)m : (ASTNode)this;
 	for(Iterator i2 = m.ancestorMethods(this).iterator(); i2.hasNext(); ) {
@@ -211,9 +277,10 @@ aspect MJTypeHierarchyCheck {
 	    checkHide(target, m, decl);
 	}
     }
-    
-    protected void ClassDecl.typeCheck(MethodDecl m) {
-	super.typeCheck(m);
+    */
+
+    protected void ClassDecl.typeCheckMethod(MethodDecl m) {
+	super.typeCheckMethod(m);
 	if ( hasSuperclass() &&
 	     superclass() instanceof TypeVariable ) {
 	    MethodDecl md = superclass().everyMethod();
@@ -248,7 +315,7 @@ aspect MJTypeHierarchyCheck {
 	}
     }
 
-    protected void InterfaceDecl.typeCheck(MethodDecl m) {
+    protected void InterfaceDecl.typeCheckMethod(MethodDecl m) {
 	super.typeCheck(m);
 	for ( Iterator ifIt = superinterfacesIterator(); ifIt.hasNext(); ) {
 	    TypeDecl id = (TypeDecl) ifIt.next();
@@ -269,14 +336,110 @@ aspect MJTypeHierarchyCheck {
 	}
     }
 
+    /**
+     * Finding whether one method may use its return type to override
+     * another.  The goal is that given m1 and m2, m1's return type
+     * must be a subtype of m2's return type IF m1 and m2 exists at the
+     * same time.
+     *
+     * When both methods are static method declarations, this is simple
+     * subtype checking.
+     *
+     * When at least one method is a static-for method declaration,
+     * we need to 
+     * 1) Find the unification mapping under which m1 and m2's signature
+     *    override another (i.e. name and argument types)
+     * 2) Find the unification mapping between m1 and m2's iterators,
+     *    which adds conditions for both methods to exist at the same time.
+     * 3) Finally we apply this mapping to the return types of m1 and m2
+     *    and do subtyping comparison.
+     **/
     refine GenericMethods eq MethodDecl.mayOverrideReturn(MethodDecl m) {
-	Map uniMap = this.signatureOverridesWithMap(m);
-	if ( uniMap == null ) return false;
-	
-	TypeDecl thisRetType = this.type().substitute(uniMap).type();
-	TypeDecl mRetType= m.type().substitute(uniMap).type();
-	return thisRetType.instanceOf(mRetType);
+	return m.returnOverridenByMethodDecl(this);
     }
+    eq StaticForMethodDecl.mayOverrideReturn(MethodDecl m) =
+	m.returnOverridenByStaticForMethodDecl(this);
+
+    syn lazy boolean MethodDecl.returnOverridenByMethodDecl(MethodDecl m) {
+	// find whether m's return type matches this's return type.
+	TypeDecl thisRetType = this.type();
+	TypeDecl mRetType = m.type();
+	return mRetType.instanceOf(thisRetType);
+    }
+    eq StaticForMethodDecl.returnOverridenByMethodDecl(MethodDecl m) {
+	// m is always declared.  Thus, we need to check that the 
+	// iterator of this is non-empty after the signature unification
+	// mapping is applied.
+	Map uniMap = m.signatureOverridesWithMap(this);
+	// uniMap == null means the signatures do not override one another.
+	// so in this sense there's no reason to check the return type.
+	// this should never happen.
+	if ( uniMap == null ) return true;
+
+	// if the iterator is empty with the unification mapping, that
+	// means this method and m are never declared at the same time.
+	if (this.refIterator().rangeEmpty(uniMap))
+	    return true;
+	
+	// find whether m's return type matches this's return type.
+	TypeDecl thisRetType = this.type().substitute(uniMap).type();
+	TypeDecl mRetType = m.type().substitute(uniMap).type();
+
+	return mRetType.instanceOf(thisRetType);
+    }
+
+    syn lazy boolean MethodDecl.returnOverridenByStaticForMethodDecl(StaticForMethodDecl m) {
+	// this is always declared. Thus, check m's iterator is non-mepty first.
+	Map uniMap = m.signatureOverridesWithMap(this);
+	// uniMap == null means the signatures do not override one another.
+	// so in this sense there's no reason to check the return type.
+	// this should never happen.
+	if ( uniMap == null ) return true;
+
+	// if the iterator is empty with the unification mapping, that
+	// means this method and m are never declared at the same time.
+	if (m.refIterator().rangeEmpty(uniMap))
+	    return true;
+	
+	// find whether m's return type matches this's return type.
+	TypeDecl thisRetType = this.type().substitute(uniMap).type();
+	TypeDecl mRetType = m.type().substitute(uniMap).type();
+
+	return mRetType.instanceOf(thisRetType);
+    }
+    eq StaticForMethodDecl.returnOverridenByStaticForMethodDecl(StaticForMethodDecl m) {
+	Map uniMap = m.signatureOverridesWithMap(this);
+	if ( uniMap == null ) return true;
+
+	// both have iterators.  Find the condition under which
+	// m and this both exists. 
+	IteratorDecl thisIt = refIterator();
+	IteratorDecl mIt = m.refIterator();
+
+	TypeDecl thisRetType = this.type();
+	TypeDecl mRetType = m.type();
+	// There are three conditions under which this and m can exist
+	// at the same time.
+	// 1) mIt subsumes thisIt
+	HashMap newMap = new HashMap(uniMap);
+	if ( !mIt.subsumes(thisIt, newMap)) {
+	    newMap = new HashMap(uniMap);
+	    // 2) thisIt subsumes mIt
+	    if ( !thisIt.subsumes(mIt, newMap)) {
+		newMap = new HashMap(uniMap);
+		// 3) mIt intersects thisIt
+		if ( !mIt.intersects(thisIt, newMap))
+		    // If there's no way both methods can exist at the
+		    // same time, then return true.
+		    return true;
+	    }
+	}
+
+	TypeDecl subThisType = thisRetType.substitute(newMap).type();
+	TypeDecl subMType = mRetType.substitute(newMap).type();
+	return subMType.instanceOf(subThisType);
+    }
+    /*
     eq StaticForMethodDecl.mayOverrideReturn(MethodDecl m) {
 	if ( this.grounded()) return super.mayOverrideReturn(m);
 
@@ -284,14 +447,29 @@ aspect MJTypeHierarchyCheck {
 	if ( uniMap == null ) return false;
 	TypeDecl thisRetType = this.type().substitute(uniMap).type();
 	TypeDecl mRetType = m.type().substitute(uniMap).type();
+
 	return thisRetType.instanceOf(mRetType);
+	// Since signatureOverrideWithMap only unifies the signature part
+	// of this and m, i.e. name and argument types,
 	// uniMap does not have the neccessary mapping to
 	// make the two return types equal.  
+	// 
+	// We 
+	// 1) Find a proper unification mapping that allows
+	// thisRetType to be a subtype of mRetType.  This is the same as
+	// thisRetType matches mRetType
+	// 2) apply this mapping to the iterator of this and m(if any)
+	//    to make sure these ranges are non-empty.
+
+	// Use both set of pattern type variables as unification variables.
+	
+	thisRetType.matches(mRetType, uniMap, 
+
+
 	// We apply uniMap to this's iterator and m's (if any),
 	// and resolve the remaining mapping that would make this's 
 	// iterator a subrange of m's.
 	// Then, apply the mapping to return type of both.
-	/*
 	if ( m instanceof StaticForMethodDecl ) {
 	    IteratorDecl mIt = ((StaticForMethodDecl) m).refIterator();
 	    
@@ -308,8 +486,8 @@ aspect MJTypeHierarchyCheck {
 	    TypeDecl mRetType = m.type().substitute(uniMap).type();
 	    return thisRetType.instanceOf(mRetType);
 	}
-	*/
     }
+*/
 
 
     protected void TypeDecl.checkOverride(ASTNode target, MethodDecl m, MethodDecl decl) {
@@ -322,7 +500,7 @@ aspect MJTypeHierarchyCheck {
 	    // 8.4.6.3
 	    if(!m.mayOverrideReturn(decl)) {
 		if ( decl.isEveryMethod()) {
-		    target.errorOrWarn("the return type of method " + m.signature() + " in " + m.hostType().typeName() + " does not match the return type of method it may override in " + decl.hostType().typeName() + " and may thus not be overriden", decl.hostType());
+		    target.errorOrWarn("the return type of method " + m.signature() + " in " + m.hostType().typeName() + " may not match the return type of method it may override in " + decl.hostType().typeName() + " and may thus not be overriden", decl.hostType());
 		} else {
 		    target.errorOrWarn("the return type of method " + m.signature() + " in " + m.hostType().typeName() + " does not match the return type of method " + decl.signature() + " in " + decl.hostType().typeName() + " and may thus not be overriden", decl.hostType());
 		}
@@ -353,8 +531,12 @@ aspect MJTypeHierarchyCheck {
 	    if ( decl.isEveryMethod() && m instanceof StaticForMethodDecl ) {
 		Map newMap = new HashMap(uniMap);
 		if ( ((StaticForMethodDecl) decl).refIterator().subsumes(
-									 ((StaticForMethodDecl) m).refIterator(), newMap))
+									 ((StaticForMethodDecl) m).refIterator(), newMap)) {
+		    // EVeryMethodDecl copies the modifiers matched by the patter.
+		    declMods = 
+			((MethodPattern) ((EveryMethodDecl) decl).refIterator().getPattern()).getModifiers();
 		    declMods = declMods.substitute(newMap);
+		}
 	    }
 	    
 	    // 8.4.6.3

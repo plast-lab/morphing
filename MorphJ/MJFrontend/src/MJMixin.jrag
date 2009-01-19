@@ -1,4 +1,25 @@
 aspect MJMixin {
+
+    refine GenericsSubtype eq TypeVariable.supertypeClassDecl(ClassDecl type) {
+	if ( type.hasSuperclass() && type.superclass().subtype(this))
+	    return true;
+	for ( Iterator ifIt = type.interfacesIterator(); ifIt.hasNext(); ) {
+	    TypeDecl iface = (TypeDecl) ifIt.next();
+	    if ( iface.subtype(this))
+		return true;
+	}
+	return false;
+    }
+    refine GenericsSubtype eq TypeVariable.supertypeInterfaceDecl(InterfaceDecl type) { 
+	for ( Iterator ifIt = type.superinterfacesIterator(); ifIt.hasNext(); ) {
+	    TypeDecl iface = (TypeDecl) ifIt.next();
+	    if ( iface.subtype(this))
+		return true;
+	}
+	return false; 
+
+    }
+
     syn lazy boolean TypeDecl.isConstrainedTypeVariable() = false;
     eq ConstrainedTypeVariable.isConstrainedTypeVariable() = true;
 

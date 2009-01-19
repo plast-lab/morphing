@@ -17,4 +17,46 @@ aspect MJUtilities {
 	return new AllMatchingTypeVariable(new Modifiers(), id, new List(), 
 					   new List());
     }
+
+    public StaticForMethodDecl TypeDecl.createStaticForMethodMatchingName(String name ) {
+    	/**
+	 * pattern: _ name(A) throws E : T.methods
+	 * where _ is the AllMatchingTypeVariable, which matches void.
+	 **/
+	EveryMethodDecl everyMethod = everyMethod();
+	// create substitution from m -> name.
+	Map sub = new HashMap();
+	sub.put(everyMethod.getIteratorDecl().getPatternNameParameter(0),
+		new Identifier(getID(), IteratorDecl.TrueIteratorDecl));
+
+
+	StaticForMethodDecl sfd = everyMethod.substitute(sub);
+	
+	sfd.is$Final = true;
+	addBodyDecl(sfd);
+	
+	sfd.bypassErrorChecking = true;
+	return sfd;
+    }
+
+    public Map EveryMethodDecl.patternModToDeclModMap() {
+	MethodPattern mp = (MethodPattern) refIterator().getPattern();
+	Modifiers mpMods = mp.getModifiers();
+	Modifiers declMods = getModifiers();
+	
+	HashMap modMap = new HashMap();
+	for ( int i=0; i<declMods.getNumModifier(); i++) {
+	    Modifier dm = declMods.getModifier(i);
+	    for ( int j=0; j<mpMods.getNumModifier(); j++) {
+		Modifier m = mpMods.getModifier(j);
+		if ( m.getID().equals(dm.getID())) {
+		    ArrayList l = new ArrayList();
+		    l.add(m);
+		    modMap.put(dm, l);
+		    break;
+		}
+	    }
+	}
+	return modMap;
+    }
 }

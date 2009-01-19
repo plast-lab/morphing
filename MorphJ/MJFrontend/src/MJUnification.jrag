@@ -55,8 +55,13 @@ aspect MJUnification {
 		uniMap.putAll(uni2);
 		return true;
 	    } else return false;
-	}
-	return substitute(uniMap).type() == t.substitute(uniMap).type();
+	} else if ( t.isVectorTypeVariable()) {
+	    java.util.List tl = t.expandAccessList(uniMap);
+	    return tl.size() != 1 ||
+		substitute(uniMap).type() == 
+		((Access) tl.get(0)).type().substitute(uniMap).type();
+	} else
+	    return substitute(uniMap).type() == t.substitute(uniMap).type();
     }
     public boolean PatternTypeVariable.unifiesWith(TypeDecl t, Map uniMap, Collection uniTypeVars) {
 	if ( this == t ) return true;
@@ -64,7 +69,7 @@ aspect MJUnification {
 	// apply the mappings first.
 	if ( isMapped(uniMap)) {
 	    if ( isVectorTypeVariable() ) {
-		ArrayList mapped = 
+		java.util.List mapped = 
 		    ((VectorTypeVariable) this).retrieveMapped(uniMap);
 		return t.unifiesWith(mapped.size(), mapped, 0, uniMap, uniTypeVars);
 	    } else
