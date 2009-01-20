@@ -118,17 +118,17 @@ aspect MJPattern {
     eq IteratorDecl.getPatternNameParameter(int i).reflectiveBaseType() = getPattern().reflectiveBaseType();
 
     // get enclosing pattern name variables.
-    syn lazy Collection BodyDecl.patternNameVariables() =
+    syn lazy Collection<PatternNameVariable> BodyDecl.patternNameVariables() =
 	refIterator() != null ? refIterator().patternNameVariables() : new ArrayList();
 
-    syn lazy Collection IteratorDecl.patternNameVariables() {
+    syn lazy Collection<PatternNameVariable> IteratorDecl.patternNameVariables() {
 	Collection c = new ArrayList();
 	for ( int i=0; i<getNumPatternNameParameter(); i++) 
 	    c.add(getPatternNameParameter(i));
 	return c;
     }
 
-    inh Collection Pattern.patternNameVariables();
+    inh Collection<PatternNameVariable> Pattern.patternNameVariables();
     eq IteratorDecl.getPattern().patternNameVariables() = patternNameVariables();
     // The only name variables that are still variables for nested pattern
     // are the ones not bounded by the primary pattern.
@@ -201,7 +201,7 @@ aspect MJPattern {
     syn lazy Collection Expr.patternNameVariables() = enclosingStmt().patternNameVariables();
 
     // get enclosing pattern type variables.
-    syn lazy Collection BodyDecl.patternTypeVariables() =
+    syn lazy Collection<PatternTypeVariable> BodyDecl.patternTypeVariables() =
 	refIterator() != null ? refIterator().patternTypeVariables() : new ArrayList();
 
     syn lazy Collection IteratorDecl.patternTypeVariables() {
@@ -210,18 +210,18 @@ aspect MJPattern {
 	    c.add(getPatternTypeParameter(i));
 	return c;
     }
-    inh Collection Pattern.patternTypeVariables();
+    inh Collection<PatternTypeVariable> Pattern.patternTypeVariables();
     eq IteratorDecl.getPattern().patternTypeVariables() = patternTypeVariables();
     eq IteratorDecl.getNestedPattern(int i).patternTypeVariables() = unboundTypeVariables();
 
-    inh Collection Stmt.patternTypeVariables();
+    inh Collection<PatternTypeVariable> Stmt.patternTypeVariables();
     eq StaticForMethodDecl.getBlock().patternTypeVariables() = patternTypeVariables();
     eq StaticForConstructorDecl.getBlock().patternTypeVariables() = patternTypeVariables();
     eq StaticForStmt.getStmt(int i).patternTypeVariables() = getIteratorDecl().patternTypeVariables();
     eq Block.getStmt(int i).patternTypeVariables() = patternTypeVariables();
     eq Program.getChild(int i).patternTypeVariables() = new ArrayList();
 
-    syn lazy Collection Expr.patternTypeVariables() = enclosingStmt().patternNameVariables();
+    syn lazy Collection<PatternTypeVariable> Expr.patternTypeVariables() = enclosingStmt().patternNameVariables();
 
     // determines whether a name is a name variable.
     syn lazy boolean BodyDecl.isNameVariable(String name) {
@@ -423,7 +423,7 @@ aspect MJPattern {
 
 	StaticMethodPattern mp = 
 	    new StaticMethodPattern(new BaseSet(hostType().createBoundAccess(),
-					  new RefElmt("methods")),
+						new RefElmt("methods")),
 				    (Modifiers) getModifiers().fullCopy(),
 				    type().createBoundAccess(),
 				    getID(), paramTypes, expTypes, new Opt(), new List());
@@ -436,10 +436,16 @@ aspect MJPattern {
     }
 
     eq StaticForMethodDecl.patternConditions() {
-	// TODO: nested patterns have more conditions.
-	return refIterator().getPatternConditions();
+ 	Collection l = refIterator().getPatternConditions();
+	// the existence of this method is a condition on its own.
+	l.addAll(super.patternConditions());
+	return l;
     }
-    eq StaticForFieldDeclaration.patternConditions() = refIterator().getPatternConditions();
+    eq StaticForFieldDeclaration.patternConditions() {
+	Collection l = refIterator().getPatternConditions();
+	l.addAll(super.patternConditions());
+	return l;
+    }
     eq FieldDeclaration.patternConditions() {
 	Collection l = new ArrayList();
 	l.add(new StaticFieldPattern(new BaseSet(hostType().createBoundAccess(),

@@ -15,10 +15,8 @@ aspect MJUnifyTypeList {
 						   Collection uniTypeVars) {
 	// first substitute away types in list1 and list2 that's been 
 	// mapped by uniMap
-	/*
-	list1 = substituteList(list1, uniMap);
-	list2 = substituteList(list2, uniMap);
-	*/
+	list1 = substituteList(list1,uniMap);
+	list2 = substituteList(list2,uniMap);
 
 	if ( typeListUnifies(list1, 0, list2, 0, uniMap, uniTypeVars)) {
 	    return true;
@@ -46,6 +44,8 @@ aspect MJUnifyTypeList {
 						   int list2BeginIndex,
 						   Map uniMap, 
 						   Collection uniTypeVars) {
+	// substitute both lists first. Elements of lists might expand
+	// to lists of types. 
 	if ( list2.size()-list2BeginIndex == 0 &&
 	     list1.size()-list1BeginIndex == 0 ) {
 	    // If both lists are empty, then matched.
@@ -69,82 +69,6 @@ aspect MJUnifyTypeList {
 	    return typeListUnifies(list2, list2BeginIndex, list1, list1BeginIndex, uniMap, uniTypeVars);
 	
 	return false;
-
-	/*
-	if ( uniTypeVars.contains(t1) && t1.isVectorTypeVariable()) {
-	    // start by matching t1 with 0 types, 
-	    // as many as it can.
-	    for ( int toMatch=0; list2BeginIndex+toMatch<=list2.size(); toMatch++) {
-		// create a list with the first "toMatch" elements of list2
-		ArrayList list2p = new ArrayList(toMatch);
-		for ( int j=list2BeginIndex; j<list2BeginIndex+toMatch; j++)
-		    list2p.add(list2.get(j));
-		
-		// copy uniMap so we can restore it.
-		Map uniMapCopy = new HashMap(uniMap);
-		
-		int matched = ((VectorTypeVariable) t1)
-		    .unifiesWithTypeList(list2p, uniMapCopy, uniTypeVars);
-		
-		if ( matched == toMatch ) {
-		    Map uniMap2 = new HashMap(uniMapCopy);
-
-		    // use uniMap to unify on the rest.
-		    if (typeListUnifies(list1, list1BeginIndex+1, 
-					list2, list2BeginIndex+matched, 
-					uniMap2, uniTypeVars)) {
-			// if succeeds, copy uniMapCopy into uniMap.
-			uniMap.putAll(uniMap2);
-			return true;
-		    } else {
-			// remove any mapping from uniMap.
-			uniMap2 = new HashMap(uniMapCopy);
-			if ( typeListUnifies(list2, list2BeginIndex+matched,
-					     list1, list1BeginIndex+1, 
-					     uniMap2, uniTypeVars)) {
-			    uniMap.putAll(uniMap2);
-			    return true;
-			} 
-		    }
-		    // else, move on to have t1 match more.
-		    ((VectorTypeVariable) t1).setMatchedVectorTypeVariableList(new List());
-		} else {
-		    // did not match all the ones moved to list2p.
-		    // cannot keep going. 
-		    ((VectorTypeVariable) t1).setMatchedVectorTypeVariableList(new List());
-		    return false;
-		}
-	    }
-	    return false;
-	} else { // t1 is just regular parameters.
-	    TypeDecl t2 = (TypeDecl) list2.get(list2BeginIndex);
-	    Map uniMapCopy = new HashMap(uniMap);
-	    if ( t1.unifiesWith(t2, uniMapCopy, uniTypeVars)) {
-		uniMap.putAll(uniMapCopy);
-		
-		// match the rest of the list.
-		uniMapCopy = new HashMap(uniMap);
-		if (typeListUnifies(list1, list1BeginIndex+1,
-				    list2, list2BeginIndex+1,
-				    uniMapCopy, uniTypeVars)) {
-		    uniMap.putAll(uniMapCopy);
-		    return true;
-		} else {
-		    uniMapCopy = new HashMap(uniMap);
-		    if (typeListUnifies(list2, list2BeginIndex+1,
-					list1, list1BeginIndex+1,
-					uniMapCopy, uniTypeVars)) {
-			uniMap.putAll(uniMapCopy);
-			return true;
-		    }
-		}
-		
-		if ( t2.isVectorTypeVariable())
-		    ((VectorTypeVariable) t2).setMatchedVectorTypeVariableList(new List());
-	    } 
-	    return false;
-	}
-	*/
     }
 
     /**
@@ -178,7 +102,8 @@ aspect MJUnifyTypeList {
 	    // this has been mapped. See whether what it's been mapped to
 	    // unifies with typeList.
 	    java.util.List mapped = (java.util.List) uniMap.get(this);
-	    return typeListUnifies(mapped, 0, list, 0, uniMap, uniTypeVars);
+	    ArrayList newList = new ArrayList(list.subList(beginIndex, beginIndex+numToMatch));
+	    return typeListUnifies(mapped, 0, newList, 0, uniMap, uniTypeVars);
 	} else if ( numToMatch == 0 ) {
 	    // Only have to match empty.
 	    uniMap.put(this, new ArrayList());
@@ -190,17 +115,14 @@ aspect MJUnifyTypeList {
 		// to make sure the mapping from this to one element of the
 		// list does not affect the matching of the next.
 		HashMap uniMap2 = new HashMap(uniMap);
-
 		TypeDecl t2 = (TypeDecl) list.get(i);
-		t2 = t2.substitute(uniMap).type();
 
 		if ( !this.unifiesWith(t2, uniMap2,uniTypeVars)) 
 		    return false;
 	    }
 	    // if we're here, that means everything in list has 
 	    // been matched.
-	    uniMap.put(this, list.subList(beginIndex, beginIndex+numToMatch));
-	    return true;
+	    return this.mapTo(list.subList(beginIndex, beginIndex+numToMatch), uniMap);
 	}	
     }	
 

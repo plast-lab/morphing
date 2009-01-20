@@ -109,7 +109,12 @@ aspect MJIdentifier {
 		Object o = uniMap.get(namevariable);
 		while ( ! (o instanceof Identifier )) {
 		    // mapped to a variable. keep searching.
-		    o = uniMap.get(o);
+		    if ( uniMap.get(o) != null )
+			o = uniMap.get(o);
+		    else {
+			o = new Identifier((PatternNameVariable) o);
+			break;
+		    }
 		}
 		Identifier i = ((Identifier) o).absorbPrefix(prefix);
 		if ( i.namevariable == this.namevariable )
@@ -246,9 +251,23 @@ aspect MJIdentifier {
 
 	public boolean canbeMappedTo(Identifier that, Map uniMap, 
 				     Collection uniNameVars) {
+
+	    if ( this.equals(that))
+		return true;
+	    // if both have the same name variable but different prefix
+	    // return false.
+	    if ( this.namevariable == that.namevariable)
+		return this.prefix.equals(that.prefix);
+
 	    // first check whether this is a name variable at all.
 	    if ( this.isUnificationNameVariable(uniNameVars)) {
 		if ( that.isUnificationNameVariable(uniNameVars)) {
+		    if ( that.isMapped(uniMap)) {
+			that.mappedTo = (Identifier) uniMap.get(that.namevariable);
+			Identifier newThat =
+			    that.mappedTo.absorbPrefix(that.prefix);
+			return this.canbeMappedTo(newThat,uniMap,uniNameVars);
+		    }
 		    if ( that.prefix.startsWith(this.prefix)) {
 			// then map this.namevariable to 
 			// (that.prefix-this.prefix)#that.varname.

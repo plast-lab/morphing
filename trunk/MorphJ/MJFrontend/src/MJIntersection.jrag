@@ -1,12 +1,15 @@
 aspect MJIntersection {
-    syn lazy boolean IteratorDecl.intersects(IteratorDecl id, Map uniMap ) {
+    /*
+    // Find out whether this intersects with id without using the
+    // the pattern variables in "withoutVars" as unification variables.
+    syn lazy boolean IteratorDecl.intersectsWithoutGivenTypeVariables(IteratorDecl id, Collection<TypeVariable> withoutVars, Map uniMap) {
 	HashMap newMap = new HashMap(uniMap);
 
 	// if the two primary patterns do not intersect, then these two
 	// iterators defenitely do not interesct.
-	if (getPattern().isMutuallyExclusiveFrom(id.getPattern(), newMap))
+	if (getPattern().isMutuallyExclusiveFromWithoutGivenTypeVariables(id.getPattern(), withoutVars, newMap))
 	    return false;
-
+	
 	// if an intersection is found between the two primary patterns,
 	// we need to check whether this intersection satisfies all
 	// nested conditions.
@@ -20,6 +23,111 @@ aspect MJIntersection {
 	}
 	return true;
     }
+    */
+
+    syn lazy boolean IteratorDecl.intersects(IteratorDecl id, Map uniMap ) {
+	HashMap newMap = new HashMap(uniMap);
+
+	// If the two primary patterns do not intersect, then there's
+	// definitioly no intersection between the two iterators.
+	if ( !getPattern().intersects(id.getPattern(), newMap))
+	    return false;
+	/*	
+	if (getPattern().isMutuallyExclusiveFrom(id.getPattern(), newMap))
+	    return false;
+	*/
+	// if an intersection is found between the two primary patterns,
+	// we need to check whether this intersection satisfies all
+	// nested conditions.
+	for ( int i=0; i<getNumNestedPattern(); i++) {
+	    if (!getNestedPattern(i).satisfiedBy(newMap))
+		return false;
+	}
+	for ( int i=0; i<id.getNumNestedPattern(); i++) {
+	    if (!id.getNestedPattern(i).satisfiedBy(newMap))
+		return false;
+	}
+	return true;
+    }
+
+
+    syn lazy boolean Pattern.intersects(Pattern p2, Map uniMap)=false;
+    eq MethodPattern.intersects(Pattern p2,Map uniMap) = p2.intersectsMethodPattern(this,uniMap);
+    eq FieldPattern.intersects(Pattern p2,Map uniMap) = p2.intersectsFieldPattern(this,uniMap);
+        
+    syn lazy boolean Pattern.intersectsMethodPattern(MethodPattern p2,Map uniMap) = false;
+    eq MethodPattern.intersectsMethodPattern(MethodPattern p2,Map uniMap) {
+	// this and p2 intersects if
+	// - their host types are in subtyping relationships.
+	// - their names, argument types, and return types
+	// - their modifiers unify
+	// TODO: exceptions?
+	TypeDecl rb = this.reflectiveBaseType().substitute(uniMap).type();
+	TypeDecl p2rb = p2.reflectiveBaseType().substitute(uniMap).type();
+	if ( ! rb.subtype(p2rb) && ! p2rb.subtype(rb))
+	    return false;
+	
+	java.util.List p1params = substitutedParameterTypes(uniMap);
+	java.util.List p2params = p2.substitutedParameterTypes(uniMap);
+	
+	// If the method parameters do not match the same ones to
+	// begin with, then there's no chance that the two will match
+	// the same methods,
+	if ( !sameParameterLists(p1params,p2params))
+	    return false;
+	
+	// name.
+	if (!identifier().substitutedName(uniMap).equals(p2.identifier().substitutedName(uniMap)))
+	    return false;
+
+	// Check whether return types could unify.
+	// check return type.
+	TypeDecl thisRetType = getTypeAccess().type();
+	TypeDecl p2RetType = p2.getTypeAccess().type();
+
+	Collection<TypeVariable> typeVars = new ArrayList<TypeVariable>();
+	typeVars.addAll(patternTypeVariables());
+	typeVars.addAll(p2.patternTypeVariables());
+	if ( ! thisRetType.unifiesWith(p2RetType, uniMap, typeVars))
+	    return false;
+	
+	if (this.getModifiers().substitute(uniMap).excludedBy(p2.getModifiers().substitute(uniMap)))
+	    return false;
+	return true;
+    }
+    
+    syn lazy boolean Pattern.intersectsFieldPattern(FieldPattern p2,Map uniMap) = false;
+    eq FieldPattern.intersectsFieldPattern(FieldPattern p2,Map uniMap) { 
+	// this and p2 intersects if
+	// - their host types are in subtyping relationships.
+	// - their names, argument types, and return types
+	// - their modifiers unify
+	// TODO: exceptions?
+	TypeDecl rb = this.reflectiveBaseType().substitute(uniMap).type();
+	TypeDecl p2rb = p2.reflectiveBaseType().substitute(uniMap).type();
+	if ( ! rb.subtype(p2rb) && ! p2rb.subtype(rb))
+	    return false;
+		
+	// name.
+	if (!identifier().substitutedName(uniMap).equals(p2.identifier().substitutedName(uniMap)))
+	    return false;
+
+	// Check whether return types could unify.
+	// check return type.
+	TypeDecl thisRetType = getTypeAccess().type();
+	TypeDecl p2RetType = p2.getTypeAccess().type();
+
+	Collection<TypeVariable> typeVars = new ArrayList<TypeVariable>();
+	typeVars.addAll(patternTypeVariables());
+	typeVars.addAll(p2.patternTypeVariables());
+	if ( ! thisRetType.unifiesWith(p2RetType, uniMap, typeVars))
+	    return false;
+	
+	if (this.getModifiers().substitute(uniMap).excludedBy(p2.getModifiers().substitute(uniMap)))
+	    return false;
+	return true;	
+    }
+
 
     syn lazy boolean Pattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = false;
     eq MethodPattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = p2.isMutuallyExclusiveFromMethodPattern(this, uniMap);
@@ -65,14 +173,28 @@ aspect MJIntersection {
 	    java.util.List p1params = substitutedParameterTypes(uniMap);
 	    java.util.List p2params = p2.substitutedParameterTypes(uniMap);
 
+	    // If the method parameters do not match the same ones to
+	    // begin with, then there's no chance that the two will match
+	    // the same methods,
 	    if ( !sameParameterLists(p1params,p2params))
 		return false;
 
-	    // name?
-
+	    // TODO: name?
+	    
+	    TypeDecl thisRetType = getTypeAccess().type().substitute(uniMap).type();
+	    TypeDecl p2RetType = p2.getTypeAccess().type().substitute(uniMap).type();
+	    // TODO: check whether this is correct.
+	    // thisRetType and p2RetType could be substituted already 
+	    // Thus, what use to be a supertype could be substituted to a 
+	    // subtype.  Only check here that some subtyping relationship
+	    // exists.
+	    if ( !thisRetType.subtype(p2RetType) && 
+		 !p2RetType.subtype(thisRetType))
+		return true;
+	    /*
 	    if ( !getTypeAccess().type().substitute(uniMap).type().equals(p2.getTypeAccess().type().substitute(uniMap).type()))
 		return true;
-
+	    */
 	    if (this.getModifiers().substitute(uniMap).excludedBy(p2.getModifiers().substitute(uniMap)))
 		return true;
 	} else if ( isPositiveCondition() ) {
@@ -84,4 +206,27 @@ aspect MJIntersection {
 	}
 	return false;
     }
+
+    public static boolean Program.hasMutualExclusiveConditions(Collection patternConditions, Map uniMap) {
+	return hasMutualExclusiveConditions(patternConditions,uniMap,true);
+    }
+    public static boolean Program.hasMutualExclusiveConditions(Collection patternConditions, Map uniMap, boolean subModifiers) {
+	for ( Iterator outerIt = patternConditions.iterator(); outerIt.hasNext(); ) {
+	    Pattern p1 = (Pattern) outerIt.next();
+	    // apply substitution first.
+	    Pattern p1sub = p1.substitute(uniMap, subModifiers);
+	    
+	    for ( Iterator innerIt = patternConditions.iterator(); innerIt.hasNext(); ) {
+		Pattern p2 = (Pattern) innerIt.next();
+		if ( p1 == p2) continue;
+		
+		Pattern p2sub = p2.substitute(uniMap, subModifiers);
+		if (p1sub.isMutuallyExclusiveFrom(p2sub, new HashMap())) // uniMap))
+		    return true;
+	    }
+	}
+	return false;
+    }
+
+
 }

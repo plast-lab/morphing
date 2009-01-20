@@ -47,7 +47,8 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     @Test
     public void testCopyVariableSuperSub() {
 	actualProblems = checkTest("CopyVariableSuperSubOk.java");
-	noProblems(actualProblems);
+	addExpected(makeError("method m(A) in Mixin could potentially override a final method in X"));
+	compareProblems();
     }
 
     // OK: copying methods of a variable superclass of superclass
@@ -97,11 +98,9 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     public void testCopyUnrelatedFromVariable() {
 	actualProblems = checkTest("CopyUnrelatedVar.java");
 	expectedProblems.clear();
-	expectedProblems
-		.add(makeError("method with signature \n"
-			+ "      <R extends java.lang.Object,A*>[m]for( R m(A):Y.methods;)\n"
-			+ "      R m(A)"
-			+ "\n  may conflict with methods in type X."));
+	addExpected(makeError("the return type of method m(A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
+	addExpected(makeError("method m(A) in Mixin could potentially override a final method in X"));
+
 	compareProblems(expectedProblems, actualProblems);
     }
 
@@ -116,11 +115,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 		.add(makeError("the return type of method m(A, java.lang.String) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
 	expectedProblems
 		.add(makeError("method m(A, java.lang.String) in Mixin could potentially override a final method in X"));
-	expectedProblems
-		.add(makeError("method with signature \n"
-			+ "      <R extends java.lang.Object,A*>[m]for( R m(A):X.methods;)\n"
-			+ "      R m(A, java.lang.String)"
-			+ "\n  may conflict with methods in type X."));
+
 	compareProblems(expectedProblems, actualProblems);
     }
 
@@ -131,12 +126,10 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 	actualProblems = checkTest("AddArgumentBegin.java");
 	expectedProblems.clear();
 	expectedProblems
-		.add(makeError("method m(java.lang.String, A) in Mixin could potentially override a final method in X"));
+		.add(makeError("the return type of method m(java.lang.String, A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
 	expectedProblems
-		.add(makeError("method with signature \n"
-			+ "      <R extends java.lang.Object,A*>[m]for( R m(A):X.methods;)\n"
-			+ "      R m(java.lang.String, A)"
-			+ "\n  may conflict with methods in type X."));
+		.add(makeError("method m(java.lang.String, A) in Mixin could potentially override a final method in X"));
+
 	compareProblems(expectedProblems, actualProblems);
     }
 
@@ -147,12 +140,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 	actualProblems = checkTest("AddArgumentBothEnds.java");
 	expectedProblems.clear();
 	expectedProblems
-		.add(makeError("method m(java.lang.String, A, java.lang.Object) in Mixin could potentially override a final method in X"));
-	expectedProblems
-		.add(makeError("method with signature \n"
-			+ "      <R extends java.lang.Object,A*>[m]for( R m(A):X.methods;)\n"
-			+ "      R m(java.lang.String, A, java.lang.Object)"
-			+ "\n  may conflict with methods in type X."));
+		.add(makeError("method m(java.lang.String, A, java.lang.Object) in Mixin could potentially override a final method in X"));	
 	expectedProblems
 		.add(makeError("the return type of method m(java.lang.String, A, java.lang.Object) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
 	compareProblems(expectedProblems, actualProblems);
@@ -165,12 +153,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 	actualProblems = checkTest("AddVariableArgumentEnd.java");
 	expectedProblems.clear();
 	expectedProblems
-		.add(makeError("method m(A, java.lang.Object) in Mixin could potentially override a final method in X"));
-	expectedProblems
-		.add(makeError("method with signature \n"
-			+ "      <R extends java.lang.Object,A*>[m]for( R m(A):X.methods;)\n"
-			+ "      R m(A, java.lang.Object)"
-			+ "\n  may conflict with methods in type X."));
+		.add(makeError("method m(A, java.lang.Object) in Mixin could potentially override a final method in X"));	
 	expectedProblems
 		.add(makeError("the return type of method m(A, java.lang.Object) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
 	expectedProblems
@@ -220,16 +203,40 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 
     // ERROR:
     // <R,A*>[m] for (R m (A): X.methods) R get#m (A)
-    @Test public void testChangeNameToVar () {
+    @Test
+    public void testChangeNameToVar() {
 	actualProblems = checkTest("ChangeNameVar.java");
 	clearExpected();
-	
+	addExpected(makeError("the return type of method get#m(A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
+	addExpected(makeError("method get#m(A) in Mixin could potentially override a final method in X"));
 	compareProblems();
     }
-
+    
     // ERROR:
     // <R,A*>[m] for (R get#m (A) : X.methods) R m (A)
 
     // ERROR
     // <R,A*>[m] for (R get#m (A): X.methods) R set#m (A)
+    
+    // OK
+    // <R,A*> for (R foo(A) : X.methods) R foo(A)
+    
+    // ERROR
+    // <R,A*> for (R foo(A) : X.methods) R bar(A)
+    
+    // OK
+    // <F>[f] for ( F f : X.fields ) F f;
+
+    // ERROR: cannot change field name
+    // <F>[f] for ( F f : X.fields ) F field#f;
+    
+    // ERROR: cannot change field name.
+    // <F>[f] for ( F some#f : X.fields ) F f;
+    
+    // ERROR: cannot change field type: invariant.
+    // [f] for ( Number f : X.fields ) Integer f;
+    
+    // Error: 
+    // [f] for ( Integer f : X.fields ) Number f;
+    
 }

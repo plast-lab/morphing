@@ -16,10 +16,14 @@ aspect MJRewrites {
     }
     
     public static int Program.generatedTypeVariableCount = 0;
-    
     public static String Program.generateFreshTypeVariableName() {
-	return "__MJINTERNAL$$" + generatedTypeVariableCount++;
+	return "__MJTV$$" + generatedTypeVariableCount++;
     }
+    public static int Program.generatedNameVariableCount = 0;
+    public static String Program.generateFreshNameVariableName() {
+	return "__MJNV$$" + generatedNameVariableCount++;
+    }
+
 
     rewrite IteratorDecl {
 	when ( getNumNestedPattern() == 0 ) to IteratorDecl {

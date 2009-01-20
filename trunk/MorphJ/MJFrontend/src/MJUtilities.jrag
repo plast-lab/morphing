@@ -59,4 +59,18 @@ aspect MJUtilities {
 	}
 	return modMap;
     }
+
+    public static Collection<PatternTypeVariable> Program.allTypeVariables(IteratorDecl id1, IteratorDecl id2) {
+	Collection<PatternTypeVariable> l = new ArrayList<PatternTypeVariable>();
+	l.addAll(id1.patternTypeVariables());
+	l.addAll(id2.patternTypeVariables());
+	return l;
+    }
+
+    public static Collection<PatternNameVariable> Program.allNameVariables(IteratorDecl id1, IteratorDecl id2) {
+	Collection<PatternNameVariable> l = new ArrayList<PatternNameVariable>();
+	l.addAll(id1.patternNameVariables());
+	l.addAll(id2.patternNameVariables());
+	return l;
+    }
 }

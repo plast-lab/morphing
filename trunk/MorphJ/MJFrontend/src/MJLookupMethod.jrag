@@ -334,7 +334,7 @@ aspect MJLookupMethod {
 
 	// add every method.
 	StaticForMethodDecl em = (StaticForMethodDecl) everyMethod();
-	
+	/*	
 	// id could be a member method of this if
 	// 1. its' enclosing iterator decl is subsumed by one of this's
 	// method's iterator decl.
@@ -344,7 +344,8 @@ aspect MJLookupMethod {
 	    StaticForMethodDeclSubstituted smd = em.substitute(uniMap);
 	    if ( smd.identifier().equals(id))
 		methods.add(smd);
-	}
+		}*/
+	methods.add(em);
 	
 	// look into bounds.
 	for ( int i=0; i<getNumTypeBound(); i++) {
@@ -475,6 +476,13 @@ aspect MJLookupMethod {
 		}
 		public void remove() { throw new UnsupportedOperationException(); }
 	    };
+    }
+
+    syn lazy boolean StaticForMethodDecl.expandedMethodsInclude(MethodDecl m) {
+	List<? extends MethodDecl> ems = expandedMethods();
+	for ( int i=0; i<ems.getNumChild(); i++) 
+	    if ( ems.getChild(i) == m ) return true;
+	return false;
     }
     
     syn lazy List<? extends MethodDecl> MethodDecl.expandedMethods () = new List().add(this);

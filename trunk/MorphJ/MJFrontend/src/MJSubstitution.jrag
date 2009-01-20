@@ -205,10 +205,16 @@ aspect MJSubstitution {
 	ParIteratorDecl pid = new ParIteratorDecl();
 	for ( int i=0; i<getNumPatternTypeParameter(); i++) {
 	    TypeVariable t = getPatternTypeParameter(i).fullCopy();
+	    t.setID(Program.generateFreshTypeVariableName());
 	    t.addedByPatternRewrite = getPatternTypeParameter(i).addedByPatternRewrite;
 	    pid.addPatternTypeParameter((PatternTypeVariable)t.substitute(substitutions).type());
 	}
-	pid.setPatternNameParameterList(getPatternNameParameterList().fullCopy());
+	for ( int i=0; i<getNumPatternNameParameter(); i++) {
+	    PatternNameVariable nv = getPatternNameParameter(i).fullCopy();
+	    nv.setID(Program.generateFreshNameVariableName());
+	    pid.addPatternNameParameter(nv);
+	}
+	//	pid.setPatternNameParameterList(getPatternNameParameterList().fullCopy());
 
 	// create the mapping to be used for pattern and nested pattern
 	// substitution.
@@ -222,7 +228,8 @@ aspect MJSubstitution {
 		map.put(getPatternTypeParameter(i), pid.getPatternTypeParameter(i));
 	}
 	for ( int i=0; i<getNumPatternNameParameter(); i++)
-	    map.put(getPatternNameParameter(i), new Identifier(pid.getPatternNameParameter(i).getID(),pid));
+	    map.put(getPatternNameParameter(i), 
+		    pid.getPatternNameParameter(i));
 	
 	// add mappings in substitution.
 	map.putAll(substitutions);
