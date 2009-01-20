@@ -45,6 +45,10 @@ aspect MJTypeCheckCore {
      **/
     syn lazy boolean MethodDecl.isUniqueFrom(MethodDecl m) {
 	if ( this == m) return false;
+
+	if ( !hostType().subtype(m.hostType()) &&
+	     !m.hostType().subtype(hostType())) 
+	    return false;
 	
 	Collection uniTypeVars = new ArrayList(m.patternTypeVariables());
 	uniTypeVars.addAll(patternTypeVariables());
@@ -68,16 +72,7 @@ aspect MJTypeCheckCore {
 	Collection patternConditions = new ArrayList();
 	patternConditions.addAll(patternConditions());
 	patternConditions.addAll(m.patternConditions());
-	if ( Program.hasMutualExclusiveConditions(patternConditions, uniMap))
-	    return true;
-
-	if ( !hostType().subtype(m.hostType()) &&
-	     !m.hostType().subtype(hostType())) 
-	    return false;
-	
-	// possible override is checked in TypeDecl.typeCheck();
-
-	return false;
+	return Program.hasMutualExclusiveConditions(patternConditions, uniMap);
     }
 
     /*
@@ -202,27 +197,6 @@ aspect MJTypeCheckCore {
     }
 
     eq TrueNestedPattern.satisfiedBy(Map uniMap) = true;
-
-    public static boolean Program.hasMutualExclusiveConditions(Collection patternConditions, Map uniMap) {
-	return hasMutualExclusiveConditions(patternConditions,uniMap,true);
-    }
-    public static boolean Program.hasMutualExclusiveConditions(Collection patternConditions, Map uniMap, boolean subModifiers) {
-	for ( Iterator outerIt = patternConditions.iterator(); outerIt.hasNext(); ) {
-	    Pattern p1 = (Pattern) outerIt.next();
-	    // apply substitution first.
-	    Pattern p1sub = p1.substitute(uniMap, subModifiers);
-	    
-	    for ( Iterator innerIt = patternConditions.iterator(); innerIt.hasNext(); ) {
-		Pattern p2 = (Pattern) innerIt.next();
-		if ( p1 == p2) continue;
-		
-		Pattern p2sub = p2.substitute(uniMap, subModifiers);
-		if (p1sub.isMutuallyExclusiveFrom(p2sub, new HashMap())) // uniMap))
-		    return true;
-	    }
-	}
-	return false;
-    }
 
     public boolean Pattern.sameParameterLists(java.util.List p1params, java.util.List p2params) {
 	if ( p1params.size() != p2params.size()) 

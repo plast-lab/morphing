@@ -82,6 +82,28 @@ aspect ModifierUnification {
 	    }
 	    if ( !excluded ) return false;
 	}
+	return false;
+    }
+
+    syn lazy boolean Modifiers.unifiesWith(Modifiers mods, Map uniMap) {
+	HashMap newMap = new HashMap(uniMap);
+	// Keep track of which modifier is not subsumed by mods.
+	Modifiers unmapped = new Modifiers();
+	for ( int i=0; i<getNumModifier(); i++) {
+	    Modifier m = getModifier(i);
+	    if ( !m.subsumedBy(mods,newMap))
+		unmapped.addModifier(m.fullCopy());
+	}
+
+	// for those unsubsumed by mods, we need to see whether
+	// they can subsume some of mods unmapped.
+	for ( int i=0; i<mods.getNumModifier(); i++) {
+	    Modifier m = mods.getModifier(i);
+	    if (!newMap.containsKey(m) &&  
+		!m.subsumedBy(unmapped,newMap))
+		return false;
+	}
+	uniMap.putAll(newMap);
 	return true;
     }
 
@@ -104,12 +126,15 @@ aspect ModifierUnification {
      *
      **/
     syn lazy boolean Modifiers.subsumedBy(Modifiers mods, Map uniMap) {
+	HashMap newMap = new HashMap(uniMap);
 	boolean subsumed = true;
 	for ( int i=0; i<getNumModifier(); i++) {
 	    Modifier m = getModifier(i);
-	    if (!m.subsumedBy(mods, uniMap)) 
+	    if (!m.subsumedBy(mods, newMap)) 
 		subsumed = false;
 	}
+	if ( subsumed ) 
+	    uniMap.putAll(newMap);
 	return subsumed;
     }
 
@@ -186,7 +211,8 @@ aspect ModifierUnification {
     eq NegativeModifier.excludesNegativeModifier(NegativeModifier m) = 
 	(getID().equals("abstract") && m.getID().equals("final")) ||
 	(getID().equals("final") && m.getID().equals("abstract"));
-    eq MaybeModifier.excludesNegativeModifier(NegativeModifier m) = false;
+    eq MaybeModifier.excludesNegativeModifier(NegativeModifier m) = 
+	this.getID().equals(m.getID());
 
     syn lazy boolean Modifier.excludesNoModifier(NoModifier m) = true;
     eq NoModifier.excludesNoModifier(NoModifier m) = false;

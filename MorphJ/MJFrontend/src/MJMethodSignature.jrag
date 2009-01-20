@@ -98,7 +98,7 @@ aspect MJMethodSignature {
 		    possOv = true;
 		    break;
 		}
-	    } else {
+	    } else if ( om instanceof StaticForMethodDeclSubstituted) {
 		StaticForMethodDeclSubstituted pm 
 		    = (StaticForMethodDeclSubstituted) om;
 		StaticForMethodDeclSubstituted msub 
@@ -113,6 +113,13 @@ aspect MJMethodSignature {
 			return uniMap;
 		    }
 		}
+	    } else if ( om.equals(this)) {
+		HashMap uniMap = new HashMap();
+		if (canUnifySignature(m, uniMap,
+				      patternTypeVariables, 
+				      patternNameVariables)) {
+		    return uniMap;
+		}
 	    }
 	}
 	return null;
@@ -124,13 +131,22 @@ aspect MJMethodSignature {
 	boolean possOv = false;
 	for ( Iterator ovIt = possOverrides.iterator(); 
 	      ovIt.hasNext();) {
-	    MethodDecl om = (MethodDecl) ovIt.next();	    
-	    StaticForMethodDeclSubstituted pm 
-		= (StaticForMethodDeclSubstituted) om;
-	    StaticForMethodDeclSubstituted msub 
-		= (StaticForMethodDeclSubstituted) 
-		this.substitute(pm.expansionSubstitutions);
-	    if ( msub.equals(pm)) { 
+	    MethodDecl om = (MethodDecl) ovIt.next();	   
+	    if ( om instanceof StaticForMethodDeclSubstituted ) {
+		StaticForMethodDeclSubstituted pm 
+		    = (StaticForMethodDeclSubstituted) om;
+		StaticForMethodDeclSubstituted msub 
+		    = (StaticForMethodDeclSubstituted) 
+		    this.substitute(pm.expansionSubstitutions);
+		if ( msub.equals(pm)) { 
+		    HashMap uniMap = new HashMap();
+		    if ( canUnifySignature(m, uniMap, 
+					   patternTypeVariables,
+					   patternNameVariables)) {
+			return uniMap;
+		    }
+		}
+	    } else if (om.equals(this)) {
 		HashMap uniMap = new HashMap();
 		if ( canUnifySignature(m, uniMap, 
 				       patternTypeVariables,
