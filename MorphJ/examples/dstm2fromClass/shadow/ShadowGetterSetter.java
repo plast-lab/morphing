@@ -51,8 +51,7 @@ public class ShadowGetterSetter<Y> extends Adaptor<Y> implements Releasable {
     // a field f1 in Recoverable.
     //    <F1>[f1] for ( F1 get#f1() : Recoverable<Y>.methods )
 
-    <F4 extends Object>[f4] for ( @atomic F4 f4 : Y.fields ; 
-				  no get#f4 () : Object.methods ) {|
+    <F4 extends Object>[f4] for ( @atomic F4 f4 : Y.fields ) {|
     public AtomicBase<F4> get#f4() {
 	try {
             Transaction me  = Thread.getTransaction();
@@ -99,7 +98,7 @@ public class ShadowGetterSetter<Y> extends Adaptor<Y> implements Releasable {
     }
     |}
 
-    [f5] for ( @atomic int f5 : Y.fields ; no get#f5 () : Object.methods ) {|
+    [f5] for ( @atomic int f5 : Y.fields ) {|
     public int get#f5() {
 	try {
             Transaction me  = Thread.getTransaction();
