@@ -267,7 +267,9 @@ aspect MJParameterization {
     }
 
     public EmptyPrimaryPattern EmptyPrimaryPattern.substitute(Parameterization parTypeDecl) { 
-	return new EmptyPrimaryPattern(new BaseSet(new AllMatchingTypeVariable(new Modifiers(), "", new List(), new List().add(typeEveryType().createBoundAccess())).createBoundAccess(), new RefElmt("methods")));
+	return new EmptyPrimaryPattern(new BaseSet(new AllMatchingTypeVariable(new Modifiers(), "", new List(), new List()).createBoundAccess(), new RefElmt("methods")));
+	//.add(typeEveryType().createBoundAccess())
+
     }
     
     // TODO: need to recycle these substituted patterns. Might become

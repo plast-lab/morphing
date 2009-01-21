@@ -88,7 +88,7 @@ aspect MJTypeCheckCore {
     syn lazy boolean Pattern.satisfiedBy(Map uniMap)  = false;
     eq NestedMethodPattern.satisfiedBy(Map uniMap) {
 	// substitute pattern.
-	NestedMethodPattern subed = substitute(uniMap);
+	NestedMethodPattern subed = substitute(uniMap, false);
 	PatternMethodDecl nmd = subed.patternMethodDecl();
 
 	// expand the methods in the pattern after substitution.

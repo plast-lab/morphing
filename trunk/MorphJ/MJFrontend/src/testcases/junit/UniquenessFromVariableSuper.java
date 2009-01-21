@@ -214,21 +214,73 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     
     // ERROR:
     // <R,A*>[m] for (R get#m (A) : X.methods) R m (A)
+    @Test
+    public void testChangeNameRemovePrefix() {
+	actualProblems = checkTest("ChangeNameRemovePrefix.java");
+	clearExpected();
+	addExpected(makeError("the return type of method m(A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
+	addExpected(makeError("method m(A) in Mixin could potentially override a final method in X"));
+
+	compareProblems();
+    }
 
     // ERROR
     // <R,A*>[m] for (R get#m (A): X.methods) R set#m (A)
-    
+    @Test
+    public void testChangePrefix() {
+	actualProblems = checkTest("ChangePrefixName.java");
+	clearExpected();
+	addExpected(makeError("the return type of method set#m(A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
+	addExpected(makeError("method set#m(A) in Mixin could potentially override a final method in X"));
+	compareProblems();
+    }
     // OK
     // <R,A*> for (R foo(A) : X.methods) R foo(A)
+    @Test
+    public void testStaticName() {
+	actualProblems = checkTest("StaticName.java");
+	clearExpected();
+	noProblems();
+    }
+    
     
     // ERROR
     // <R,A*> for (R foo(A) : X.methods) R bar(A)
+    @Test
+    public void testChangeStaticName() {
+	actualProblems = checkTest("ChangeStaticName.java");
+	clearExpected();	
+	addExpected(makeError("the return type of method bar(A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
+	addExpected(makeError("method bar(A) in Mixin could potentially override a final method in X"));
+
+	compareProblems();
+    }
     
     // OK
     // <F>[f] for ( F f : X.fields ) F f;
+    @Test
+    public void testCopyFields() {
+	actualProblems = checkTest("CopyFields.java");
+	noProblems();
+    }
 
+    // TODO: repeat all test cases for variable interfaces,
+    // repeat all test cases for fields (for both variable superclass and interface)
+    
     // ERROR: cannot change field name
     // <F>[f] for ( F f : X.fields ) F field#f;
+    @Test
+    public void testChangeFieldNameAddPrefix () {
+	actualProblems = checkTest("ChangeFieldName.java");
+	clearExpected();
+	addExpected(makeError("field \n" +
+		"      <F>[f]for( F f:X.fields;)\n" +
+		"      F field#f;\n" +
+		"   may conflict with fields in type X"));
+	
+	compareProblems();
+    }
+    
     
     // ERROR: cannot change field name.
     // <F>[f] for ( F some#f : X.fields ) F f;

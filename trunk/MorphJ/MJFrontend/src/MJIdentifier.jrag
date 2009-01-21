@@ -46,9 +46,7 @@ aspect MJIdentifier {
 	public Identifier mappedTo;
 
 	public String toString() {
-	    if ( prefix.length() == 0)
-		return varname;
-	    return prefix + "#" + varname;
+	    return name();
 	}
 
 	public IteratorDecl enclosingRefIterator() {
@@ -64,20 +62,24 @@ aspect MJIdentifier {
 	public Identifier(String s, IteratorDecl context) {
 	    // this is used for substitution.
 	    // parse out the prefix and the (possibly) variable parts.
-	    parse(s);
-	    this.context = context;
-	    if ( context != null && context.isNameVariable(varname))
-		namevariable = context.getNameVariable(varname);
-	}
-
-	protected void parse(String s) {
 	    int pIndex = s.indexOf("#");
+
+	    String pre=""; 
+	    String mid="";
 	    if ( pIndex > 0 ) {
-		prefix = s.substring(0, pIndex);
-		varname = s.substring(pIndex+1);
+		pre = s.substring(0, pIndex);
+		mid = s.substring(pIndex+1);
+	    } else { mid = s; }
+
+	    this.context = context;
+	    if ( context != null && context.isNameVariable(mid)) {
+		namevariable = context.getNameVariable(mid);
+		varname = mid;
+		prefix = pre;
 	    } else {
-		prefix = "";
-		varname = s;
+		// no name variable.
+		prefix = mid;
+		varname = "";
 	    }
 	}
 
@@ -96,6 +98,8 @@ aspect MJIdentifier {
 	public String name () {
 	    if ( prefix.length() == 0 )
 		return varname;
+	    if ( varname.length() == 0 )
+		return prefix;
 	    return prefix + "#" + varname;
 	}
 
@@ -132,45 +136,6 @@ aspect MJIdentifier {
 		return subid.varname;
 	    } 
 	    return subid.prefix + subid.varname;
-
-	    /*
-	    if ( isNameVariable() ) {
-	    	StringBuffer sb = new StringBuffer(prefix);
-
-	    	PatternNameVariable nv = namevariable;
-	    	while ( true ) {
-		    Identifier subid = (Identifier) substitutions.get(nv);
-		    if ( subid == null ) {
-			if ( sb.length() > 0 ) sb.append("#");
-			sb.append(nv.getID());
-			break;
-		    }
-		    if ( subid.isNameVariable()) {
-	    		if (substitutions.containsKey(subid.namevariable)) {
-			    // subid is a name variable that has been mapped.	    		
-	    			nv = subid.namevariable;
-	    			sb.append(subid.prefix);
-	    			// continue searching.
-	    		} else {
-	    			// subid is a name variable, but not mapped.
-	    			sb.append(subid.prefix);
-	    			if ( subid.prefix.length() > 0 )
-				    sb.append("#");
-	    			sb.append(subid.varname);
-	    			break;
-	    		}
-		    } else {
-	    		// subid is a constant name.
-	    		sb.append(subid.prefix);
-	    		sb.append(subid.varname);
-	    		break;
-		    }
-	    	}
-	    	return sb.toString();
-	    }
-	    
-	    return prefix + varname;
-	    */
 	}
 
 	public boolean isNameVariable() { return namevariable != null; } 
@@ -221,8 +186,8 @@ aspect MJIdentifier {
 		    this.namevariable == that.namevariable;
 	    } 
 
-	    return this.prefix.equals(that.prefix) &&
-		this.varname.equals(that.varname);
+	    return this.prefix.equals(that.prefix);
+		//		this.varname.equals(that.varname);
 	}
 
 	public int hashCode() {
@@ -276,11 +241,25 @@ aspect MJIdentifier {
 			return true;
 		    }
 		} else if ( that.isNameVariable() &&
-			    that.prefix.startsWith(this.prefix) ||
-			    that.varname.startsWith(this.prefix)) {
+			    that.prefix.startsWith(this.prefix)
+			    ) {
 		    uniMap.put(namevariable,
 			       that.removePrefix(this.prefix));
 		    return true;
+		} else {
+		    // that is a static name.
+		    // prefix#varname
+
+		    // that must subsume prefix
+		    // varname -> (that-prefix)
+
+		    if ( that.prefix.startsWith(this.prefix)) {
+			uniMap.put(namevariable, 
+				   that.removePrefix(this.prefix));
+			return true;
+			
+		    } else
+			return false;
 		}
 	    } //else 
 		//if (!that.isNameVariable()) {
