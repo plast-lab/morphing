@@ -10,6 +10,42 @@ import java.io.File;
 public class ExamplesTest extends MJTestCase {
     
     @Test
+    public void testAdder () {
+	checkExample("arithmetic" + File.separator + "Adder.java");
+	noProblems();
+    }
+    
+    @Test
+    public void testAntiGetter() {
+	checkExample("AntiGetter.java");
+	noProblems();
+    }
+    
+    @Test
+    public void testBooleanExpr() {
+	checkExample("booleanexpr" + File.separator + "BooleanExpression.java");
+	noProblems();
+    }
+    
+    @Test
+    public void testFullAdder() {
+	checkExample("arithmetic" + File.separator + "FullAdder.java");
+	noProblems();
+    }
+    
+    @Test
+    public void testLogMe() {
+	checkExample("LogMe.java");
+	noProblems();
+    }
+    
+    @Test
+    public void testMatrix() {
+	checkExample("recref" + File.separator + "Matrix.java");
+	noProblems();
+    }
+    /*
+    @Test
     public void testDefaultImpelmentation() {
 	Collection<Problem> actualProblems = checkExample(
 		"DefaultImplementation.java", new String[] {  }, true);
@@ -24,7 +60,7 @@ public class ExamplesTest extends MJTestCase {
 	Collection<Problem> expectedProblems = new ArrayList<Problem>();
 	compareProblems(expectedProblems, actualProblems);
     }
-    
+    */
 /*
     @Test
     public void testGetterSetter() {
@@ -34,6 +70,7 @@ public class ExamplesTest extends MJTestCase {
 	compareProblems(expectedProblems, actualProblems);
     }
 */
+    /*
     @Test
     public void testDstm2() {
 	java.util.List<Collection<Problem>> actualProblems = checkExample(
@@ -47,5 +84,5 @@ public class ExamplesTest extends MJTestCase {
 	    compareProblems(expectedProblems, p);
     }
     
-    
+    */
 }

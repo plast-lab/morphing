@@ -279,18 +279,22 @@ aspect MJTypeHierarchyCheck {
     }
     */
 
+    public boolean MethodDecl.isMain() {
+	return !isReflectiveDecl() &&
+	    name().equals("main") &&
+	    type() == typeVoid() && 
+	    getParameterList().getNumChild() == 1 &&
+	    getParameter(0).type().isArrayDecl() &&
+	    ((ArrayDecl) getParameter(0).type()).elementType().name().equals("String");
+    }
+
     protected void ClassDecl.typeCheckMethod(MethodDecl m) {
 	super.typeCheckMethod(m);
 	if ( hasSuperclass() &&
 	     superclass() instanceof TypeVariable ) {
 	    MethodDecl md = superclass().everyMethod();
 	    if ( // Make exception for static void main(String[] argv)
-		!(!m.isReflectiveDecl() &&
-		  m.name().equals("main") &&
-		  m.type() == typeVoid() && 
-		  m.getParameterList().getNumChild() == 1 &&
-		  m.getParameter(0).type().isArrayDecl() &&
-		  ((ArrayDecl) m.getParameter(0).type()).elementType().name().equals("String"))) {
+		!m.isMain() ) {
 		ASTNode target = m.hostType() == this ? (ASTNode)m : (ASTNode)this;
 		checkOverride(target, m, md);
 		checkHide(target, m, md);
@@ -301,12 +305,7 @@ aspect MJTypeHierarchyCheck {
 	    if ( id.isTypeVariable())  {
 		MethodDecl md = id.everyMethod();
 		if ( // Make exception for static void main(String[] argv)
-		    !(!m.isReflectiveDecl() &&
-		      m.name().equals("main") &&
-		      m.type() == typeVoid() && 
-		      m.getParameterList().getNumChild() == 1 &&
-		      m.getParameter(0).type().isArrayDecl() &&
-		      ((ArrayDecl) m.getParameter(0).type()).elementType().name().equals("String"))) {
+		    !m.isMain()) {
 		    ASTNode target = m.hostType() == this ? (ASTNode)m : (ASTNode)this;
 		    checkOverride(target, m, md);
 		    checkHide(target, m, md);
@@ -322,12 +321,7 @@ aspect MJTypeHierarchyCheck {
 	    if ( id.isTypeVariable())  {
 		MethodDecl md = id.everyMethod();
 		if ( // Make exception for static void main(String[] argv)
-		    !(!m.isReflectiveDecl() &&
-		      m.name().equals("main") &&
-		      m.type() == typeVoid() && 
-		      m.getParameterList().getNumChild() == 1 &&
-		      m.getParameter(0).type().isArrayDecl() &&
-		      ((ArrayDecl) m.getParameter(0).type()).elementType().name().equals("String"))) {
+		    ! m.isMain()) {
 		    ASTNode target = m.hostType() == this ? (ASTNode)m : (ASTNode)this;
 		    checkOverride(target, m, md);
 		    checkHide(target, m, md);

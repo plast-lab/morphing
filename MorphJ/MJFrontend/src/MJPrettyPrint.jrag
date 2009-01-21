@@ -137,6 +137,12 @@ aspect MJPrettyPrint {
 	}
 	buf.append(")");
     }
+    public void NestedIteratorDecl.toString(StringBuffer buf) {
+	getEnclosingIteratorDecl().toString(buf);
+	buf.append("\n");
+	super.toString(buf);
+    }
+
     public void PatternNameVariable.toString(StringBuffer buf) {
 	buf.append(getID());
     }

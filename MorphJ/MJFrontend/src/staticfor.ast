@@ -21,22 +21,19 @@ StaticForConstructorDeclSubstituted : StaticForConstructorDecl;
 
 StaticForMethodDecl : MethodDecl ::= IteratorDecl DecompiledAccess:Access* StaticForMethodDeclSubstituted*;
 StaticForMethodDeclSubstituted : StaticForMethodDecl ::= ExpandedMethods:StaticForMethodDeclSubstituted*; 
-GroundedStaticForMethodDecl : StaticForMethodDeclSubstituted;
 EveryMethodDecl : StaticForMethodDecl;
-
-/*
-ParStaticForMethodDecl : StaticForMethodDecl ::= ExpandedMethodDecl*; 
-ExpandedMethodDecl : MethodDecl;
-*/
 
 StaticForFieldDeclaration : FieldDeclaration ::=  IteratorDecl StaticForFieldDeclarationSubstituted*;
 StaticForFieldDeclarationSubstituted : StaticForFieldDeclaration; // ::= ExpandedFieldDeclaration*;
+EveryFieldDeclaration : StaticForFieldDeclaration;
 
 StaticForStmt : Stmt ::= IteratorDecl Stmt* SubstitutedStaticForStmt*;
 SubstitutedStaticForStmt : StaticForStmt;
 //ExpandedStaticForStmt : Stmt;
 
 IteratorDecl ::= PatternTypeParameter:TypeVariable* PatternNameParameter:PatternNameVariable* Pattern NestedPattern:Pattern* ParIteratorDecl*;
+NestedIteratorDecl : IteratorDecl ::= EnclosingIteratorDecl:IteratorDecl;
+
 ParIteratorDecl : IteratorDecl;
 TrueIteratorDecl : IteratorDecl;
 

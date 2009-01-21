@@ -27,7 +27,7 @@ aspect MJUtilities {
 	// create substitution from m -> name.
 	Map sub = new HashMap();
 	sub.put(everyMethod.getIteratorDecl().getPatternNameParameter(0),
-		new Identifier(getID(), IteratorDecl.TrueIteratorDecl));
+		new Identifier(name, IteratorDecl.TrueIteratorDecl));
 
 
 	StaticForMethodDecl sfd = everyMethod.substitute(sub);

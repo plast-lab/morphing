@@ -114,11 +114,15 @@ aspect MJLookupMethod {
 	HashMap map = new HashMap(getNumBodyDecl());
 	for(int i = 0; i < getNumBodyDecl(); i++) {
 	    if(getBodyDecl(i) instanceof MethodDecl) {
-		if ( getBodyDecl(i) instanceof StaticForMethodDecl &&
-		     !(getBodyDecl(i) instanceof EveryMethodDecl) ) {
+		if ( getBodyDecl(i) instanceof StaticForMethodDecl ) {
+		    if ( getBodyDecl(i) instanceof EveryMethodDecl ) 
+			continue;
 		    StaticForMethodDecl decl = (StaticForMethodDecl) getBodyDecl(i);
-		    if (decl.expandable()) {
-			List<? extends MethodDecl> expandedMethods = decl.expandedMethods();
+		    if ( decl.grounded()) {
+			map.put(decl.signature(), decl);
+		    } else if (decl.expandable()) {
+			List<? extends MethodDecl> expandedMethods = 
+			    decl.expandedMethods();
 			for ( int j=0; j<expandedMethods.getNumChild(); j++) {
 			    map.put(expandedMethods.getChild(j).signature(),
 				    expandedMethods.getChild(j));
@@ -136,12 +140,28 @@ aspect MJLookupMethod {
     //    refine Generics eq ParTypeDecl.localMethodsSignatureMap() {    
     // HashMap map = Generics.ParTypeDecl.localMethodsSignatureMap();
     refine Generics eq MemberSubstitutor.localMethodsSignatureMap() {
-	HashMap map = Generics.MemberSubstitutor.localMethodsSignatureMap();
+	// HashMap map = Generics.MemberSubstitutor.localMethodsSignatureMap();
+	// copied 
+	HashMap map = new HashMap();
+	for(Iterator iter = original().localMethodsIterator(); iter.hasNext(); ) {
+	    MethodDecl decl = (MethodDecl)iter.next();
+	    if(!decl.isReflectiveDecl() && 
+	       !decl.isStatic() && (decl.usesTypeVariable() || isRawType())) {
+		BodyDecl b = decl.p(this);
+		b.is$Final = true;
+		addBodyDecl(b);
+		decl = (MethodDecl)b;
+	    }
+	    map.put(decl.signature(), decl);
+	}
+
 	// add the ones from grounded reflective declarations.
 	Collection refMethods = reflectiveMethods();
 	for ( Iterator refIt = refMethods.iterator(); refIt.hasNext(); ) {
 	    StaticForMethodDeclSubstituted md = (StaticForMethodDeclSubstituted) refIt.next();
-	    if ( md.expandable() ) {
+	    if ( md.grounded()) {
+		map.put(md.signature(), md);
+	    } else if ( md.expandable() ) {
 		List expandedMethods = md.expandedMethods();
 		for ( int i=0; i<expandedMethods.getNumChild(); i++ ) {
 		    MethodDecl decl = (MethodDecl) expandedMethods.getChild(i);
@@ -276,7 +296,9 @@ aspect MJLookupMethod {
 		if ( em.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
 		    // 2. the name it maps to is used in declaring method.
 		    StaticForMethodDeclSubstituted smd = em.substitute(uniMap);
-		    if ( smd.identifier().equals(id))
+		    Identifier emId = em.identifier().substitutedIdentifier(uniMap);
+		    Identifier idId =  id.substitutedIdentifier(uniMap);
+		    if ( emId.equals(idId))
 			methods.add(smd);
 		}
 	    }
@@ -290,14 +312,17 @@ aspect MJLookupMethod {
 		if ( md.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
 		    // 2. the name it maps to is used in declaring method.
 		    StaticForMethodDeclSubstituted smd = md.substitute(uniMap);
-		    if ( smd.identifier().equals(id))
+
+		    Identifier smdId = md.identifier().substitutedIdentifier(uniMap);
+		    Identifier idId =  id.substitutedIdentifier(uniMap);
+		    if ( smdId.equals(idId))
 			methods.add(smd);
 		}
 	    }
 	}
 
 	if ( !id.isNameVariable()) {
-	    methods.addAll(memberMethods(id.varname));
+	    methods.addAll(memberMethods(id.name()));
 	}
 	
 	return methods;

@@ -308,6 +308,7 @@ aspect MJSubstitution {
 	fp.identifier().namevariable = 
 	    this.identifier().substitutedNameVariable(substitutions);
 
+	fp.flushCache();
 	return fp;
     }
 
@@ -332,6 +333,8 @@ aspect MJSubstitution {
 	nfp.identifier().namevariable = 
 	    this.identifier().substitutedNameVariable(substitutions);
 
+	nfp.flushCache();
+
 	return nfp;
     }
     public StaticFieldPattern StaticFieldPattern.substitute(Map substitutions, boolean subModifiers) {
@@ -350,9 +353,7 @@ aspect MJSubstitution {
 	    new MethodPattern(getBaseSet().substitute(substitutions),
 			      getModifiers().substitute(substitutions),
 			      getTypeAccess().type().substitute(substitutions),
-			      identifier().substitutedName(substitutions), //name,
-			      //			      getParameterList().substituteAccessList(substitutions),
-			      //			      getExceptionList().substituteAccessList(substitutions),
+			      identifier().substitutedName(substitutions), 
 			      List.fromJavaList(getParameterList().expandAccessList(substitutions)),
 			      List.fromJavaList(getExceptionList().expandAccessList(substitutions)),
 			      new Opt(), new List());
@@ -362,9 +363,11 @@ aspect MJSubstitution {
 
 	addSubMethodPattern(mp);
 
+
 	mp.identifier().namevariable = 
 	    this.identifier().substitutedNameVariable(substitutions);
 
+	mp.flushCache();
 	return mp;
     }
 
@@ -393,6 +396,7 @@ aspect MJSubstitution {
 	nmp.identifier().namevariable = 
 	    this.identifier().substitutedNameVariable(substitutions);
 
+	nmp.flushCache();
 	return nmp;
     }
     public TrueNestedPattern TrueNestedPattern.substitute(Map substitutions, boolean subModifiers) {

@@ -63,6 +63,11 @@ public abstract class MJTestCase extends TestCase {
 	return actualProblems;
     }
 
+    protected void checkExample(String fileName) {
+	actualProblems = MJChecker.collectProblems(new String[] { MJ_EXAMPLES
+		+ fileName }, false);
+    }
+
     protected Collection<Problem> checkExample(String fileName,
 	    String[] compilerOpts, boolean printErrors) {
 	Collection<Problem> actualProblems = MJChecker
@@ -103,6 +108,10 @@ public abstract class MJTestCase extends TestCase {
 
     protected void compareProblems() {
 	compareProblems(expectedProblems, actualProblems);
+    }
+
+    protected void noProblems() {
+	noProblems(actualProblems);
     }
 
     protected void clearExpected() {

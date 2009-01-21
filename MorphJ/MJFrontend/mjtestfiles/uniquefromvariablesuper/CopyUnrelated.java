@@ -8,7 +8,7 @@ abstract class Foo {
     public Object m2 () { return null; }
     protected String m3 ( Number n ) { return ""; }
     public abstract Number m4 ( int i, Float f);
-    private final Object m5 ( String s, int i, Object o) { return o ; }
+    private final Object m5 ( String s, int i, Object o) { return o; }
 }
 
 

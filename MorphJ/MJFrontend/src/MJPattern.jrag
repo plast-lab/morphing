@@ -6,116 +6,16 @@ aspect MJPattern {
     PatternTypeVariable implements PatternVariable;
     PatternNameVariable implements PatternVariable;
 
-    // whether a piece of code is reflectively declared.
-    syn lazy boolean BodyDecl.isReflectiveDecl() = false;
-    eq StaticForMethodDecl.isReflectiveDecl() = true;
-    eq StaticForConstructorDecl.isReflectiveDecl() = true;
-    eq StaticForFieldDeclaration.isReflectiveDecl() = true;
-    syn lazy boolean TypeDecl.isReflectiveDecl() = false;
-
-    //    public boolean Variable.isReflectiveDecl();
-    syn lazy boolean ParameterDeclaration.isReflectiveDecl() = false;
-
-    /**
-     * Specifies whether a Stmt is a reflectively declared statement --
-     * this does not include stmts that are within a reflectively declared
-     * method.
-     **/
-    inh boolean Stmt.isReflectiveStmt();
-    eq StaticForStmt.getStmt(int index).isReflectiveStmt() = true;
-    eq Block.getStmt(int index).isReflectiveStmt() = isReflectiveStmt();
-    eq TryStmt.getCatchClause(int index).isReflectiveStmt() = isReflectiveStmt();
-    inh boolean CatchClause.isReflectiveStmt();
-
-    eq CatchClause.getBlock().isReflectiveStmt() = isReflectiveStmt();
-    eq LabeledStmt.getStmt().isReflectiveStmt() = isReflectiveStmt();
-    eq EnhancedForStmt.getStmt().isReflectiveStmt() = isReflectiveStmt();
-    eq ForStmt.getInitStmt(int index).isReflectiveStmt() = isReflectiveStmt();
-    eq ForStmt.getStmt().isReflectiveStmt() = isReflectiveStmt();
-    eq ForStmt.getUpdateStmt(int index).isReflectiveStmt() = isReflectiveStmt();
-    eq WhileStmt.getStmt().isReflectiveStmt() = isReflectiveStmt();
-    eq ConstructorDecl.getConstructorInvocation().isReflectiveStmt() = false;
-
-    eq ConstructorDecl.getBlock().isReflectiveStmt() = false;
-    eq MethodDecl.getBlock().isReflectiveStmt() = false;
-    
-    syn lazy boolean VariableDeclaration.isReflectiveDecl() = isReflectiveStmt();
-    /**********/
-
-    syn lazy IteratorDecl BodyDecl.refIterator() = null;
-    eq StaticForMethodDecl.refIterator() = getIteratorDecl();
-    eq StaticForConstructorDecl.refIterator() = getIteratorDecl();
-    eq StaticForFieldDeclaration.refIterator() = getIteratorDecl();
-    eq GroundedStaticForMethodDecl.refIterator() = original.refIterator();
-    //    eq ExpandedMethodDecl.refIterator() = original.refIterator();
-    //    eq StaticForMethodDeclSubstituted.refIterator() = original.refIterator();
-
-    eq StaticForMethodDecl.getBlock().enclosingRefIterator() = getIteratorDecl();
-    eq StaticForMethodDecl.getTypeAccess().enclosingRefIterator() = getIteratorDecl();
-    eq StaticForMethodDecl.getParameter(int i).enclosingRefIterator() = getIteratorDecl();
-    eq StaticForMethodDecl.getException(int i).enclosingRefIterator() = getIteratorDecl();
-
-    eq StaticForConstructorDecl.getBlock().enclosingRefIterator() = getIteratorDecl();
-    eq StaticForConstructorDecl.getParameter(int i).enclosingRefIterator() = getIteratorDecl();
-    eq StaticForConstructorDecl.getException(int i).enclosingRefIterator() = getIteratorDecl();
-
-    eq StaticForFieldDeclaration.getTypeAccess().enclosingRefIterator() = getIteratorDecl();
-    eq StaticForFieldDeclaration.getInit().enclosingRefIterator() = getIteratorDecl();
-
-    public IteratorDecl Variable.getEnclosingRefIterator() {
-	return enclosingRefIterator();
+    syn lazy java.util.List<Pattern> IteratorDecl.primaryPatterns() { 
+	ArrayList<Pattern> lp = new ArrayList<Pattern>();
+	lp.add(getPattern());
+	return lp;
     }
-
-    inh IteratorDecl IteratorDecl.enclosingRefIterator();
-    inh IteratorDecl Stmt.enclosingRefIterator();
-    inh IteratorDecl BodyDecl.enclosingRefIterator();
-
-    eq StaticForStmt.getStmt(int index).enclosingRefIterator() = getIteratorDecl();
-
-    syn lazy IteratorDecl Stmt.refIterator() = null;
-    eq StaticForStmt.refIterator() = getIteratorDecl();
-
-    //inh IteratorDecl Expr.enclosingRefIterator();
-    syn lazy IteratorDecl Expr.enclosingRefIterator() {
-	if ( enclosingStmt() != null )
-	    return enclosingStmt().enclosingRefIterator();
-	else if ( enclosingBodyDecl() != null )
-	    return enclosingBodyDecl().refIterator();
-	return null;
+    eq NestedIteratorDecl.primaryPatterns() {
+	java.util.List<Pattern> lp = getEnclosingIteratorDecl().primaryPatterns();
+	lp.add(getPattern());
+	return lp;
     }
-
-    inh IteratorDecl Pattern.enclosingRefIterator();
-    eq IteratorDecl.getPattern().enclosingRefIterator() = this;
-    eq IteratorDecl.getNestedPattern(int i).enclosingRefIterator() = this;
-    inh IteratorDecl PatternNameVariable.enclosingRefIterator();
-    eq IteratorDecl.getPatternNameParameter(int i).enclosingRefIterator() = this;
-    inh IteratorDecl PatternTypeVariable.enclosingRefIterator();
-    eq IteratorDecl.getPatternTypeParameter(int i).enclosingRefIterator() = this;
-    eq Program.getChild().enclosingRefIterator() = null;
-
-    syn IteratorDecl StaticFieldPattern.enclosingRefIterator() = null;
-    syn IteratorDecl StaticMethodPattern.enclosingRefIterator() = null;
-
-    inh IteratorDecl ParameterDeclaration.enclosingRefIterator();
-    eq MethodDecl.getParameter(int i).enclosingRefIterator() = null;
-    eq CatchClause.getParameter().enclosingRefIterator() = enclosingRefIterator();
-
-    inh IteratorDecl CatchClause.enclosingRefIterator();
-    eq TryStmt.getCatchClause(int i).enclosingRefIterator() = enclosingRefIterator();
-
-    // get the enclosing reflective base type
-    syn lazy TypeDecl BodyDecl.reflectiveBaseType() =
-	refIterator() != null ? refIterator().getPattern().reflectiveBaseType() : null;
-
-    syn lazy TypeDecl Pattern.reflectiveBaseType() = getBaseSet().getTypeAccess().type();
-    eq EmptyPrimaryPattern.reflectiveBaseType() = null;
-
-    syn lazy TypeDecl Stmt.reflectiveBaseType() = enclosingRefIterator() != null ? enclosingRefIterator().getPattern().reflectiveBaseType() : null;
-
-    syn lazy TypeDecl IteratorDecl.reflectiveBaseType() = getPattern().reflectiveBaseType();
-
-    inh TypeDecl PatternNameVariable.reflectiveBaseType();
-    eq IteratorDecl.getPatternNameParameter(int i).reflectiveBaseType() = getPattern().reflectiveBaseType();
 
     // get enclosing pattern name variables.
     syn lazy Collection<PatternNameVariable> BodyDecl.patternNameVariables() =
@@ -127,13 +27,19 @@ aspect MJPattern {
 	    c.add(getPatternNameParameter(i));
 	return c;
     }
-
+    eq NestedIteratorDecl.patternNameVariables() {
+	Collection c = super.patternNameVariables();
+	c.addAll(getEnclosingIteratorDecl().patternNameVariables());
+	return c;
+    }
     inh Collection<PatternNameVariable> Pattern.patternNameVariables();
     eq IteratorDecl.getPattern().patternNameVariables() = patternNameVariables();
+
     // The only name variables that are still variables for nested pattern
     // are the ones not bounded by the primary pattern.
-    eq IteratorDecl.getNestedPattern(int i).patternNameVariables() = unboundNameVariables();
-
+    eq IteratorDecl.getNestedPattern(int i).patternNameVariables() = 
+	unboundNameVariables();
+    
     syn lazy Collection IteratorDecl.unboundNameVariables() {
 	Pattern p = getPattern();
 	Collection unbound = new ArrayList(patternNameVariables());
@@ -210,6 +116,11 @@ aspect MJPattern {
 	    c.add(getPatternTypeParameter(i));
 	return c;
     }
+    eq NestedIteratorDecl.patternTypeVariables() {
+	Collection c = super.patternTypeVariables();
+	c.addAll(getEnclosingIteratorDecl().patternTypeVariables());
+	return c;
+    }
     inh Collection<PatternTypeVariable> Pattern.patternTypeVariables();
     eq IteratorDecl.getPattern().patternTypeVariables() = patternTypeVariables();
     eq IteratorDecl.getNestedPattern(int i).patternTypeVariables() = unboundTypeVariables();
@@ -233,9 +144,6 @@ aspect MJPattern {
 	return false;
     }
 
-    //    eq ExpandedMethodDecl.isNameVariable(String name) = original.isNameVariable(name);
-    // eq StaticForMethodDeclSubstituted.isNameVariable(String name) = original.isNameVariable(name);
-
     inh boolean Stmt.isNameVariable(String name);
     eq StaticForStmt.getStmt(int index).isNameVariable(String name) =
 	getIteratorDecl().isLocalNameVariable(name) || isNameVariable(name);
@@ -253,9 +161,11 @@ aspect MJPattern {
     eq Program.getChild(int i).isNameVariable(String name) = false;
 
     syn lazy boolean IteratorDecl.isLocalNameVariable(String name) {
-	for ( int i=0; i<getNumPatternNameParameter(); i++)
-	    if (getPatternNameParameter(i).getID().equals(name))
+	for ( int i=0 ; i<getNumPatternNameParameter(); i++) {
+	    PatternNameVariable pv = getPatternNameParameter(i);
+	    if (pv.getID().equals(name))
 		return true;
+	}
 	return false;
     }
     syn lazy boolean IteratorDecl.isNameVariable(String name) = isLocalNameVariable(name) || (enclosingRefIterator() != null && enclosingRefIterator().isNameVariable(name));
@@ -269,9 +179,6 @@ aspect MJPattern {
 	Identifier id = new Identifier(name, refIterator());
 	return id.isNameVariable();
     }
-    //    eq ExpandedMethodDecl.containsNameVariable(String name) = original.containsNameVariable(name);
-    //    eq StaticForMethodDeclSubstituted.containsNameVariable(String name) = original.containsNameVariable(name);
-
     inh boolean Stmt.containsNameVariable(String name);
     eq StaticForStmt.getStmt(int index).containsNameVariable(String name) =
 	getIteratorDecl().isLocalNameVariable(name) || containsNameVariable(name);
@@ -390,6 +297,13 @@ aspect MJPattern {
 	((Pattern) parent.parent).enclosingRefIterator();
     eq PatternFieldDeclaration.refIterator() = 
 	((Pattern) parent.parent).enclosingRefIterator();
+
+    inh Pattern PatternMethodDecl.pattern();
+    eq MethodPattern.getPatternMethodDecl().pattern() = this;
+    eq Program.getChild().pattern() = null;
+
+    inh Pattern PatternFieldDeclaration.pattern();
+    eq FieldPattern.getPatternFieldDeclaration().pattern() = this;
 
     syn lazy boolean TypeDecl.isVectorTypeVariable() = false;
     eq VectorTypeVariable.isVectorTypeVariable() = true;

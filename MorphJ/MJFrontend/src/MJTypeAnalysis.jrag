@@ -250,7 +250,10 @@ aspect MJCircularity {
 
     //    eq NonVoidMatchedVectorTypeVariable.isNonVoidTypeVariable() = true;
 
-    eq VectorTypeVariable.subtype(TypeDecl type) = this == type;
+    eq VectorTypeVariable.subtype(TypeDecl type) {
+	if ( type.isVectorTypeVariable()) return this == type;
+	return super.subtype(type);
+    }
 
     /*
     eq NonVoidTypeVariable.subtype(TypeDecl type) = this == type ||

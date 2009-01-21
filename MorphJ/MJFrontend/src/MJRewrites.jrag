@@ -175,9 +175,6 @@ aspect MJRewrites {
 	    if ( matchingException()) {
 		boundAccess = typeThrowable().createBoundAccess();
 	    } else {
-		/*
-		return new NonVoidTypeVariable((Modifiers) getModifiers().fullCopy(),getID(),(List)getBodyDeclsNoTransform().fullCopy(),new List().add(typeNonVoid().createBoundAccess()));
-		*/
 		boundAccess = typeNonVoid().createBoundAccess(); 
 	    }
 	    boundAccess.addedByPatternRewrite = true;
@@ -186,27 +183,15 @@ aspect MJRewrites {
 	    return this;
 	}
     }
-
-    /*
-    rewrite VectorTypeVariable {
-	when ( getNumTypeBound() == 0 )
-	    to VectorTypeVariable {
-	    if ( matchingException()) {
-		Access boundAccess = typeThrowable().createBoundAccess();
-		boundAccess.addedByPatternRewrite = true;
-		addTypeBound(boundAccess);
-		
-		return this;
-	    } else
-		return new NonVoidVectorTypeVariable((Modifiers) getModifiers().fullCopy(),getID(),(List)getBodyDeclsNoTransform().fullCopy(),new List().add(typeNonVoid().createBoundAccess()));
-	}
-    }
-    */
-
     rewrite AllMatchingTypeVariable {
 	when ( getNumTypeBound() == 0 )
 	    to AllMatchingTypeVariable {
-	    addTypeBound(typeEveryType().createBoundAccess());
+	    Access boundAccess = null;
+	    if ( matchingException()) 
+		boundAccess = typeThrowable().createBoundAccess();
+	    else
+		boundAccess = typeEveryType().createBoundAccess();
+	    addTypeBound(boundAccess);
 	    return this;
 	}
     }

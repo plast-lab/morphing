@@ -149,7 +149,7 @@ aspect MJLookupVariable {
     syn lazy SimpleSet MethodDecl.parameterDeclaration(Identifier id) {
 	if ( !id.isNameVariable()) {
 	    for(int i = 0; i < getNumParameter(); i++)
-		if(getParameter(i).name().equals(id.varname))
+		if(getParameter(i).name().equals(id.name()))
 		    return (ParameterDeclaration)getParameter(i);
 	}
 	return SimpleSet.emptySet;
@@ -157,14 +157,14 @@ aspect MJLookupVariable {
     syn lazy SimpleSet ConstructorDecl.parameterDeclaration(Identifier id) {
 	if ( !id.isNameVariable()) {	
 	    for(int i = 0; i < getNumParameter(); i++)
-		if(getParameter(i).name().equals(id.varname))
+		if(getParameter(i).name().equals(id.name()))
 		    return (ParameterDeclaration)getParameter(i);
 	}
 	return SimpleSet.emptySet;
     }
     syn lazy SimpleSet CatchClause.parameterDeclaration(Identifier id) {
 	if ( !id.isNameVariable() &&
-	     getParameter().name().equals(id.varname))
+	     getParameter().name().equals(id.name()))
 	    return (ParameterDeclaration)getParameter() ;
 	return SimpleSet.emptySet;
     }
@@ -590,22 +590,23 @@ aspect MJFields {
 	/**
 	 * pattern: F f : T.methods
 	 **/
-	PatternTypeVariable F = new PatternTypeVariable(new Modifiers(), "F", new List(), new List().add(typeNonVoid().createBoundAccess()));
-	PatternNameVariable f = new PatternNameVariable("f");
+	PatternTypeVariable F = new PatternTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeNonVoid().createBoundAccess()));
+	String name = Program.generateFreshNameVariableName();
+	PatternNameVariable f = new PatternNameVariable(name);
 	Pattern p = new FieldPattern(new BaseSet(createQualifiedAccess(), 
 						 new RefElmt("fields")),
-				     new Modifiers(),
-				     F.createQualifiedAccess(), "f",
+				     new Modifiers().enhanceWithMaybes(Modifiables.FIELD),
+				     F.createQualifiedAccess(), name,
 				     new Opt(), new List());
 	IteratorDecl id = new IteratorDecl(new List().add(F),
 					   new List().add(f),
 					   p, new List(), new List());
 
 	StaticForFieldDeclaration sfd = 
-	    new StaticForFieldDeclaration(new Modifiers(),
-					  F.createQualifiedAccess(),
-					  "f", new Opt(),
-					  id, new List());
+	    new EveryFieldDeclaration(new Modifiers(),
+				      F.createQualifiedAccess(),
+				      name, new Opt(),
+				      id, new List());
 	sfd.is$Final = true;
 	addBodyDecl(sfd);
 	sfd.bypassErrorChecking = true;
@@ -769,7 +770,7 @@ aspect MJFields {
 	    // if identifier is not a name variable, then call lookup
 	    // on the static part.
 	    if ( !id.isNameVariable()) {
-		SimpleSet staticFields = localFields(id.varname);
+		SimpleSet staticFields = localFields(id.name());
 		for ( Iterator fIt = staticFields.iterator(); fIt.hasNext(); ) {
 		    fields = fields.add(fIt.next());
 		}
@@ -808,7 +809,7 @@ aspect MJFields {
 	    // if identifier is not a name variable, then call lookup
 	    // on the static part.
 	    if ( !id.isNameVariable()) {
-		SimpleSet staticFields = localFields(id.varname);
+		SimpleSet staticFields = localFields(id.name());
 		for ( Iterator fIt = staticFields.iterator(); fIt.hasNext(); ) {
 		    FieldDeclaration fd = (FieldDeclaration) fIt.next();
 		    FieldDeclaration fds = fd.findSubstitutedFieldDeclaration(this);
@@ -884,4 +885,10 @@ aspect MJFields {
 	}
 	return fields;
     }
+
+    syn lazy boolean FieldDeclaration.isEveryField() = false;
+    eq EveryFieldDeclaration.isEveryField() = true;
+    eq StaticForFieldDeclarationSubstituted.isEveryField() =
+	((StaticForFieldDeclaration) getOriginal()).isEveryField();
+
 }

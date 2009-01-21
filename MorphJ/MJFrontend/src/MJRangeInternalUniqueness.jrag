@@ -4,20 +4,35 @@ aspect MJRangeInternalUniqueness {
     eq StaticForMethodDecl.isInternallyUnique() {
 	// make sure that the method signature copies all the uniquely
 	// identifying parts of the enclosing iterator.
-	return copiesUniquePartsOf(refIterator().getPattern());
+	//	return copiesUniquePartsOf(refIterator().getPattern());
+	return copiesUniquePartsOf(refIterator().primaryPatterns());
     }
     eq StaticForFieldDeclaration.isInternallyUnique() {
-	return copiesUniquePartsOf(refIterator().getPattern());
+	//	return copiesUniquePartsOf(refIterator().getPattern());
+	return copiesUniquePartsOf(refIterator().primaryPatterns());
     }
 
-    syn lazy boolean BodyDecl.copiesUniquePartsOf(Pattern p) = false;
+    // Right now, we do not support multiple primary patterns.
+    // But I am leaving this in here for future expansion.
+    // If there are multiple primary patterns in the enclosing iterator 
+    // declaration, then copy unique part must copy the unique part
+    // of all primary patterns.
+    syn boolean BodyDecl.copiesUniquePartsOf(java.util.List<Pattern> patterns) {
+	for ( Pattern p : patterns ) {
+	    if ( !this.copiesUniquePartsOf(p))
+		return false;
+	}
+	return true;
+    }
+
+    syn boolean BodyDecl.copiesUniquePartsOf(Pattern p) = false;
     eq StaticForMethodDecl.copiesUniquePartsOf(Pattern p) =
 	p.uniquePartsCopiedByMethodDecl(this);
     eq StaticForFieldDeclaration.copiesUniquePartsOf(Pattern p) =
 	p.uniquePartsCopiedByFieldDeclaration(this);
     
-    syn lazy boolean Pattern.uniquePartsCopiedByMethodDecl(MethodDecl m) = false;
-    syn lazy boolean Pattern.uniquePartsCopiedByFieldDeclaration(FieldDeclaration f) = false;
+    syn boolean Pattern.uniquePartsCopiedByMethodDecl(MethodDecl m) = false;
+    syn boolean Pattern.uniquePartsCopiedByFieldDeclaration(FieldDeclaration f) = false;
     eq MethodPattern.uniquePartsCopiedByMethodDecl(MethodDecl m) {
 	// m must copy the name and argument types of this.
 	Identifier mid = m.identifier();
@@ -102,7 +117,6 @@ aspect MJRangeInternalUniqueness {
 
 	return true;
     }
-
     eq FieldPattern.uniquePartsCopiedByMethodDecl(MethodDecl m) {
 	Identifier mid = m.identifier();
 	Identifier pid = identifier();
@@ -116,6 +130,9 @@ aspect MJRangeInternalUniqueness {
 
 	return fid.uniquelyIddBy(pid);
     }
+
+    eq EmptyPrimaryPattern.uniquePartsCopiedByMethodDecl(MethodDecl m) = true;
+    eq EmptyPrimaryPattern.uniquePartsCopiedByFieldDeclaration(FieldDeclaration f) = true;
 
     public boolean Identifier.uniquelyIddBy(Identifier id) {
 	if ( isNameVariable() ^ id.isNameVariable())

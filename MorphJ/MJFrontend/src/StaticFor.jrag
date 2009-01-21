@@ -4,10 +4,11 @@ aspect StaticFor {
 
     eq StaticForDecl.isStatic() = true;
 
-    interface StaticForDeclaration {
+    public interface StaticForDeclaration {
 	IteratorDecl getIteratorDecl();
 	public ASTNode setEnd(int i);
 	public ASTNode setStart(int i);
+	IteratorDecl enclosingRefIterator();
     }
     StaticForMethodDecl implements StaticForDeclaration;
     StaticForFieldDeclaration implements StaticForDeclaration;
@@ -89,6 +90,13 @@ aspect StaticFor {
 	m.IDend = this.IDend;
 	return m;
     }
+    public StaticForDeclaration StaticForMethodDecl.createStaticForDeclarationFrom(IteratorDecl id) {
+	// This is a StaticForMtehodDecl nested inside of another iterator
+	// declaration id.
+	IteratorDecl nid = getIteratorDecl().createNestedIteratorDeclEnclosedBy(id);
+	return super.createStaticForDeclarationFrom(nid);
+    }
+
     public StaticForDeclaration FieldDeclaration.createStaticForDeclarationFrom(IteratorDecl id) {
 	StaticForFieldDeclaration f = 
 	    new StaticForFieldDeclaration(getModifiers(), getTypeAccess(), getID(), getInitOpt(), id, new List());
@@ -96,9 +104,22 @@ aspect StaticFor {
 	f.IDend = this.IDend;
 	return f;
     }
+    public StaticForDeclaration StaticForFieldDeclaration.createStaticForDeclarationFrom(IteratorDecl id) {
+	IteratorDecl nid = getIteratorDecl().createNestedIteratorDeclEnclosedBy(id);
+	return super.createStaticForDeclarationFrom(nid);
+    }
 
     // TODO: MemberClassDecl, MemberInterfaceDecl, StaticInitializer
 
     syn TypeDecl BaseSet.baseType() = getTypeAccess().type();
     syn TypeDecl IteratorDecl.baseType() = getPattern().getBaseSet().baseType();
+
+    public NestedIteratorDecl IteratorDecl.createNestedIteratorDeclEnclosedBy(IteratorDecl id) {
+	return new NestedIteratorDecl(getPatternTypeParameterListNoTransform(),
+				      getPatternNameParameterListNoTransform(),
+				      getPatternNoTransform(),
+				      getNestedPatternListNoTransform(),
+				      getParIteratorDeclListNoTransform(),
+				      id);
+    }
 }
