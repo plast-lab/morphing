@@ -8,7 +8,8 @@ public class GetterSetter<class X> extends X {
     public F get#f () { return f; }
 
     // unnecessary, but testing out super calls.
-    <F,E*>[f] for ( !static !private F f : X.fields; some F get#f() throws E : X.methods)
+    <F,E*>[f] for ( !static !private F f : X.fields; 
+		    some !final !static F get#f() throws E : X.methods)
     public F get#f () throws E { 
 	return super.get#f(); 
     }

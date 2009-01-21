@@ -6,9 +6,19 @@ public class SynchronizeMe<interface T> implements T {
     final T me;
     final Object mutex;
 
+
     public SynchronizeMe (T t) {
+	if ( t == null )
+	    throw new NullPointerException();
 	me = t;
 	mutex = this;
+    }
+
+    public SynchronizeMe (T t, Object mutex) {
+	if ( t == null )
+	    throw new NullPointerException();
+	me = t;
+	this.mutex = mutex;
     }
 
     <R1,A1*,E1*>[m1] for ( !final R1 m1 (A1) throws E1 : T.methods) 

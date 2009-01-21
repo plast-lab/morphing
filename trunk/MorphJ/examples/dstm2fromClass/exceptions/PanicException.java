@@ -44,7 +44,7 @@ public class PanicException extends java.lang.RuntimeException {
     public PanicException() {
     }
 
-    public PanicException(String format, Object ... args) {
+    public PanicException(String format, Object... args) {
       super(String.format(format, args));
     }
 

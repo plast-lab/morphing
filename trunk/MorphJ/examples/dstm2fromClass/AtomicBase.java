@@ -11,8 +11,8 @@ import examples.dstm2fromClass.shadow.*;
     /**
      * Choice #2: make field types atomic.
      **/
-    <F extends Object>[f] for ( @atomic F f : X.fields ; 
-				no get#f () : Object.methods ) {|
+    <F extends Object>[f] for ( @atomic F f : X.fields ) {|
+	//				no get#f () : Object.methods ) {|
     AtomicBase<F> f;
     public AtomicBase<F> get#f() { return adaptor.get#f(); }
     public void set#f( AtomicBase<F> value ) { adaptor.set#f(value); }
@@ -21,8 +21,8 @@ import examples.dstm2fromClass.shadow.*;
     |}
 
     // TODO primitives. arrays?
-    [fi] for ( @atomic int fi : X.fields ;
-	       no get#fi () : Object.methods ) {|
+    [fi] for ( @atomic int fi : X.fields ) {|
+	//	       no get#fi () : Object.methods ) {|
     int fi;
     public int get#fi() { return adaptor.get#fi(); }
     public void set#fi( int value ) { adaptor.set#fi(value); }

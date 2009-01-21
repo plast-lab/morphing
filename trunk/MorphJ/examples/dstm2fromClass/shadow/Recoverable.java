@@ -14,8 +14,8 @@ import examples.dstm2fromClass.AtomicBase;
     // shadow fields.
     // TODO: this requires knowledge that all of AtomicBase<Z>'s fields
     // has the same name as Z's fields.
-    <F1>[f1]for ( !private !static F1 f1 : AtomicBase<Z>.fields ; 
-		  no shadow#f1 : AtomicBase<Z>.fields ) 	 
+    <F1>[f1]for ( !private !static F1 f1 : AtomicBase<Z>.fields
+		  ; no shadow#f1 : AtomicBase<Z>.fields ) 	 
     F1 shadow#f1;
 
     // TODO: errorif.
