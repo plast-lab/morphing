@@ -200,12 +200,14 @@ aspect MJUnification {
     // 2) PatternTypeVariable is not VectorTypeVariable and already maps
     // to something.
     public boolean PatternTypeVariable.mapTo(TypeDecl t, Map uniMap) {
+	if ( this == t ) return true;
 	if ( this.circularlyMappedTo(t,uniMap))
 	    return false;
 	uniMap.put(this, t);
 	return true;
     }
     public boolean VectorTypeVariable.mapTo(TypeDecl t,Map uniMap) {
+	if ( this == t ) return true;
 	if ( this.circularlyMappedTo(t,uniMap))
 	    return false;
 	if ( uniMap.containsKey(this)) {
@@ -221,6 +223,7 @@ aspect MJUnification {
 
     public boolean PatternTypeVariable.mapTo(java.util.List<TypeDecl> tl, Map uniMap) { return false; }
     public boolean VectorTypeVariable.mapTo(java.util.List<TypeDecl> tl,Map uniMap) {
+	if ( tl.size() == 1 && this == tl.get(0)) return true;
 	// first check that this doesn't circularly depend on any
 	// type in cl
 	for ( TypeDecl t : tl ) {

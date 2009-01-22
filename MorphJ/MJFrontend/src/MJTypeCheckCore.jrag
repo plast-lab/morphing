@@ -26,7 +26,7 @@ aspect MJTypeCheckCore {
 	Collection patternConditions = new ArrayList();
 	patternConditions.addAll(patternConditions());
 	patternConditions.addAll(f.patternConditions());
-	if ( Program.hasMutualExclusiveConditions(patternConditions, uniMap))
+	if ( Program.hasMutualExclusiveConditions(patternConditions, uniMap, false))
 	    return true;
 	
 	// if signature can unify, they are still unique if the host types
@@ -72,7 +72,7 @@ aspect MJTypeCheckCore {
 	Collection patternConditions = new ArrayList();
 	patternConditions.addAll(patternConditions());
 	patternConditions.addAll(m.patternConditions());
-	return Program.hasMutualExclusiveConditions(patternConditions, uniMap);
+	return Program.hasMutualExclusiveConditions(patternConditions, uniMap, false);
     }
 
     /*

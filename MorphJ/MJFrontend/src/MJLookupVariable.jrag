@@ -186,6 +186,10 @@ aspect MJLookupVariable {
     syn boolean Stmt.declaresVariable(Identifier id) = false;
     eq VariableDeclaration.declaresVariable(Identifier id) {
 	if ( !id.name().equals(name())) return false;
+
+	// if this variable is declared under a refiterator, then the range
+	// of its ref iterator must be larger than the enclosing iterator of id
+	// i.e. id's iterator ==> this iterator.
 	return enclosingRefIterator() == null ? 
 	    IteratorDecl.TrueIteratorDecl.subsumes(id.enclosingRefIterator(), new HashMap())
 	    : enclosingRefIterator().subsumes(id.enclosingRefIterator(), new HashMap());
@@ -376,7 +380,9 @@ aspect MJLookupVariable {
 	// declaration that in the closest enclosing lexical scope.
 
 	// Lookup decls as using a constant name.
-	Identifier nameIdent = new Identifier(name(), IteratorDecl.TrueIteratorDecl);
+	Identifier nameIdent = //enclosingRefIterator() == null ?
+	    new Identifier(name(), IteratorDecl.TrueIteratorDecl);
+	    //	    new Identifier(name(), enclosingRefIterator());
 	SimpleSet consSet = lookupVariable(nameIdent);
 	SimpleSet set = consSet;
 

@@ -254,7 +254,6 @@ aspect MJSubstitution {
     public Pattern Pattern.substitute(Map substitutions) {
 	return substitute(substitutions, true);
     }
-
     public Pattern Pattern.substitute(Map substitutions, boolean subModifiers) {
 	throw new Error("substitute(Map) unsupported by " +
 			getClass().getName());

@@ -27,6 +27,8 @@ aspect Subsumption {
 	*/
 	return true;
     }
+    // TrueIterator subsumes everything.
+    eq TrueIteratorDecl.subsumes(IteratorDecl that,Map uniMap) = true;
 
     syn lazy boolean Pattern.subsumes(Pattern p, Map uniMap) = false;
     eq EmptyPrimaryPattern.subsumes(Pattern p, Map uniMap) = true;
@@ -125,15 +127,31 @@ aspect Subsumption {
     eq MethodPattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) {
 	if ( this == p ) return true;
 
-	// this's modifiers must be a subset of p's modifiers.
-	if ( !getModifiers().subsumedBy(p.getModifiers(), uniMap))
-	    return false;
-
 	// this's base type must be a supertype of p's base type.
 	TypeDecl thisBaseType = reflectiveBaseType().substitute(uniMap).type();
 	TypeDecl pBaseType = p.reflectiveBaseType().substitute(uniMap).type();
-	//	if ( !p.reflectiveBaseType().subtype(reflectiveBaseType()))
-	if ( !pBaseType.subtype(thisBaseType))
+	if ( !pBaseType.subtype(thisBaseType)) {
+	    // otherwise, this pattern must be subsumed by 
+	    // the methods of thisBaseType, that can be matched by 
+	    // pattern p. First, retrevie the range of p.
+	    Map<MethodDecl,Map> pRange = p.range(true);
+	    
+	    // for each method in p's range, one must subsume this.
+	    boolean subFound = false;
+	    for (MethodDecl pm : pRange.keySet()) {
+		Map pmMap = pRange.get(pm);
+		HashMap newMap = new HashMap(uniMap); newMap.putAll(pmMap);
+		
+		if ( pm.subsumes(this, newMap) ) {
+		    subFound = true;
+		    break;
+		}
+	    }
+	    return subFound;
+	}
+
+	// this's modifiers must be a subset of p's modifiers.
+	if ( !getModifiers().subsumedBy(p.getModifiers(), uniMap))
 	    return false;
 	
 	// signitures must unify using this' type and name variables.
@@ -171,46 +189,75 @@ aspect Subsumption {
 	return true;
     }
 
-    syn lazy boolean BodyDecl.isSubsumedBy(Pattern p, Map map) = false;
-    eq FieldDeclaration.isSubsumedBy(Pattern p, Map map) = 
-	p.subsumesFieldDeclaration(this, map);
-    eq MethodDecl.isSubsumedBy(Pattern p, Map map) = p.subsumesMethodDecl(this, map);
+    syn lazy boolean BodyDecl.isSubsumedBy(Pattern p, Map map) = isSubsumedBy(p,map,false);
 
-    syn lazy boolean Pattern.subsumesMethodDecl(MethodDecl md, Map map) = false;
-    eq MethodPattern.subsumesMethodDecl(MethodDecl md, Map map) {
+    syn lazy boolean BodyDecl.isSubsumedBy(Pattern p, Map map, boolean computeRange) = false;
+    eq FieldDeclaration.isSubsumedBy(Pattern p, Map map, boolean computeRange) = p.subsumesFieldDeclaration(this, map, computeRange);
+    eq MethodDecl.isSubsumedBy(Pattern p, Map map, boolean computeRange) = 
+	p.subsumesMethodDecl(this, map, computeRange);
+
+    syn lazy boolean Pattern.subsumesMethodDecl(MethodDecl md, Map map, boolean computeRange) = false;
+    eq MethodPattern.subsumesMethodDecl(MethodDecl md, Map map, boolean computeRange) {
 	// 1, hostType of md has to be a supertype of pattern's base type.
 	if ( !getBaseSet().type().subtype(md.hostType()))
 	    return false;
 
 	PatternMethodDecl patternMd = patternMethodDecl();
-	if ( !md.canUnifySignature(patternMd, map, 
-				   patternTypeVariables(),
-				   patternNameVariables()) ||
+	// If we're computing range, then we use all the variables available.
+	// otherwise, if this is a nested pattern, only unbind pattern
+	// variables are returned.
+	Collection tvs = computeRange ? 
+	    enclosingRefIterator().patternTypeVariables() : patternTypeVariables();
+	Collection nvs = computeRange ?
+	    enclosingRefIterator().patternNameVariables() : patternNameVariables();
+	
+	if ( !md.canUnifySignature(patternMd, map, tvs, nvs) ||
 	     // check return type.
-	     !md.type().unifiesWith(patternMd.type(),map, 
-				    patternTypeVariables()) ||
+	     !md.type().unifiesWith(patternMd.type(),map, tvs) ||
 	     // check modifiers.
 	     !md.getModifiers().subsumedBy(getModifiers(), map))
 	    return false;
 	return true;
     }
 
-    syn lazy boolean Pattern.subsumesFieldDeclaration(FieldDeclaration fd, Map map) = false;
-    eq FieldPattern.subsumesFieldDeclaration(FieldDeclaration fd, Map map) {
+    syn lazy boolean Pattern.subsumesFieldDeclaration(FieldDeclaration fd, Map map, boolean computeRange) = false;
+    eq FieldPattern.subsumesFieldDeclaration(FieldDeclaration fd, Map map, boolean computeRange) {
 	// 1, hostType of fd has to be a supertype of pattern's base type.
 	if ( !getBaseSet().type().subtype(fd.hostType()))
 	    return false;
 
+	Collection tvs = computeRange ? 
+	    enclosingRefIterator().patternTypeVariables() : patternTypeVariables();
+	Collection nvs = computeRange ?
+	    enclosingRefIterator().patternNameVariables() : patternNameVariables();
+	
 	PatternFieldDeclaration patternFd = patternFieldDeclaration();
-	if ( !fd.canUnifySignature(patternFd, map,
-				   patternTypeVariables(),
-				   patternNameVariables()) ||
-	     !fd.type().unifiesWith(patternFd.type(), map, 
-				    patternTypeVariables()) ||
+	if ( !fd.canUnifySignature(patternFd, map, tvs, nvs) ||
+	     !fd.type().unifiesWith(patternFd.type(), map, tvs) ||
 	     // check modifiers.
 	     !fd.getModifiers().subsumedBy(getModifiers(),map))
 	    return false;
 	return true;
     }
 
+    // A method decl subsumes a method pattern mp if 
+    // the method declared by this is a superset of the
+    // methods in the range of mp.
+    // i.e. there is a unification from this method's signature TO
+    // the signature of mp. 
+    syn lazy boolean MethodDecl.subsumes(MethodPattern mp, Map uniMap) {
+	PatternMethodDecl pmd = mp.patternMethodDecl();
+	return canUnifySignature(pmd, uniMap, Collections.EMPTY_LIST, Collections.EMPTY_LIST) &&
+	    this.type().unifiesWith(pmd.type(), uniMap, Collections.EMPTY_LIST) &&
+	    pmd.getModifiers().subsumedBy(this.getModifiers(), uniMap);
+    }
+    eq StaticForMethodDecl.subsumes(MethodPattern mp, Map uniMap) {
+	PatternMethodDecl pmd = mp.patternMethodDecl();
+	Collection tvs = this.patternTypeVariables();
+	Collection nvs = this.patternNameVariables();
+
+	return canUnifySignature(pmd, uniMap, tvs, nvs) &&
+	    this.type().unifiesWith(pmd.type(), uniMap, tvs) &&
+	    pmd.getModifiers().subsumedBy(this.getModifiers(), uniMap);
+    }
 }

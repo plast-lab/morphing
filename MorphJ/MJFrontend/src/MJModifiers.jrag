@@ -133,7 +133,7 @@ aspect MJModifiers {
 
     public boolean IteratorDecl.nestedPatternsSatisfied() {
 	for ( int i=0; i<getNumNestedPattern(); i++) {
-	    if ( !getNestedPattern(i).satisfiedBy(Collections.EMPTY_MAP))
+	    if ( !getNestedPattern(i).satisfiedBy(new HashMap()))
 		return false;
 	}
 	return true;

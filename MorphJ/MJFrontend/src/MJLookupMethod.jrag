@@ -678,6 +678,7 @@ aspect AncestorMethods {
 		  set = set.add(m);
 	  }
       }
+      /*
       if(!superinterfacesIterator().hasNext()) {
 	  // add a static method that encompasses all non-private methods of the
 	  // superclass.
@@ -696,7 +697,7 @@ aspect AncestorMethods {
 		  set = set.add(smd);
 	      }
 	  }
-      }
+	  }*/
       return set;
   }
   
