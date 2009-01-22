@@ -209,6 +209,7 @@ aspect MJPrettyPrint {
 	    for ( i=0; i<getNumException(); i++) {
 		if ( getException(i).addedByPatternRewrite()) continue;
 		getException(i).toString(buf);
+		i++;
 		break;
 	    }
 	    for ( ; i<getNumException(); i++)  {

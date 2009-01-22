@@ -32,6 +32,7 @@ aspect MJPattern {
 	c.addAll(getEnclosingIteratorDecl().patternNameVariables());
 	return c;
     }
+
     inh Collection<PatternNameVariable> Pattern.patternNameVariables();
     eq IteratorDecl.getPattern().patternNameVariables() = patternNameVariables();
 
@@ -341,10 +342,6 @@ aspect MJPattern {
 				    (Modifiers) getModifiers().fullCopy(),
 				    type().createBoundAccess(),
 				    getID(), paramTypes, expTypes, new Opt(), new List());
-	/*
-	IteratorDecl fakeId = new IteratorDecl(new List(), new List(), 
-					       mp, new List());
-	*/
 	l.add(mp);
 	return l;
     }

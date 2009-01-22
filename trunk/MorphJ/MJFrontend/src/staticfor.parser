@@ -3,6 +3,22 @@ BodyDecl class_member_declaration =
   | staticif_declaration.b  {: return b; :}
   ;
 
+BodyDecl interface_member_declaration = 
+    staticfor_interface_member_declaration.a    {: return a; :}	
+  | staticif_interface_member_declaration.a     {: return a; :}
+  ;
+
+BodyDecl staticfor_interface_member_declaration = 
+    staticfor_header.i staticfor_interface_member.m
+   {: return new StaticForDecl(i, m); :}
+  ;   
+
+BodyDecl staticif_interface_member_declaration = 
+    staticif_header.i staticfor_interface_member.m
+   {: return new StaticForDecl(i, m); :}
+  ;
+
+
 // static for body decl.
 BodyDecl staticfor_declaration = 
     staticfor_header.i staticfor_body.l
@@ -75,6 +91,11 @@ List pattern_type_parameter_list_2 =
     {: return tl.add(new VectorTypeVariable(new Modifiers(), id, new List(), l)); :}
   ;
  
+List staticfor_interface_member =
+    interface_member_declaration.m  {: return new List().add(m); :}
+  | LBRACE OR interface_member_declarations.l OR RBRACK {: return l; :}
+  ;
+
 List staticfor_body =
     class_body_declaration.c {: return new List().add(c); :}
   | LBRACE OR class_body_declarations.l OR RBRACE {: return l; :}
@@ -161,7 +182,7 @@ PatternNameVariable pattern_name_parameter =
     
 Pattern pattern = 
      modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b 
-     {: return new MethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List()); :}
+     {: return new OptMethodPattern(b, new Modifiers(m), new Opt(new PrimitiveTypeAccess("void")), id, l, tl, new Opt()); :}
   |  modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b 
      {: return new OptMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt()); :}
   | modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
@@ -187,26 +208,26 @@ Pattern nested_pattern =
      NO modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
      {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), false, false); :}
   |  NO modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-    {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), false, false); :}
+    {: return new OptNestedMethodPattern(b, new Modifiers(m), new Opt(new PrimitiveTypeAccess("void")), id, l, tl, new Opt(), false, false); :}
   |  NO modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
      {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, false, false); :}
   |  SOME modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
      {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), true, false); :}
   |  SOME modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-     {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), true, false); :}
+     {: return new OptNestedMethodPattern(b, new Modifiers(m), new Opt(new PrimitiveTypeAccess("void")), id, l, tl, new Opt(), true, false); :}
   |  SOME modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
      {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, true, false); :}
   // error conditions.
   |  ERROR NO modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
      {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), false, true); :}
   |  ERROR NO modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-    {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), false, true); :}
+    {: return new OptNestedMethodPattern(b, new Modifiers(m), new Opt(new PrimitiveTypeAccess("void")), id, l, tl, new Opt(), false, true); :}
   |  ERROR NO modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
      {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, false, true); :}
   |  ERROR SOME modifiers.m? type.t? IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
      {: return new OptNestedMethodPattern(b, new Modifiers(m), t, id, l, tl, new Opt(), true, true); :}
   |  ERROR SOME modifiers.m? VOID IDENTIFIER.id LPAREN formal_types.l? RPAREN throws.tl? COLON baseset.b
-     {: return new NestedMethodPattern(b, new Modifiers(m), new PrimitiveTypeAccess("void"), id, l, tl, new Opt(), new List(), true, true); :}
+     {: return new OptNestedMethodPattern(b, new Modifiers(m), new Opt(new PrimitiveTypeAccess("void")), id, l, tl, new Opt(), true, true); :}
   |  ERROR SOME modifiers.m? type.t? IDENTIFIER.id COLON baseset.b
      {: return new OptNestedFieldPattern(b, new Modifiers(m), t, id, true, true); :}
   ;	

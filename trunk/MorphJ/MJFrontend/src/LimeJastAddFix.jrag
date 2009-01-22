@@ -18,11 +18,29 @@ aspect LimeJastAddFix {
 		    error(decl.typeName() + " takes " + original.getNumTypeParameter() + " type parameters, not " + getNumTypeArgument() + " as used in " + this);
 		}
 		else {
-		    ParTypeDecl typeDecl = (ParTypeDecl)type();
 		    for(int i = 0; i < getNumTypeArgument(); i++) {
-			if(!getTypeArgument(i).type().withinBoundsOf(original.getTypeParameter(i))) {
-			    error("type argument " + i + " is of type " + getTypeArgument(i).type().typeName() 
-				  + " which is not a subtype of " + original.getTypeParameter(i).typeName());
+			// Inorder to deal with bounds for one type parameter
+			// that uses the other type parameters, e.g.
+			// Logg<T, W extends Wrap<T>> , we look up a 
+			// ParTypeDecl using all but the i'th type variable.
+			// then check bounds.
+
+			HashMap map = new HashMap();
+			for ( int j=0; j<getNumTypeArgument(); j++) {
+			    if ( i != j )
+				map.put(original.getTypeParameter(i), getTypeArgument(j).type());
+			}
+			TypeDecl ta = getTypeArgument(i).type();
+			TypeVariable tv = original.getTypeParameter(i);
+			
+			for ( int j=0; j<tv.getNumTypeBound(); j++) {
+			    TypeDecl tvd = tv.getTypeBound(j).type();
+			    TypeDecl newBound = tvd.substitute(map).type();
+			    if ( !tv.subtype(newBound)) {
+				error("type argument " + i + " is of type " + getTypeArgument(i).type().typeName() 
+				      + " which is not a subtype of " + original.getTypeParameter(i).typeName());
+				break;
+			    }
 			}
 		    }
 		}

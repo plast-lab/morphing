@@ -315,7 +315,7 @@ aspect MJTypeHierarchyCheck {
     }
 
     protected void InterfaceDecl.typeCheckMethod(MethodDecl m) {
-	super.typeCheck(m);
+	super.typeCheckMethod(m);
 	for ( Iterator ifIt = superinterfacesIterator(); ifIt.hasNext(); ) {
 	    TypeDecl id = (TypeDecl) ifIt.next();
 	    if ( id.isTypeVariable())  {
@@ -348,6 +348,7 @@ aspect MJTypeHierarchyCheck {
      *    to be non-pattern type variables.  Since the unification between
      *    signatures do not involve return types, their return types are
      *    automatically not used in the mapping returned.
+     *
      * 2) We attempt to find intersection between m1 and m2 while NOT using
      *    the pattern type variables that only appear in return types as
      *    unification variables.
@@ -355,17 +356,6 @@ aspect MJTypeHierarchyCheck {
      *    to the return types to check whether subtyping relationship exists.
      *    If no such intersection exists, then it doesn't matter what
      *    m1 and m2's return types are.
-     *
-     * 1) Find whether there is an intersection between m1 and m2's iterator
-     *    WITHOUT unifying the pattern type variables used in their return
-     *    types.
-     *
-     * 1) Find the unification mapping under which m1 and m2's signature
-     *    override another (i.e. name and argument types)
-     * 2) Find the unification mapping between m1 and m2's iterators,
-     *    which adds conditions for both methods to exist at the same time.
-     * 3) Finally we apply this mapping to the return types of m1 and m2
-     *    and do subtyping comparison.
      **/
     refine GenericMethods eq MethodDecl.mayOverrideReturn(MethodDecl m) {
 	return m.returnOverridenByMethodDecl(this);
@@ -436,16 +426,28 @@ aspect MJTypeHierarchyCheck {
 	// unification, then just return true.
 	if ( mRetType.subtype(thisRetType)) return true;
 
+	Collection<PatternTypeVariable> typeVars = 
+	    Program.allTypeVariables(thisIt, mIt);
+	Collection<PatternNameVariable> nameVars = 
+	    Program.allNameVariables(thisIt, mIt);
+
+	// If, without unifying the return types, there are mutually 
+	// exclusive conditions reperesented by m's iterator AND m
+	// that means the return types MUST unify.
+	// Furthermore, we need to make sure thisRetType can match
+	// mRetType.
+	Collection patternConditions = m.patternConditions();
+	HashMap newMap = new HashMap(uniMap);
+	if ( Program.hasMutualExclusiveConditions(patternConditions, newMap, false)) {
+	    return thisRetType.matches(mRetType, uniMap, typeVars);
+	}
+	
 	// First we attempt to unify this's iterator and m's iterator.
 	// If this is not possible, then it means names must have been
 	// manipulated in the declarations be appending or removing a
 	// prefix.  In this case, we cannot guarantee anything, and
 	// thus we must return false.
-	HashMap newMap = new HashMap(uniMap);
-	Collection<PatternTypeVariable> typeVars = 
-	    Program.allTypeVariables(thisIt, mIt);
-	Collection<PatternNameVariable> nameVars = 
-	    Program.allNameVariables(thisIt, mIt);
+	newMap = new HashMap(uniMap);
 	if (!thisIt.unifiesWith(mIt, newMap, typeVars, nameVars))	
 	    return false;
 

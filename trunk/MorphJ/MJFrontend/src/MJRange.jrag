@@ -72,10 +72,11 @@ aspect MJRange {
 	return refElmtsMap;
     }
 
-    syn lazy Map Pattern.range() {
-	throw new Error("range() is unsupported by " + getClass().getName());
+    syn lazy Map Pattern.range(boolean includeRefDecl)  {
+	throw new Error("range(boolean) is unsupported by " + getClass().getName());
     }
-    eq MethodPattern.range() {
+
+    eq MethodPattern.range(boolean includeRefDecl) {
 	// Maps from element in the range to the unification map
 	// that resulted in the element being subsumed by the pattern.
 	Map<MethodDecl, Map> rangeElmtsMap = new HashMap<MethodDecl, Map>();
@@ -91,9 +92,19 @@ aspect MJRange {
 	    if ( md.isSubsumedBy(this, map))
 		rangeElmtsMap.put(md, map);
 	}
+
+	if ( includeRefDecl ) {
+	    Collection<StaticForMethodDecl> refMethods = 
+		getBaseSet().type().reflectiveMethods();
+	    for ( StaticForMethodDecl md : refMethods ) {
+		HashMap map = new HashMap();
+		if ( md.isSubsumedBy(this,map,true))
+		    rangeElmtsMap.put(md, map);
+	    }
+	}
 	return rangeElmtsMap;
     }
-    eq FieldPattern.range() {
+    eq FieldPattern.range(boolean includeRefDecl) {
 	Map<FieldDeclaration,Map> rangeElmtsMap = new HashMap<FieldDeclaration,Map>();
 	// iterate over fields.
 	SimpleSet fields = getBaseSet().type().unrestrictedFields();
@@ -106,8 +117,21 @@ aspect MJRange {
 		rangeElmtsMap.put(fd, map);
 	    }
 	}
+	if ( includeRefDecl ) {
+	    Collection<StaticForFieldDeclaration> refFields = 
+		getBaseSet().type().reflectiveFields();
+	    for ( StaticForFieldDeclaration fd : refFields ) {
+		HashMap map = new HashMap();
+		if ( fd.isSubsumedBy(this,map))
+		    rangeElmtsMap.put(fd,map);
+	    }
+	    
+	}
 	return rangeElmtsMap;
     }
+
+
+    syn lazy Map Pattern.range() = range(false);
 
     syn lazy boolean IteratorDecl.rangeEmpty(Map uniMap) = rangeEmpty(uniMap, true);
     syn lazy boolean IteratorDecl.rangeEmpty(Map uniMap, boolean subModifiers) {
