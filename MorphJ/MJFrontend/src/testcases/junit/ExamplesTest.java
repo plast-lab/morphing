@@ -63,6 +63,17 @@ public class ExamplesTest extends MJTestCase {
 	noProblems();
     }
 
+    @Test
+    public void testRecursiveMorph() {
+	checkExample("RecursiveMorph.java");
+	noProblems();
+    }
+    
+    @Test
+    public void testVisitor() {
+	checkExample("visitor" + File.separator + "Visitor.java");
+	noProblems();
+    }
     /*
     @Test
     public void testDefaultImpelmentation() {

@@ -148,6 +148,8 @@ aspect MJRange {
     syn lazy boolean Pattern.rangeEmpty(Map uniMap, boolean subModifiers) {
 	throw new Error("rangeEmpty not supported by " + getClass().getName());
     }
+    // Empty primary pattern has exactly one element.
+    eq EmptyPrimaryPattern.rangeEmpty(Map uniMap, boolean subModifiers) = false;
     eq MethodPattern.rangeEmpty(Map uniMap, boolean subModifiers) {
 	MethodPattern sub = this.substitute(uniMap, subModifiers);
 	if ( sub.expandable()) {
