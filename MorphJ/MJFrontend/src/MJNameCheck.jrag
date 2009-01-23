@@ -22,43 +22,45 @@ aspect MJNameCheck {
     eq TypeVariable.allMethods() {
 	Collection<StaticForMethodDecl> methods = new HashSet<StaticForMethodDecl>();
 
-	methods.add(makeStaticForMethodWithReturnType(new PatternTypeVariable(new Modifiers(), "R", new List(), new List().add(typeObject().createQualifiedAccess()))));
-	methods.add(makeStaticForMethodWithReturnType(typeVoid()));
-	methods.add(makeStaticForMethodWithReturnType(typeBoolean()));
-	methods.add(makeStaticForMethodWithReturnType(typeInt()));
-	methods.add(makeStaticForMethodWithReturnType(typeByte()));
-	methods.add(makeStaticForMethodWithReturnType(typeShort()));
-    	methods.add(makeStaticForMethodWithReturnType(typeLong()));
-    	methods.add(makeStaticForMethodWithReturnType(typeChar()));
-    	methods.add(makeStaticForMethodWithReturnType(typeFloat()));
-    	methods.add(makeStaticForMethodWithReturnType(typeDouble()));
+	methods.add(makeStaticForMethodWithReturnType(new PatternTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeObject().createQualifiedAccess())), this));
+						      
+	methods.add(makeStaticForMethodWithReturnType(typeVoid(), this));
+	methods.add(makeStaticForMethodWithReturnType(typeBoolean(), this));
+	methods.add(makeStaticForMethodWithReturnType(typeInt(), this));
+	methods.add(makeStaticForMethodWithReturnType(typeByte(),this));
+	methods.add(makeStaticForMethodWithReturnType(typeShort(),this));
+    	methods.add(makeStaticForMethodWithReturnType(typeLong(),this));
+    	methods.add(makeStaticForMethodWithReturnType(typeChar(),this));
+    	methods.add(makeStaticForMethodWithReturnType(typeFloat(),this));
+    	methods.add(makeStaticForMethodWithReturnType(typeDouble(),this));
 	return methods;
     }
 
-    public StaticForMethodDecl TypeVariable.makeStaticForMethodWithReturnType(TypeDecl returnType) {
-	VectorTypeVariable A = createNonVoidVectorTypeVariable("A");
-	VectorTypeVariable E = createThrowableVectorTypeVariable("E");
-	PatternNameVariable m = new PatternNameVariable("m");
+    public StaticForMethodDecl TypeVariable.makeStaticForMethodWithReturnType(TypeDecl returnType, TypeDecl hostType) {
+	VectorTypeVariable A = createNonVoidVectorTypeVariable(Program.generateFreshTypeVariableName());
+	VectorTypeVariable E = createThrowableVectorTypeVariable(Program.generateFreshTypeVariableName());
+	String name = Program.generateFreshNameVariableName();
+	PatternNameVariable m = new PatternNameVariable(name);
 
 	Pattern p = new MethodPattern(new BaseSet(createQualifiedAccess(), 
 						  new RefElmt("methods")),
-				      new Modifiers(), 
-				      returnType.createQualifiedAccess(),"m",
+				      new Modifiers().enhanceWithMaybes(Modifiables.METHOD,hostType), 
+				      returnType.createQualifiedAccess(),
+				      name,
 				      new List().add(A.createQualifiedAccess()),
 				      new List().add(E.createQualifiedAccess()),
-				     
 				      new Opt(), new List());
 	List patternTypeVariables = new List().add(A).add(E);
 	if ( returnType instanceof PatternTypeVariable )
 	    patternTypeVariables.add(returnType);
-
+	
 	IteratorDecl id = new IteratorDecl(patternTypeVariables,
 					   new List().add(m), p, new List(), 
 					   new List());
 	StaticForMethodDecl sfd = 
 	    new StaticForMethodDecl(new Modifiers(),
 				    returnType.createQualifiedAccess(),
-				    "m", 
+				    name,
 				    new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
 				    new List().add(E.createQualifiedAccess()),
 				    new Opt(),
@@ -67,88 +69,6 @@ aspect MJNameCheck {
 	addBodyDecl(sfd);
 	sfd.bypassErrorChecking = true;
 
-	return sfd;
-    }
-
-
-    syn lazy EveryMethodDecl TypeDecl.everyMethod () {
-	/**
-	 * pattern: _ m(A) throws E : T.methods
-	 * where _ is the AllMatchingTypeVariable, which matches void.
-	 **/
-	AllMatchingTypeVariable R = 
-	    new AllMatchingTypeVariable(new Modifiers(),
-					Program.generateFreshTypeVariableName(), new List(), 
-					new List());
-	VectorTypeVariable A = createNonVoidVectorTypeVariable(Program.generateFreshTypeVariableName());
-	VectorTypeVariable E = createThrowableVectorTypeVariable(Program.generateFreshTypeVariableName());
-
-	String name = Program.generateFreshNameVariableName();
-	PatternNameVariable m = new PatternNameVariable(name);
-	Pattern p = new MethodPattern(new BaseSet(createQualifiedAccess(), 
-						  new RefElmt("methods")),
-				      new Modifiers().enhanceWithMaybes(Modifiables.METHOD),
-				      R.createQualifiedAccess(),name,
-				      new List().add(A.createQualifiedAccess()),
-				      new List().add(E.createQualifiedAccess()),
-				      new Opt(), new List());
-				
-	IteratorDecl id = new IteratorDecl(new List().add(R).add(A).add(E),
-					   new List().add(m), p,
-					   new List(), new List());
-	
-	EveryMethodDecl sfd = 
-	    new EveryMethodDecl(new Modifiers().allModifiers(Modifiables.METHOD),
-				R.createQualifiedAccess(),
-				name,
-				new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
-				new List().add(E.createQualifiedAccess()),
-				new Opt(),
-				id, new List(), new List());
-	
-	sfd.is$Final = true;
-	addBodyDecl(sfd);
-
-	sfd.bypassErrorChecking = true;
-	return sfd;
-    }
-
-    syn lazy EveryMethodDecl TypeDecl.everyNonPrivateMethod () {
-	/**
-	 * pattern: !private _ m(A) throws E : T.methods
-	 * where _ is the AllMatchingTypeVariable, which matches void.
-	 **/
-	AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List());
-	VectorTypeVariable A = createNonVoidVectorTypeVariable(Program.generateFreshTypeVariableName());
-	VectorTypeVariable E = createThrowableVectorTypeVariable(Program.generateFreshTypeVariableName());
-	
-	String name = Program.generateFreshNameVariableName();
-	PatternNameVariable m = new PatternNameVariable(name);
-	Pattern p = new MethodPattern(new BaseSet(createQualifiedAccess(), 
-						  new RefElmt("methods")),
-				      new Modifiers(new List().add(new NegativeModifier("private"))).enhanceWithMaybes(Modifiables.METHOD),
-				      R.createQualifiedAccess(), name,
-				      new List().add(A.createQualifiedAccess()),
-				      new List().add(E.createQualifiedAccess()),
-				      new Opt(), new List());
-				
-	IteratorDecl id = new IteratorDecl(new List().add(R).add(A).add(E),
-					   new List().add(m), p,
-					   new List(), new List());
-
-	EveryMethodDecl sfd = 
-	    new EveryMethodDecl(new Modifiers(),
-				R.createQualifiedAccess(),
-				name, 
-				new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
-				new List().add(E.createQualifiedAccess()),
-				new Opt(),
-				id, new List(), new List());
-	
-	sfd.is$Final = true;
-	addBodyDecl(sfd);
-	
-	sfd.bypassErrorChecking = true;
 	return sfd;
     }
 
@@ -167,7 +87,6 @@ aspect MJNameCheck {
 		String s1 = infoSignature();
 		String s2 = field.infoSignature();
 		Program.indent -= 3;
-
 
 		if ( field.isEveryField())
 		    error("field \n" + s1 + 

@@ -13,7 +13,7 @@ public class ModifierUnificationTest extends TestCase {
     public void testMaybeModifiers() {
 	Modifiers mod1 = new Modifiers(new AST.List().add(
 		new Modifier("public")).add(new Modifier("static")));
-	mod1 = mod1.enhanceWithMaybes(Modifiables.METHOD);
+	mod1 = mod1.enhanceWithMaybes(Modifiables.METHOD,false,true);
 	assertFalse(mod1.isPrivate());
 	assertFalse(mod1.isProtected());
     }
@@ -24,7 +24,7 @@ public class ModifierUnificationTest extends TestCase {
 	// Having abstract means final is not an option
 	Modifiers mod = new Modifiers(new AST.List().add(new Modifier(
 		"abstract")));
-	mod = mod.enhanceWithMaybes(Modifiables.METHOD);
+	mod = mod.enhanceWithMaybes(Modifiables.METHOD,false,true);
 
 	assertFalse(mod.isFinal());
     }
@@ -35,12 +35,12 @@ public class ModifierUnificationTest extends TestCase {
 	// "public static"
 	Modifiers mod1 = new Modifiers(new AST.List().add(
 		new Modifier("public")).add(new Modifier("static")))
-		.enhanceWithMaybes(Modifiables.METHOD);
+		.enhanceWithMaybes(Modifiables.METHOD,false,true);
 	;
 	// "public"
 	Modifiers mod2 = new Modifiers(new AST.List<Modifier>()
 		.add(new Modifier("public")))
-		.enhanceWithMaybes(Modifiables.METHOD);
+		.enhanceWithMaybes(Modifiables.METHOD,false,true);
 
 	Map uniMap = new HashMap();
 	assertTrue(mod1.subsumedBy(mod2, uniMap));
@@ -57,11 +57,11 @@ public class ModifierUnificationTest extends TestCase {
 	// !public
 	Modifiers mod1 = new Modifiers(new AST.List<Modifier>()
 		.add(new NegativeModifier("public")))
-		.enhanceWithMaybes(Modifiables.METHOD);
+		.enhanceWithMaybes(Modifiables.METHOD,false,true);
 	// private
 	Modifiers mod2 = new Modifiers(new AST.List<Modifier>()
 		.add(new Modifier("private")))
-		.enhanceWithMaybes(Modifiables.METHOD);
+		.enhanceWithMaybes(Modifiables.METHOD,false,true);
 
 	Map uniMap = new HashMap();
 	assertTrue(mod2.subsumedBy(mod1, uniMap));
@@ -76,10 +76,10 @@ public class ModifierUnificationTest extends TestCase {
 	// !final
 	Modifiers mod1 = new Modifiers(new AST.List<Modifier>()
 		.add(new NegativeModifier("final")))
-		.enhanceWithMaybes(Modifiables.METHOD);
+		.enhanceWithMaybes(Modifiables.METHOD,false,true);
 
 	// anything
-	Modifiers mod2 = new Modifiers().enhanceWithMaybes(Modifiables.METHOD);
+	Modifiers mod2 = new Modifiers().enhanceWithMaybes(Modifiables.METHOD,false,true);
 
 	Map uniMap = new HashMap();
 	assertTrue(mod1.subsumedBy(mod2, uniMap));
@@ -94,11 +94,11 @@ public class ModifierUnificationTest extends TestCase {
 	// abstract
 	Modifiers mod1 = new Modifiers(new AST.List<Modifier>()
 		.add(new Modifier("abstract")))
-		.enhanceWithMaybes(Modifiables.METHOD);
+		.enhanceWithMaybes(Modifiables.METHOD,false,true);
 	// *abstract
 	Modifiers mod2 = new Modifiers(new AST.List<Modifier>()
 		.add(new MaybeModifier("abstract")))
-		.enhanceWithMaybes(Modifiables.METHOD);
+		.enhanceWithMaybes(Modifiables.METHOD,false,true);
 	Map uniMap = new HashMap();
 	assertTrue(mod1.subsumedBy(mod2, uniMap));
 	

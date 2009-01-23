@@ -51,15 +51,6 @@ public class ExamplesTest extends MJTestCase {
 	noProblems();
     }
     
-    /*
-    @Test
-    public void testDefaultImpelmentation() {
-	Collection<Problem> actualProblems = checkExample(
-		"DefaultImplementation.java", new String[] {  }, true);
-	Collection<Problem> expectedProblems = new ArrayList<Problem>();
-	compareProblems(expectedProblems, actualProblems);
-    }
-*/
     @Test
     public void testSychronizeMe() {
 	checkExample("SynchronizeMe.java");
@@ -71,6 +62,16 @@ public class ExamplesTest extends MJTestCase {
 	checkExample("Synchronized.java");
 	noProblems();
     }
+
+    /*
+    @Test
+    public void testDefaultImpelmentation() {
+	Collection<Problem> actualProblems = checkExample(
+		"DefaultImplementation.java", new String[] {  }, true);
+	Collection<Problem> expectedProblems = new ArrayList<Problem>();
+	compareProblems(expectedProblems, actualProblems);
+    }
+*/
 /*
     @Test
     public void testGetterSetter() {

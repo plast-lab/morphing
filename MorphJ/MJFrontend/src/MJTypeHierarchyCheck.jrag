@@ -11,6 +11,10 @@ aspect MJTypeHierarchyCheck {
     eq ConstrainedTypeVariable.canbeInterface() = getConstraint().equals("interface");
     */
 
+    syn lazy boolean TypeDecl.isPossiblyInterfaceDecl() = isInterfaceDecl();
+    eq TypeVariable.isPossiblyInterfaceDecl() = true;
+    eq ConstrainedTypeVariable.isPossiblyInterfaceDecl() = isInterfaceDecl();
+
     eq ConstrainedTypeVariable.isInterfaceDecl() = getConstraint().equals("interface");
     eq ConstrainedTypeVariable.isClassDecl() = getConstraint().equals("class");
 

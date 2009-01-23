@@ -1,5 +1,86 @@
 aspect MJLookupMethod {
 
+    syn lazy EveryMethodDecl TypeDecl.everyMethod () {
+	/**
+	 * pattern: _ m(A) throws E : T.methods
+	 * where _ is the AllMatchingTypeVariable, which matches void.
+	 **/
+	AllMatchingTypeVariable R = 
+	    new AllMatchingTypeVariable(new Modifiers(),
+					Program.generateFreshTypeVariableName(), new List(), 
+					new List());
+	VectorTypeVariable A = createNonVoidVectorTypeVariable(Program.generateFreshTypeVariableName());
+	VectorTypeVariable E = createThrowableVectorTypeVariable(Program.generateFreshTypeVariableName());
+
+	String name = Program.generateFreshNameVariableName();
+	PatternNameVariable m = new PatternNameVariable(name);
+	Pattern p = new MethodPattern(new BaseSet(createQualifiedAccess(), 
+						  new RefElmt("methods")),
+				      new Modifiers().enhanceWithMaybes(Modifiables.METHOD, this),
+				      R.createQualifiedAccess(),name,
+				      new List().add(A.createQualifiedAccess()),
+				      new List().add(E.createQualifiedAccess()),
+				      new Opt(), new List());
+				
+	IteratorDecl id = new IteratorDecl(new List().add(R).add(A).add(E),
+					   new List().add(m), p,
+					   new List(), new List());
+	
+	EveryMethodDecl sfd = 
+	    new EveryMethodDecl(new Modifiers().allModifiers(Modifiables.METHOD, this),
+				R.createQualifiedAccess(),
+				name,
+				new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
+				new List().add(E.createQualifiedAccess()),
+				new Opt(),
+				id, new List(), new List());
+	
+	sfd.is$Final = true;
+	addBodyDecl(sfd);
+	
+	sfd.bypassErrorChecking = true;
+	return sfd;
+    }
+
+    syn lazy EveryMethodDecl TypeDecl.everyNonPrivateMethod () {
+	/**
+	 * pattern: !private _ m(A) throws E : T.methods
+	 * where _ is the AllMatchingTypeVariable, which matches void.
+	 **/
+	AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List());
+	VectorTypeVariable A = createNonVoidVectorTypeVariable(Program.generateFreshTypeVariableName());
+	VectorTypeVariable E = createThrowableVectorTypeVariable(Program.generateFreshTypeVariableName());
+	
+	String name = Program.generateFreshNameVariableName();
+	PatternNameVariable m = new PatternNameVariable(name);
+	Pattern p = new MethodPattern(new BaseSet(createQualifiedAccess(), 
+						  new RefElmt("methods")),
+				      new Modifiers(new List().add(new NegativeModifier("private"))).enhanceWithMaybes(Modifiables.METHOD,this),
+				      R.createQualifiedAccess(), name,
+				      new List().add(A.createQualifiedAccess()),
+				      new List().add(E.createQualifiedAccess()),
+				      new Opt(), new List());
+				
+	IteratorDecl id = new IteratorDecl(new List().add(R).add(A).add(E),
+					   new List().add(m), p,
+					   new List(), new List());
+
+	EveryMethodDecl sfd = 
+	    new EveryMethodDecl(new Modifiers(),
+				R.createQualifiedAccess(),
+				name, 
+				new List().add(new ParameterDeclaration(A.createQualifiedAccess(), "a")),
+				new List().add(E.createQualifiedAccess()),
+				new Opt(),
+				id, new List(), new List());
+	
+	sfd.is$Final = true;
+	addBodyDecl(sfd);
+	
+	sfd.bypassErrorChecking = true;
+	return sfd;
+    }
+
     /**
      * Refining overrides to call signatureOverrides(m), instead of
      * simply comparing method signatures as strings.
@@ -82,18 +163,8 @@ aspect MJLookupMethod {
 	Set<StaticForMethodDecl> substitutedMethods = new HashSet();
 	for ( Iterator<StaticForMethodDecl> rmIt = refMethods.iterator(); rmIt.hasNext(); ) {
 	    StaticForMethodDecl md = rmIt.next();
-	    //	    if ( md.usesTypeVariable()) {
 	    BodyDecl bd = md.findSubstitutedMethodDecl(this);
-	    /*
-		BodyDecl bd = md.p(this);
-		bd.is$Final = true;
-		addBodyDecl((StaticForMethodDecl)bd);
-	    */
-		substitutedMethods.add((StaticForMethodDecl)bd);
-		/*
-	    } else 
-		substitutedMethods.add((StaticForMethodDecl)md);
-		*/
+	    substitutedMethods.add((StaticForMethodDecl)bd);
 	}
 	return substitutedMethods;
     }
@@ -214,11 +285,6 @@ aspect MJLookupMethod {
 	} else {
 	    return getLeft().type().memberMethods(new Identifier(name, IteratorDecl.TrueIteratorDecl));
 	}
-	/*
-	if ( isNameVariable(name) || containsNameVariable(name) )
-	    return getLeft().type().unqualifiedLookupMethod(new Identifier(name, this.enclosingRefIterator()));
-	return LookupMethod.AbstractDot.getRight().lookupMethod(name);
-	*/
     }
 
     syn lazy boolean Pattern.identifiedBy(PatternNameVariable name) = false;
@@ -253,71 +319,108 @@ aspect MJLookupMethod {
 	return map;
     }
 
+    syn lazy MethodDecl IteratorDecl.primaryPatternMethodDecl() {
+	Pattern p = getPattern();
+	MethodDecl pm = p.patternMethodDecl();
+	
+	// If a nested negative pattern places a negative condition
+	// on exactly the method(s) matched by the primary pattern
+	// then we need to modify the pattern's method decl
+	// by this condition.
+	for ( int i=0; i<getNumNestedPattern(); i++) {
+	    Pattern np = getNestedPattern(i);
+	    if ( np.isPositive() || !np.isMethodPattern() ) continue;
+	    MethodPattern nmp = (MethodPattern) np;
+	    MethodDecl nmpdecl = nmp.patternMethodDecl();
+	    
+	    
+	    // nmp identifies the same method as pattern if 
+	    // 1) nmp's base type is a subtype of pattern's base type,
+	    // 2) their name and parameter lists unify.
+	    if ( !nmp.getBaseSet().type().subtype(p.getBaseSet().type()))
+		continue;
+	    HashMap newMap = new HashMap();
+	    if ( !nmpdecl.canUnifySignature(pm,newMap,
+					    nmp.patternTypeVariables(),
+					    nmp.patternNameVariables()))
+		    continue;
+	    
+	    // The negative conditions can be on the return type,
+	    // modifiers, or exception types. Right now, we just
+	    // deal with modifiers.
+	    // TODO: handle other things.
+	    Modifiers newMods = 
+		pm.getModifiers().maskBy(nmp.getModifiers());
+	    pm.setModifiers(newMods);
+	} 
+	return pm;
+    }
+    syn lazy Collection<MethodDecl> IteratorDecl.nestedPatternMethodDecls(Identifier id, TypeDecl declaringType) {
+	Collection<MethodDecl> methods = new ArrayList<MethodDecl>();
+	for ( int i=0; i<getNumNestedPattern(); i++) {
+	    // otherwise, if :
+	    // 1. type is reflective base type for a nested pattern, AND
+	    // 2. nested pattern is positieve AND
+	    // 3. pattern is a method pattern AND
+	    // 4. name is the name variable used in the nested pattern, AND
+	    // 5. the nested pattern has a range of exactly one.
+	    // then again the method is what's specified by the nested pattern.
+	    Pattern np = getNestedPattern(i);
+	    if ( np instanceof TrueNestedPattern ) continue;
+	    if ( (  np.isPositive() && !np.isErrorCondition()   
+		    || !np.isPositive() && np.isErrorCondition() )
+		 && declaringType.subtype(np.getBaseSet().type()) &&
+		 np.isMethodPattern() && np.identifiedBy(id) &&
+		 np.exactlyRangeOfOne()) {
+		methods.add(np.patternMethodDecl());
+	    }
+	}
+	return methods;
+    }
+
+    public MethodDecl StaticForMethodDecl.specializedFor(Identifier id) {
+	// This method could be identified by id if
+	// 1. its' enclosing iterator decl is subsumes id's iterator.
+	// 2. the names ar the same under the conditions for iterator
+	// range subsumption.
+
+	HashMap uniMap = new HashMap();
+	if ( getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
+	    StaticForMethodDeclSubstituted smd = this.substitute(uniMap);
+	    Identifier emId = this.identifier().substitutedIdentifier(uniMap);
+	    Identifier idId =  id.substitutedIdentifier(uniMap);
+	    if ( emId.equals(idId))
+		return smd;
+	}
+	return null;
+    }
+
+
     syn Collection TypeDecl.memberMethods(Identifier id) { 
 	Collection methods = new ArrayList();
 
 	IteratorDecl idecl = id.enclosingRefIterator();
-	if ( idecl.reflectiveBaseType() == this  &&
+	if ( idecl.iterateMethods() && 
+	     this.subtype(idecl.reflectiveBaseType()) &&
 	     idecl.getPattern().isMethodPattern() &&
-	     idecl.getPattern().identifiedBy(id) )
+	     idecl.getPattern().identifiedBy(id) ) {
 	    // If the name is exactly what is used to match on the outermost
 	    // reflective loop, then the method designated by the name is
 	    // exactly what is specified by the pattern.
-	    methods.add(idecl.getPattern().patternMethodDecl());
-	else {
-	    for ( int i=0; i<idecl.getNumNestedPattern(); i++) {
-		// otherwise, if :
-		// 1. type is reflective base type for a nested pattern, AND
-		// 2. nested pattern is positieve AND
-		// 3. pattern is a method pattern AND
-		// 4. name is the name variable used in the nested pattern, AND
-		// 5. the nested pattern has a range of exactly one.
-		// then again the method is what's specified by the nested pattern.
-		Pattern np = idecl.getNestedPattern(i);
-		if ( np instanceof TrueNestedPattern ) continue;
-		if ( (  np.isPositive() && !np.isErrorCondition()   
-			|| !np.isPositive() && np.isErrorCondition() )
-		     && np.getBaseSet().type() == this &&
-		     np.isMethodPattern() && np.identifiedBy(id) &&
-		     np.exactlyRangeOfOne()) {
-		    methods.add(np.patternMethodDecl());
-		}
-	    }
+	    methods.add(idecl.primaryPatternMethodDecl());
+	} else {
+	    methods.addAll(idecl.nestedPatternMethodDecls(id, this));
 
 	    Collection<StaticForMethodDecl> refMethods = reflectiveMethods();
 	    // if there are no reflectively declared methods, check everyMethod.
 	    if ( !refMethods.iterator().hasNext()) {
-		StaticForMethodDecl em = (StaticForMethodDecl) everyMethod();
-
-		// id could be a member method of this if
-		// 1. its' enclosing iterator decl is subsumed by one of this's
-		// method's iterator decl.
-		HashMap uniMap = new HashMap();
-		if ( em.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
-		    // 2. the name it maps to is used in declaring method.
-		    StaticForMethodDeclSubstituted smd = em.substitute(uniMap);
-		    Identifier emId = em.identifier().substitutedIdentifier(uniMap);
-		    Identifier idId =  id.substitutedIdentifier(uniMap);
-		    if ( emId.equals(idId))
-			methods.add(smd);
-		}
+		MethodDecl m = everyMethod().specializedFor(id);
+		if ( m != null ) methods.add(m);
 	    }
 	    for ( Iterator<StaticForMethodDecl> refIt = refMethods.iterator(); refIt.hasNext(); ) {
 		StaticForMethodDecl md = refIt.next();
-		
-		// id could be a member method of this if
-		// 1. its' enclosing iterator decl is subsumed by one of this's
-		// method's iterator decl.
-		HashMap uniMap = new HashMap();
-		if ( md.getIteratorDecl().subsumes(id.enclosingRefIterator(), uniMap)) {
-		    // 2. the name it maps to is used in declaring method.
-		    StaticForMethodDeclSubstituted smd = md.substitute(uniMap);
-
-		    Identifier smdId = md.identifier().substitutedIdentifier(uniMap);
-		    Identifier idId =  id.substitutedIdentifier(uniMap);
-		    if ( smdId.equals(idId))
-			methods.add(smd);
-		}
+		MethodDecl smd = md.specializedFor(id);
+		if ( smd != null ) methods.add(smd);
 	    }
 	}
 
@@ -331,45 +434,20 @@ aspect MJLookupMethod {
 	Collection methods = new ArrayList();
 
 	IteratorDecl idecl = id.enclosingRefIterator();
-	if ( idecl.reflectiveBaseType() == this &&
+	if ( idecl.iterateMethods() && 
+	     this.subtype(idecl.reflectiveBaseType()) &&
 	     idecl.getPattern().isMethodPattern() &&
-	     idecl.getPattern().identifiedBy(id) )
+	     idecl.getPattern().identifiedBy(id) ) {
 	    // If the name is exactly what is used to match on the outermost
 	    // reflective loop, then the method designated by the name is
 	    // exactly what is specified by the pattern.
-	    methods.add(idecl.getPattern().patternMethodDecl());
-	else {
-	    for ( int i=0; i<idecl.getNumNestedPattern(); i++) {
-		// otherwise, if :
-		// 1. type is reflective base type for a nested pattern, AND
-		// 2. nested pattern is positieve AND
-		// 3. pattern is a method pattern AND
-		// 4. name is the name variable used in the nested pattern, AND
-		// 5. the nested pattern has a range of exactly one.
-		// then again the method is what's specified by the nested pattern.
-		Pattern np = idecl.getNestedPattern(i);
-		if ( np instanceof TrueNestedPattern ) continue;
-		if ( np.isPositive() && np.getBaseSet().type() == this &&
-		     np.isMethodPattern() && np.identifiedBy(id) &&
-		     np.exactlyRangeOfOne()) {
-		    methods.add(np.patternMethodDecl());
-		}
-	    }
+	    methods.add(idecl.primaryPatternMethodDecl());
+	} else {
+	    methods.addAll(idecl.nestedPatternMethodDecls(id, this));
 	} 
 
 	// add every method.
 	StaticForMethodDecl em = (StaticForMethodDecl) everyMethod();
-	/*	
-	// id could be a member method of this if
-	// 1. its' enclosing iterator decl is subsumed by one of this's
-	// method's iterator decl.
-	HashMap uniMap = new HashMap();
-	if ( em.getIteratorDecl().subsumes(idecl, uniMap)) {
-	    // 2. the name it maps to is used in declaring method.
-	    StaticForMethodDeclSubstituted smd = em.substitute(uniMap);
-	    if ( smd.identifier().equals(id))
-		methods.add(smd);
-		}*/
 	methods.add(em);
 	
 	// look into bounds.

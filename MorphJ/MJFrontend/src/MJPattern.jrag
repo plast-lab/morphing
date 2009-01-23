@@ -403,6 +403,13 @@ aspect MJPattern {
 	}
 	return false;
     }
+    eq OptMethodPattern.exceptionParameter(TypeVariable t) {
+	for ( int i=0; i<getNumException(); i++) {
+	    if (getException(i).type() == t)
+		return true;
+	}
+	return false;	
+    }
     public void TrueNestedPattern.transformation() {}
 
     syn lazy boolean Pattern.isPositive() = true;

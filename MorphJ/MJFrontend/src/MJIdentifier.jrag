@@ -128,6 +128,14 @@ aspect MJIdentifier {
 	    return this;
 	}
 
+	public void copyAll(Identifier id) {
+	    this.prefix = id.prefix;
+	    this.varname = id.varname;
+	    this.namevariable = id.namevariable;
+	    this.mappedTo = id.mappedTo;
+	    this.context = id.context;
+	}
+
 	public String substitutedName(Map substitutions) {
 	    Identifier subid = substitutedIdentifier(substitutions);
 	    if ( subid.isNameVariable()) {
@@ -170,7 +178,6 @@ aspect MJIdentifier {
 	    }
 	    return newid;
 	}
-	
 
 	public boolean equals(Identifier that) {
 	    if ( that == null ) return false;
