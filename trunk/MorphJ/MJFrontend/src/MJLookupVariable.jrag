@@ -601,7 +601,7 @@ aspect MJFields {
 	PatternNameVariable f = new PatternNameVariable(name);
 	Pattern p = new FieldPattern(new BaseSet(createQualifiedAccess(), 
 						 new RefElmt("fields")),
-				     new Modifiers().enhanceWithMaybes(Modifiables.FIELD),
+				     new Modifiers().enhanceWithMaybes(Modifiables.FIELD, this),
 				     F.createQualifiedAccess(), name,
 				     new Opt(), new List());
 	IteratorDecl id = new IteratorDecl(new List().add(F),

@@ -39,7 +39,9 @@ aspect MJRewrites {
     rewrite OptFieldPattern {
 	to FieldPattern {
 	    // if there's no modifier declared, then we use AnyModifier
-	    Modifiers mods = getModifiers().enhanceWithMaybes(Modifiables.FIELD);
+	    Modifiers mods = 
+		getModifiers().enhanceWithMaybes(Modifiables.FIELD,
+						 getBaseSet().type());
 	    if ( hasTypeAccess() )
 		return new FieldPattern(getBaseSet(), mods,
 					getTypeAccess(), getID(),
@@ -56,7 +58,9 @@ aspect MJRewrites {
     }
     rewrite OptNestedFieldPattern {
 	to NestedFieldPattern {
-	    Modifiers mods = getModifiers().enhanceWithMaybes(Modifiables.FIELD);
+	    Modifiers mods = 
+		getModifiers().enhanceWithMaybes(Modifiables.FIELD,
+						 getBaseSet().type());
 	    if ( hasTypeAccess() )
 		return new NestedFieldPattern(getBaseSet(), mods,
 					      getTypeAccess(), getID(),
@@ -78,7 +82,9 @@ aspect MJRewrites {
     }
     rewrite OptMethodPattern {
 	to MethodPattern {
-	    Modifiers mods = getModifiers().enhanceWithMaybes(Modifiables.METHOD);
+	    Modifiers mods = 
+		getModifiers().enhanceWithMaybes(Modifiables.METHOD, 
+						 getBaseSet().type());
 	    if ( hasTypeAccess()) {
 		return new MethodPattern(getBaseSet(),
 					 mods,
@@ -102,7 +108,9 @@ aspect MJRewrites {
     }
     rewrite OptNestedMethodPattern { 
 	to NestedMethodPattern {
-	    Modifiers mods = getModifiers().enhanceWithMaybes(Modifiables.METHOD);
+	    Modifiers mods = 
+		getModifiers().enhanceWithMaybes(Modifiables.METHOD,
+						 getBaseSet().type());
 	    if ( hasTypeAccess()) {
 		return new NestedMethodPattern(getBaseSet(), mods,
 					       getTypeAccess(),getID(),

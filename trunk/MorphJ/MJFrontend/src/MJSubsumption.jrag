@@ -21,10 +21,12 @@ aspect Subsumption {
 	    if ( !sat ) return false;
 	}
 
-	/*
-	return nestedPatternSatisfiedBy(uniMap) &&
-	    that.nestedPatternSatisfiedBy(uniMap);
-	*/
+	// negative nested pattern may put restrictions on the primary
+	// pattern if it identifies a superset of methods identified
+	// by the primary pattern. We need to provide those mappings.
+	//	uniMap.putAll(this.nestedMaskPrimaryMapping());
+	uniMap.putAll(that.nestedMaskPrimaryMapping());
+
 	return true;
     }
     // TrueIterator subsumes everything.
@@ -105,7 +107,10 @@ aspect Subsumption {
 	    */
 	    return false;
 	}
-
+	return this.unifiesWithFieldPattern(p,uniMap,p.patternTypeVariables(), 
+					    p.patternNameVariables());
+	
+	/*
 	PatternFieldDeclaration thisFd = this.patternFieldDeclaration();
 	PatternFieldDeclaration pFd = p.patternFieldDeclaration();
 
@@ -121,6 +126,7 @@ aspect Subsumption {
 	    return false;
 	
 	return false;
+	*/
     }
 
     syn lazy boolean Pattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) = false;
@@ -149,7 +155,7 @@ aspect Subsumption {
 	    }
 	    return subFound;
 	}
-
+	/*
 	// this's modifiers must be a subset of p's modifiers.
 	if ( !getModifiers().subsumedBy(p.getModifiers(), uniMap))
 	    return false;
@@ -172,6 +178,10 @@ aspect Subsumption {
 	    return false;
 
 	return true;
+	*/
+	return this.unifiesWithMethodPattern(p,uniMap,
+					     p.patternTypeVariables(),
+					     p.patternNameVariables());
     }
 
 
@@ -259,5 +269,73 @@ aspect Subsumption {
 	return canUnifySignature(pmd, uniMap, tvs, nvs) &&
 	    this.type().unifiesWith(pmd.type(), uniMap, tvs) &&
 	    pmd.getModifiers().subsumedBy(this.getModifiers(), uniMap);
+    }
+
+    public Map IteratorDecl.nestedMaskPrimaryMapping() {
+	Pattern p = getPattern();
+	return p.maskedMapping(getNestedPatternList());
+    }
+
+    public Map Pattern.maskedMapping(List nestedPatterns) {
+	throw new Error("maksedMapping(AST.List) not supported by " + 
+			getClass().getName());
+    }
+    public Map MethodPattern.maskedMapping(List nestedPatterns) {
+	MethodDecl pm = patternMethodDecl();
+	HashMap map = new HashMap();
+	for ( int i=0; i<nestedPatterns.getNumChild(); i++) {
+	    Pattern np = (Pattern) nestedPatterns.getChild(i);
+	    if ( np.isPositive() || !np.isMethodPattern() ) continue;
+	    
+	    MethodPattern nmp = (MethodPattern) np;
+	    MethodDecl nmpdecl = nmp.patternMethodDecl();
+	    
+	    // nmp identifies the same method as pattern if 
+	    // 1) nmp's base type is a subtype of pattern's base type,
+	    // 2) their name and parameter lists unify.
+	    if ( !nmp.getBaseSet().type().subtype(this.getBaseSet().type()))
+		continue;
+	    HashMap newMap = new HashMap();
+	    if ( !nmpdecl.canUnifySignature(pm,newMap,
+					    nmp.patternTypeVariables(),
+					    nmp.patternNameVariables()))
+		continue;
+	    
+	    // The negative conditions can be on the return type,
+	    // modifiers, or exception types. Right now, we just
+	    // deal with modifiers.
+	    // TODO: handle other things.
+	    map.putAll(pm.getModifiers().maskByMapping(nmp.getModifiers()));
+	}
+	return map;
+    }
+    public Map FieldPattern.maskedMapping(List nestedPatterns) {
+	FieldDeclaration pf = patternFieldDeclaration();
+	HashMap map = new HashMap();
+	for ( int i=0; i<nestedPatterns.getNumChild(); i++) {
+	    Pattern np = (Pattern) nestedPatterns.getChild(i);
+	    if ( np.isPositive() || !np.isFieldPattern() ) continue;
+	    
+	    FieldPattern nfp = (FieldPattern) np;
+	    FieldDeclaration nfpdecl = nfp.patternFieldDeclaration();
+	    
+	    // nmp identifies the same method as pattern if 
+	    // 1) nmp's base type is a subtype of pattern's base type,
+	    // 2) their name and parameter lists unify.
+	    if ( !nfp.getBaseSet().type().subtype(this.getBaseSet().type()))
+		continue;
+	    HashMap newMap = new HashMap();
+	    if ( !nfpdecl.canUnifySignature(pf,newMap,
+					    nfp.patternTypeVariables(),
+					    nfp.patternNameVariables()))
+		continue;
+	    
+	    // The negative conditions can be on the return type,
+	    // modifiers, or exception types. Right now, we just
+	    // deal with modifiers.
+	    // TODO: handle other things.
+	    map.putAll(pf.getModifiers().maskByMapping(nfp.getModifiers()));
+	}
+	return map;
     }
 }

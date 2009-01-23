@@ -2,24 +2,49 @@ import main.Modifiables;
 
 
 aspect ModifierUnification {
-
-    public Modifiers Modifiers.allModifiers( Modifiables modType ) {
+    public Modifiers Modifiers.allModifiers( Modifiables modType, 
+					     boolean isAbstract,
+					     boolean isInterface ) {
 	Modifiers mods = new Modifiers();
 
 	// method, field, class, interface
 	mods.addModifier(new MaybeModifier("public"));
 	mods.addModifier(new MaybeModifier("protected"));
 	mods.addModifier(new MaybeModifier("private"));
-	mods.addModifier(new MaybeModifier("static")); 
 
+	// method, field, class, interface may be static.
+	// but if modType is field and host type is interface, then
+	// it is definitely static
+	if ( modType == Modifiables.FIELD && isInterface )
+	    mods.addModifier(new Modifier("static"));
+	else
+	    mods.addModifier(new MaybeModifier("static")); 
+	
 	// method, class, interface
-	if ( modType == Modifiables.METHOD || modType == Modifiables.CLASS || modType == Modifiables.INTERFACE ) {
-	    mods.addModifier(new MaybeModifier("abstract"));
+	if ( modType == Modifiables.METHOD 
+	     || modType == Modifiables.CLASS 
+	     || modType == Modifiables.INTERFACE ) {
+	    // abstract is only possible if the hostType is abstract OR
+	    // modType is not METHOD
+	    if ( modType != Modifiables.METHOD  || isAbstract )
+		mods.addModifier(new MaybeModifier("abstract"));
 	    mods.addModifier(new MaybeModifier("strictfp"));
 	}
 
-	if ( modType == Modifiables.FIELD || modType == Modifiables.METHOD || modType == Modifiables.CLASS ) {
-	    mods.addModifier(new MaybeModifier("final"));
+	// field, method, and class can be final.
+	if ( modType == Modifiables.FIELD || 
+	     modType == Modifiables.METHOD || 
+	     modType == Modifiables.CLASS ) {
+	    if ( isInterface && modType == Modifiables.METHOD )
+		// but if host type is interface and modType is METHOD
+		// then it must be NOT final.
+		mods.addModifier(new NegativeModifier("final"));
+	    else if ( isInterface && modType == Modifiables.FIELD )
+		// if host type is interface and modType is field, it
+		// is definitely final.
+		mods.addModifier(new Modifier("final"));
+	    else // otherwise, add mabye final.
+		mods.addModifier(new MaybeModifier("final"));
 	}
 
 	if ( modType == Modifiables.METHOD ) {
@@ -35,12 +60,26 @@ aspect ModifierUnification {
 	return mods;
     }
 
+    public Modifiers Modifiers.allModifiers( Modifiables modType, TypeDecl hostType ) {
+	return allModifiers(modType,
+			    hostType.isPossiblyAbstract(),
+			    hostType.isPossiblyInterfaceDecl());
+    }
+
     /**
      * Modifiers that's part of a pattern needs to be enhanced with
      * MaybeModifiers.
      **/
-    public Modifiers Modifiers.enhanceWithMaybes ( Modifiables modType ) {
-	Modifiers allMods = allModifiers( modType );
+    public Modifiers Modifiers.enhanceWithMaybes ( Modifiables modType, 
+						   TypeDecl hostType ) {
+	return enhanceWithMaybes(modType,
+				 hostType.isPossiblyAbstract(),
+				 hostType.isInterfaceDecl());
+    }
+    public Modifiers Modifiers.enhanceWithMaybes ( Modifiables modType, 
+						   boolean isAbstract,
+						   boolean isInterface ) {
+	Modifiers allMods = allModifiers( modType, isAbstract, isInterface);
 
 	Modifiers mods = new Modifiers();
 
@@ -60,7 +99,8 @@ aspect ModifierUnification {
 
 	// what's left in allMods are maybes.
 	for ( int i=0; i<allMods.getNumModifier(); i++) {
-	    mods.addModifier(new MaybeModifier(allMods.getModifier(i).getID()));
+	    //	    mods.addModifier(new MaybeModifier(allMods.getModifier(i).getID()));
+	    mods.addModifier(allMods.getModifier(i));
 	}
 
 	return mods;
@@ -89,17 +129,22 @@ aspect ModifierUnification {
 	HashMap newMap = new HashMap(uniMap);
 	// Keep track of which modifier is not subsumed by mods.
 	Modifiers unmapped = new Modifiers();
+	Modifiers mapped = new Modifiers();
 	for ( int i=0; i<getNumModifier(); i++) {
 	    Modifier m = getModifier(i);
 	    if ( !m.subsumedBy(mods,newMap))
 		unmapped.addModifier(m.fullCopy());
+	    else mapped.addModifier(m.fullCopy());
 	}
 
 	// for those unsubsumed by mods, we need to see whether
 	// they can subsume some of mods unmapped.
 	for ( int i=0; i<mods.getNumModifier(); i++) {
 	    Modifier m = mods.getModifier(i);
-	    if (!newMap.containsKey(m) &&  
+	    if (!newMap.containsKey(m) &&
+		// if m is a maybe modifier and it is excluded by the
+		// mapped ones, then it is okay.
+		!(m.isMaybe() && m.excludedBy(mapped)) && 
 		!m.subsumedBy(unmapped,newMap))
 		return false;
 	}
@@ -193,6 +238,13 @@ aspect ModifierUnification {
     eq MaybeModifier.subsumesNegativeModifier(NegativeModifier m) = 
 	mutuallyExclusive(getID(), m.getID());
 
+    syn lazy boolean Modifier.excludedBy(Modifiers mods) {
+	for ( int i=0; i<mods.getNumModifier(); i++ )
+	    if ( this.excludedBy(mods.getModifier(i)))
+		return true;
+	return false;
+    }
+
     syn lazy boolean Modifier.excludedBy(Modifier m) = m.excludesModifier(this);
     eq NoModifier.excludedBy(Modifier m) = m.excludesNoModifier(this);
     eq NegativeModifier.excludedBy(Modifier m) = m.excludesNegativeModifier(this);
@@ -259,80 +311,41 @@ aspect ModifierUnification {
 
     syn lazy Modifier Modifier.negatedModifier() = new NegativeModifier(this.getID());
     eq NegativeModifier.negatedModifier() = new MaybeModifier(getID());
-}
 
-/*
-aspect ModifierUnification {
 
-    syn lazy boolean Modifiers.unifiesWith(Modifiers mods) {
-	return this.unifiesWithHelp(mods) &&
-	    mods.unifiesWithHelp(this);
+    // Mask this by the modifiers in mods.  The resulting modifier
+    // should not be able to subsume mods.
+    // This is to say if any modifier in this subsumes any modifier in mods,
+    // then it must be removed.
+    public Modifiers Modifiers.maskBy(Modifiers mods) {
+	Map map = maskByMapping(mods);
+	return this.substitute(map);
     }
 
-    syn lazy boolean Modifiers.unifiesWithHelp(Modifiers mods) {
+    public Map Modifiers.maskByMapping(Modifiers mods) {
+	Map map = new HashMap();
+	Modifiers newMods = new Modifiers();
 	for ( int i=0; i<getNumModifier(); i++) {
-	    int r = mods.unifiesWith(getModifier(i));
-	    if ( r > 0 ) continue; // match found.
-	    else if ( r < 0 ) 
-		return false; // modifier(i) is definitely excluded
-	    else {
-		if ( !mods.declaredFromPattern() && declaredFromPattern() 
-		     && !getModifier(i).isNegative())
-		    return false;
+	    Modifier m = getModifier(i);
+	    boolean keep = true;
+	    for ( int j=0; j<mods.getNumModifier(); j++) {
+		Modifier mp = mods.getModifier(j);
+		if (!mp.isMaybe() && mp.subsumedBy(m)) {
+		    keep = false;
+		    break;
+		}
 	    }
+
+	    ArrayList l = new ArrayList();
+	    if ( !keep ) {
+		l.add(m.negatedModifier());
+		map.put(m, l);
+	    } else { 
+		l.add(m);
+		map.put(m,l);
+	    } 	    
 	}
-	return true;
+	return map;
     }
-*/
-    /**
-     * returns:
-     * 1 if Modifiers has exactly a modifier that matches m
-     * 0 if Modifiers has no modifier that matches m, but no modifier that
-     *   definitely excludes m, either (i.e. no(final))
-     * -1 Modifiers definitely does not match m.
-     **/
-//    syn lazy int Modifiers.unifiesWith(Modifier m) {
-	/**
-	 * m can be modifier with a list of modifiers if
-	 * 1. there is a modifier in the list that unifies with m
-	 * 2. there is not a modifier in the list that precludes m.
-	 **/
-/*
-	boolean foundUniMod = false;
-	for ( int i=0; i<getNumModifier(); i++) {
-	    if ( getModifier(i).unifiesWith(m)) 
-		foundUniMod = true;
-	    // if a preclude modifier is found, immediately return.
-	    if ( getModifier(i).precludes(m)) 
-		return -1;
-	}
-	return foundUniMod ? 1 : 0;
-    }
-
-    syn lazy boolean Modifier.unifiesWith(Modifier m) = m.unifiesWithRegularModifier(this);
-    // TODO: annotations are also modifiers. handle annotation matching.
-    eq NegativeModifier.unifiesWith(Modifier m) = m.unifiesWithNegativeModifier(this);
-    eq NoModifier.unifiesWith(Modifier m) = m instanceof NoModifier;
-
-    syn lazy boolean Modifier.unifiesWithRegularModifier(Modifier m) = getID().equals(m.getID());
-    eq NegativeModifier.unifiesWithRegularModifier(Modifier m) = !getID().equals(m.getID());
-    eq NoModifier.unifiesWithRegularModifier(Modifier m) = m instanceof NoModifier;
-
-    syn lazy boolean Modifier.unifiesWithNegativeModifier(NegativeModifier n) = !n.getID().equals(getID());
-    eq NegativeModifier.unifiesWithNegativeModifier(NegativeModifier n) = getID().equals(n.getID());
-    eq NoModifier.unifiesWithNegativeModifier(NegativeModifier n) = true;
-
-    syn lazy boolean Modifier.precludes(Modifier m) = m.precludedByRegularModifier(this);
-    eq NegativeModifier.precludes(Modifier m) = m.precludedByNegativeModifier(this);
-    eq NoModifier.precludes(Modifier m) = true;
-
-    syn lazy boolean Modifier.precludedByRegularModifier(Modifier m) = false;
-    eq NegativeModifier.precludedByRegularModifier(Modifier m) = getID().equals(m.getID());
-    eq NoModifier.precludedByRegularModifier(Modifier m) = false;
-
-    syn lazy boolean Modifier.precludedByNegativeModifier(NegativeModifier m) = m.getID().equals(getID());
-    eq NegativeModifier.precludedByNegativeModifier(NegativeModifier m) = false;
-    eq NoModifier.precludedByNegativeModifier(NegativeModifier m) = false;
-
 }
-*/
+
