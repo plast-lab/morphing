@@ -63,9 +63,9 @@ interface FilterOut<class T,class W> {
 		
 
 class WrappingAspect<class T,class W extends Wrapper<T>> extends T {
-	<R,A*,E*>[m] for(R m(A) throws E : T.methods ; 
-			 no R m(A, W) throws E : FilterOut<T,W>.methods; 
-			 no !final R m (A,W) throws E : T.methods )
+	<R,A*,E*>[m] for(!final R m(A) throws E : T.methods ; 
+			 no R m(A, W) throws E : FilterOut<T,W>.methods;
+			 no final R m (A,W) throws E : T.methods )
 	public R m(A args,W wrapper) throws E {
 	    try {
 		wrapper.enter(this);
