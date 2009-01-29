@@ -9,12 +9,11 @@ import main.*;
 
 public abstract class MJTestCase extends TestCase {
 
+    final String MJ_ROOT;
     final String MJ_FRONT;
-    final String MJ_BACK;
     final String MJ_EXAMPLES;
 
     final String MJ_FRONT_TEST_DIR;
-    final String MJ_BACK_TEST_DIR;
 
     final boolean MJ_PRINT_ERROR;
 
@@ -24,23 +23,34 @@ public abstract class MJTestCase extends TestCase {
     Collection<Problem> expectedProblems = new ArrayList<Problem>();
 
     public MJTestCase() {
-	MJ_FRONT = setEnvVariable("MJ_FRONT");
-	MJ_BACK = setEnvVariable("MJ_BACK");
-	MJ_EXAMPLES = setEnvVariable("MJ_EXAMPLES");
+	// root of MJFrontend, MJBackend, and examples: ../
+	String rootDir = ".." + File.separator;
+	MJ_ROOT = setEnvVariable("MJ_ROOT", rootDir);
+
+	MJ_FRONT = setEnvVariable("MJ_FRONT", rootDir + "MJFrontend");
+	MJ_EXAMPLES = setEnvVariable("MJ_EXAMPLES", rootDir + "examples");
+
 	MJ_FRONT_TEST_DIR = MJ_FRONT + "mjtestfiles" + File.separator;
-	MJ_BACK_TEST_DIR = MJ_BACK + "mjtestfiles" + File.separator;
 	MJ_PRINT_ERROR = new Boolean(System.getenv("MJ_PRINT_ERROR"))
 		.booleanValue();
     }
-
-    protected String setEnvVariable(String varName) {
+    
+    protected String setEnvVariable(String varName, String defaultVal) {
 	String value = System.getenv(varName);
+	if (value == null) {
+	    System.out.println("WARNING: No environment variable " + varName
+		    + " set. Using default: " + defaultVal);
+	    value = defaultVal;
+	}
 
-	if (value == null)
-	    value = "." + File.separator;
-	else if (!value.endsWith(File.separator))
+	if (!value.endsWith(File.separator) && !value.endsWith(".jar")
+		&& !value.endsWith(".zip"))
 	    value = value + File.separator;
 	return value;
+    }
+
+    protected String setEnvVariable(String varName) {
+	return setEnvVariable(varName, "." + File.separator);
     }
 
     protected String[] compilerArgs(String fileName, String[] rest) {

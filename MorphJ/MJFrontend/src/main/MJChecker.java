@@ -14,6 +14,17 @@ public class MJChecker extends Frontend {
     }
     boolean printErrors = true;
 
+    @Override
+    protected String name() {
+      return "MorphJFrontend";
+    }
+
+    @Override
+    protected String url() {
+      return "(http://code.google.com/p/morphing/)";
+    }
+
+
     protected void processErrors(Collection errors, CompilationUnit unit) {
 	if (printErrors) {
 	    System.out.println("Errors:");
@@ -77,11 +88,8 @@ public class MJChecker extends Frontend {
 	return problems;
     }
 
-    protected String name() {
-	return "MJ + Java1.4Frontend + Java1.5Extensions";
-    }
-
+    @Override
     protected String version() {
-	return "R20080124";
+	return "0.32";
     }
 }

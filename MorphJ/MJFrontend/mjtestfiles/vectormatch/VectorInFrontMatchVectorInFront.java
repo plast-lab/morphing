@@ -1,7 +1,7 @@
 class Foo<X> {
     X x;
 
-    <R,A*>[m] for ( R m (A, String) : X.methods )
+    <R,A*>[m] for ( public R m (A, String) : X.methods )
 	 R m (A args, String s) {
 	     return x.m(args, s);
 	}
@@ -10,7 +10,7 @@ class Foo<X> {
 class Bar<Y> {
     Foo<Y> fooy;
 
-    <R2,B*>[n] for ( R2 n (B, String) : Y.methods )
+    <R2,B*>[n] for ( public R2 n (B, String) : Y.methods )
 	 R2 n (B args, String s) {
 	     return fooy.n(args, s);
 	 }

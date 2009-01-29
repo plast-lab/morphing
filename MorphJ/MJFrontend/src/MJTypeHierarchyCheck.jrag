@@ -296,7 +296,7 @@ aspect MJTypeHierarchyCheck {
 	super.typeCheckMethod(m);
 	if ( hasSuperclass() &&
 	     superclass() instanceof TypeVariable ) {
-	    MethodDecl md = superclass().everyMethod();
+	    MethodDecl md = superclass().everyNonPrivateMethod();
 	    if ( // Make exception for static void main(String[] argv)
 		!m.isMain() ) {
 		ASTNode target = m.hostType() == this ? (ASTNode)m : (ASTNode)this;
@@ -634,7 +634,8 @@ aspect MJTypeHierarchyCheck {
 	    // its modifier could be determined by the way the
 	    // iterator of this method unifies with the decl's iterator.
 	    Modifiers declMods = decl.getModifiers();
-	    if ( decl.isEveryMethod() && m instanceof StaticForMethodDecl ) {
+	    if ( decl.isEveryMethod() && m.isReflectiveDecl()) {
+		// instanceof StaticForMethodDecl ) {
 		Map newMap = new HashMap(uniMap);
 		if ( ((StaticForMethodDecl) decl).refIterator().subsumes(
 									 ((StaticForMethodDecl) m).refIterator(), newMap)) {

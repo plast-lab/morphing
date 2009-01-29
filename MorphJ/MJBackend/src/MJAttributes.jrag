@@ -261,4 +261,5 @@ aspect MJAttributes {
     syn String Modifier.signature() = getID() + ";";
     eq NegativeModifier.signature() = "-" + super.signature();
     eq NoModifier.signature() = "NOMOD";
+    eq MaybeModifier.signature() = "";
 }

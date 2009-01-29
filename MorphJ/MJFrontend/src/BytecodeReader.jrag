@@ -5,7 +5,7 @@ aspect BytecodeReader {
       return new BytecodeParser(is, fullName).parse(null, null, p);
     }
 
-    public static final boolean VERBOSE = false;
+      public static final boolean VERBOSE = true;
 
     private DataInputStream is;
     public CONSTANT_Class_Info classInfo;
@@ -723,7 +723,9 @@ aspect BytecodeReader {
 	      Modifiers mods = parseModifiers();
 	      BaseSet bs = parseBaseSet();
 
-	      return new FieldPattern(bs, mods, type, fieldName, new Opt(), new List()); 
+	      // Returning an OptFieldPattern to take advantage of the
+	      // rewrite rules to enhance modifiers with maybes.
+	      return new OptFieldPattern(bs, mods, new Opt(type), fieldName);
 	  }
 
 	  Modifiers parseModifiers() {
@@ -777,9 +779,10 @@ aspect BytecodeReader {
 	      // base set
 	      BaseSet bs = parseBaseSet();
 		  
-	      return new MethodPattern(bs,mods,returnType, methodName, 
-				       parameterTypes, exceptionList,
-				       new Opt(), new List());
+	      return new OptMethodPattern(bs,mods,new Opt(returnType), 
+					  methodName, 
+					  parameterTypes, exceptionList,
+					  new Opt());
 	  }
 
 	  // TODO: need to handle the case where there is no return type,
@@ -1039,25 +1042,31 @@ aspect BytecodeReader {
 	      buf.delete(0,2);
 
 	      // look for $$L$$
-	      int lindex = buf.indexOf("$$L$$");
+	      //	      int lindex = buf.indexOf("$$L$$");
+	      int lindex = buf.indexOf("$$L");
 	      a = new TypeAccess(packageName,buf.substring(0,lindex));
 	      buf.delete(0, lindex);
 
 	      // look for the next corresponding $$R$$.
-	      int rindex = buf.indexOf("$$R$$");
+	      //	      int rindex = buf.indexOf("$$R$$");
+	      int rindex = buf.indexOf("$$R");
 	      lindex = 0;
 	      int tmpIndex = lindex;
-	      while ( ((tmpIndex = buf.indexOf("$$L$$", tmpIndex+5)) != -1)  &&
+	      //	      while ( ((tmpIndex = buf.indexOf("$$L$$", tmpIndex+5)) != -1)  &&
+	      while ( ((tmpIndex = buf.indexOf("$$L", tmpIndex+3)) != -1)  &&
 		      tmpIndex < rindex ) {
-		  rindex = buf.indexOf("$$R$$", rindex+5);
+		  //		  rindex = buf.indexOf("$$R$$", rindex+5);
+		  rindex = buf.indexOf("$$R", rindex+3);
 	      }
 
 	      StringBuffer paramsBuf = 
-		  new StringBuffer(buf.substring(lindex+5, rindex));
+		  //		  new StringBuffer(buf.substring(lindex+5, rindex));
+		  new StringBuffer(buf.substring(lindex+3, rindex));
 	      // split the params.
 	      List params = splitTypeParams(paramsBuf);
 	      
-	      buf.delete(0, rindex+5);
+	      //	      buf.delete(0, rindex+5);
+	      buf.delete(0, rindex+3);
 	      a = new ParTypeAccess(a, params);
 	  } else {
 	      int dindex = buf.indexOf("$");
@@ -1076,26 +1085,30 @@ aspect BytecodeReader {
       // This is used to split up the expanded type parameter string.
       // Types may start with package name.
       public static List splitTypeParams(StringBuffer buf) {
-	  // first find possible package name.
-	  StringBuffer packageName = new StringBuffer();
-	  int slashIndex = 0;
-	  while ( (slashIndex = buf.indexOf("$$S$$")) > 0 &&
-		  buf.indexOf("$$") == slashIndex ) {
-	      // has package name.
-	      if ( packageName.length() > 0 ) packageName.append(".");
-	      packageName.append(buf.substring(0, slashIndex));
-	      buf.delete(0, slashIndex+5);
-	  }
-	  
-	  List params = new List();
-	  while ( buf.length() > 0 ) {
-	      Access a = eatTypeName(packageName.toString(), buf);
-	      params.addChild(a);
-	      // eat $$C$$
-	      buf.delete(0, 5);
-	  }
+	List params = new List();
+	while (buf.length() > 0) {
+	    // first find possible package name.
+	    StringBuffer packageName = new StringBuffer();
+	    int slashIndex = 0;
+	    // while ( (slashIndex = buf.indexOf("$$S$$")) > 0 &&
+	    while ((slashIndex = buf.indexOf("$$S")) > 0
+		    && buf.indexOf("$$") == slashIndex) {
+		// has package name.
+		if (packageName.length() > 0)
+		    packageName.append(".");
+		packageName.append(buf.substring(0, slashIndex));
+		// buf.delete(0, slashIndex+5);
+		buf.delete(0, slashIndex + 3);
+	    }
 
-	  return params;
+	    Access a = eatTypeName(packageName.toString(), buf);
+	    params.addChild(a);
+	    // eat $$C$$
+	    // buf.delete(0, 5);
+
+	    buf.delete(0, 3);
+	}
+	return params;
       }
 
     Access classTypeSignatureSuffix() {

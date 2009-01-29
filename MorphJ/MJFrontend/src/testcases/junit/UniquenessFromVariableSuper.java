@@ -47,8 +47,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     @Test
     public void testCopyVariableSuperSub() {
 	actualProblems = checkTest("CopyVariableSuperSubOk.java");
-	addExpected(makeError("method m(A) in Mixin could potentially override a final method in X"));
-	compareProblems();
+	noProblems();
     }
 
     // OK: copying methods of a variable superclass of superclass
@@ -70,24 +69,14 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 	expectedProblems
 		.add(makeError("the return type of method m1() in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
 	expectedProblems
-		.add(makeError("method m1() in Mixin could potentially override a final method in X"));
-	expectedProblems
 		.add(makeError("the return type of method m5(java.lang.String, int, java.lang.Object) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
-	expectedProblems
-		.add(makeError("method m5(java.lang.String, int, java.lang.Object) in Mixin could potentially override a final method in X"));
 	expectedProblems
 		.add(makeError("the return type of method m2() in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
 	expectedProblems
-		.add(makeError("method m2() in Mixin could potentially override a final method in X"));
-	expectedProblems
 		.add(makeError("the return type of method m3(java.lang.Number) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
 	expectedProblems
-		.add(makeError("method m3(java.lang.Number) in Mixin could potentially override a final method in X"));
-	expectedProblems
 		.add(makeError("the return type of method m4(int, java.lang.Float) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
-	expectedProblems
-		.add(makeError("method m4(int, java.lang.Float) in Mixin could potentially override a final method in X"));
-
+	
 	compareProblems(expectedProblems, actualProblems);
     }
 
@@ -99,8 +88,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 	actualProblems = checkTest("CopyUnrelatedVar.java");
 	expectedProblems.clear();
 	addExpected(makeError("the return type of method m(A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
-	addExpected(makeError("method m(A) in Mixin could potentially override a final method in X"));
-
+	
 	compareProblems(expectedProblems, actualProblems);
     }
 
@@ -113,9 +101,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 	expectedProblems.clear();
 	expectedProblems
 		.add(makeError("the return type of method m(A, java.lang.String) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
-	expectedProblems
-		.add(makeError("method m(A, java.lang.String) in Mixin could potentially override a final method in X"));
-
+	
 	compareProblems(expectedProblems, actualProblems);
     }
 
@@ -127,9 +113,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 	expectedProblems.clear();
 	expectedProblems
 		.add(makeError("the return type of method m(java.lang.String, A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
-	expectedProblems
-		.add(makeError("method m(java.lang.String, A) in Mixin could potentially override a final method in X"));
-
+	
 	compareProblems(expectedProblems, actualProblems);
     }
 
@@ -139,8 +123,6 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     public void testAddArgumentBothEnds() {
 	actualProblems = checkTest("AddArgumentBothEnds.java");
 	expectedProblems.clear();
-	expectedProblems
-		.add(makeError("method m(java.lang.String, A, java.lang.Object) in Mixin could potentially override a final method in X"));	
 	expectedProblems
 		.add(makeError("the return type of method m(java.lang.String, A, java.lang.Object) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
 	compareProblems(expectedProblems, actualProblems);
@@ -152,8 +134,6 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     public void testAddVariableArgumentToEnd() {
 	actualProblems = checkTest("AddVariableArgumentEnd.java");
 	expectedProblems.clear();
-	expectedProblems
-		.add(makeError("method m(A, java.lang.Object) in Mixin could potentially override a final method in X"));	
 	expectedProblems
 		.add(makeError("the return type of method m(A, java.lang.Object) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
 	expectedProblems
@@ -192,8 +172,6 @@ public class UniquenessFromVariableSuper extends MJTestCase {
     public void testChangeName() {
 	actualProblems = checkTest("ChangeNameToStatic.java");
 	clearExpected();
-
-	addExpected(makeError("method foo(A) in Mixin could potentially override a final method in X"));
 	addExpected(makeError("method with signature \n"
 		+ "<R extends java.lang.Object,A*>[m]for( !final R m(A):X.methods;)\n"
 		+ "R foo(A)"
@@ -208,7 +186,6 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 	actualProblems = checkTest("ChangeNameVar.java");
 	clearExpected();
 	addExpected(makeError("the return type of method get#m(A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
-	addExpected(makeError("method get#m(A) in Mixin could potentially override a final method in X"));
 	compareProblems();
     }
     
@@ -219,8 +196,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 	actualProblems = checkTest("ChangeNameRemovePrefix.java");
 	clearExpected();
 	addExpected(makeError("the return type of method m(A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
-	addExpected(makeError("method m(A) in Mixin could potentially override a final method in X"));
-
+	
 	compareProblems();
     }
 
@@ -231,7 +207,6 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 	actualProblems = checkTest("ChangePrefixName.java");
 	clearExpected();
 	addExpected(makeError("the return type of method set#m(A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
-	addExpected(makeError("method set#m(A) in Mixin could potentially override a final method in X"));
 	compareProblems();
     }
     // OK
@@ -251,8 +226,7 @@ public class UniquenessFromVariableSuper extends MJTestCase {
 	actualProblems = checkTest("ChangeStaticName.java");
 	clearExpected();	
 	addExpected(makeError("the return type of method bar(A) in Mixin may not match the return type of method it may override in X and may thus not be overriden"));
-	addExpected(makeError("method bar(A) in Mixin could potentially override a final method in X"));
-
+	
 	compareProblems();
     }
     

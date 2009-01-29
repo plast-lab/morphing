@@ -34,6 +34,10 @@ aspect MJUnification {
 	if ( !getTypeAccess().type().unifiesWith(p2.getTypeAccess().type(), newMap, uniTypeVars))
 	    return false;
 	
+	// unify exception types.
+	if ( !TypeDecl.typeListUnifies(exceptionTypes(), p2.exceptionTypes(), newMap, uniTypeVars))
+	    return false;
+
 	// unify modifiers.
 	if (!getModifiers().unifiesWith(p2.getModifiers(),newMap))
 	    return false;

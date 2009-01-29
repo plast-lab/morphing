@@ -1,4 +1,44 @@
 aspect MJUtilities {
+
+    public ArrayList MethodDecl.parameterTypes () { 
+	ArrayList list = new ArrayList();
+	for ( int i=0; i<getNumParameter(); i++ )
+	    list.add(getParameter(i).type());
+	return list;
+    }
+    public ArrayList MethodDecl.exceptionTypes () {
+	ArrayList list = new ArrayList();
+	for ( int i=0; i<getNumException(); i++) 
+	    list.add(getException(i).type());
+	return list;
+    }
+
+    public ArrayList MethodPattern.parameterTypes() {
+	ArrayList list = new ArrayList();
+	for ( int i=0; i<getNumParameter(); i++ )
+	    list.add(getParameter(i).type());
+	return list;	
+    }
+    public ArrayList NestedMethodPattern.parameterTypes() {
+	ArrayList list = new ArrayList();
+	for ( int i=0; i<getNumParameter(); i++ )
+	    list.add(getParameter(i).type());
+	return list;	
+    }
+    public ArrayList MethodPattern.exceptionTypes () {
+	ArrayList list = new ArrayList();
+	for ( int i=0; i<getNumException(); i++) 
+	    list.add(getException(i).type());
+	return list;
+    }
+    public ArrayList NestedMethodPattern.exceptionTypes () {
+	ArrayList list = new ArrayList();
+	for ( int i=0; i<getNumException(); i++) 
+	    list.add(getException(i).type());
+	return list;
+    }
+
+
     public VectorTypeVariable TypeDecl.createNonVoidVectorTypeVariable(String id) {
 	return createVectorTypeVariable(id, 
 					new List().add(typeNonVoid().createBoundAccess()));
@@ -29,6 +69,27 @@ aspect MJUtilities {
 	sub.put(everyMethod.getIteratorDecl().getPatternNameParameter(0),
 		new Identifier(name, IteratorDecl.TrueIteratorDecl));
 
+
+	StaticForMethodDecl sfd = everyMethod.substitute(sub);
+	
+	sfd.is$Final = true;
+	addBodyDecl(sfd);
+	
+	sfd.bypassErrorChecking = true;
+	return sfd;
+    }
+
+    public StaticForMethodDecl TypeDecl.createNonPrivateStaticForMethodMatchingName(String name) {
+
+    	/**
+	 * pattern: _ name(A) throws E : T.methods
+	 * where _ is the AllMatchingTypeVariable, which matches void.
+	 **/
+	EveryMethodDecl everyMethod = everyNonPrivateMethod();
+	// create substitution from m -> name.
+	Map sub = new HashMap();
+	sub.put(everyMethod.getIteratorDecl().getPatternNameParameter(0),
+		new Identifier(name, IteratorDecl.TrueIteratorDecl));
 
 	StaticForMethodDecl sfd = everyMethod.substitute(sub);
 	
@@ -72,5 +133,14 @@ aspect MJUtilities {
 	l.addAll(id1.patternNameVariables());
 	l.addAll(id2.patternNameVariables());
 	return l;
+    }
+
+    public void ASTNode.makeAllChildrenSameFinal() {
+	for ( int i=0; i<getNumChild(); i++) {
+	    if ( getChild(i) != null ) {
+		getChild(i).is$Final = this.is$Final;
+		getChild(i).makeAllChildrenSameFinal();
+	    }
+	}
     }
 }

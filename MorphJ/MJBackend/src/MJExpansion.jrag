@@ -60,10 +60,10 @@ aspect MJExpansion {
 	// Just expand the local variable node into howmany ever there 
 	// needs to be, change the types. But leave the rest to
 	// the regular visitor.
-	List newLocalTypes = type.expandAccessList(expansionSubstitutions);
-	for ( int i=0; i<newLocalTypes.getNumChild(); i++) {
+	java.util.List newLocalTypes = type.expandAccessList(expansionSubstitutions);
+	for ( int i=0; i<newLocalTypes.size(); i++) {
 	    LocalVariableNode newNode = NodeCopier.copyLocalVariableNode(n);
-	    Access newTa = (Access) newLocalTypes.getChild(i);
+	    Access newTa = (Access) newLocalTypes.get(i);
 	    if ( newTa.type().isUnknown()) {
 		System.err.println("unknown type: " + n.desc);
 	    } else {
@@ -760,14 +760,17 @@ aspect MJExpansion {
 	StringBuffer buf = new StringBuffer("$$");
 	buf.append(name());
 	// $$L$$ for <
-	buf.append("$$L$$");
+	//	buf.append("$$L$$");
+	buf.append("$$L");
 	for ( int i=0; i<getNumArgument(); i++ ) {
 	    TypeDecl argType = getArgument(i).type();
 	    buf.append(TypeDecl.convertToExpandedName(argType.expandedConstantPoolName()));
-	    buf.append("$$C$$");
+	    //	    buf.append("$$C$$");
+	    buf.append("$$C");
 	}	
 	// $$R$$ for >
-	buf.append("$$R$$");
+	//	buf.append("$$R$$");
+	buf.append("$$R");
 	return buf.toString();
     }
     eq RawClassDecl.expandedName() {
@@ -780,7 +783,8 @@ aspect MJExpansion {
     }
     // $$S$$ for /
     protected static String TypeDecl.convertToExpandedName ( String n ) {
-	return n.replace("/", "$$S$$");
+	//	return n.replace("/", "$$S$$");
+	return n.replace("/", "$$S");
     }
 
     // TODO: not finished.

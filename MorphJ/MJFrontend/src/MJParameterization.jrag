@@ -80,6 +80,7 @@ aspect MJParameterization {
 	SubstitutedStaticForStmt p = new SubstitutedStaticForStmt(getIteratorDecl().substitute(parTypeDecl), new List(), new List());
 	p.original = this;
 	p.is$Final = true;
+	//	p.makeAllChildrenSameFinal();
 
 	addSubstitutedStaticForStmt(p);
 	

@@ -93,6 +93,15 @@ aspect MJMethodSignature {
 	for ( Iterator ovIt = possOverrides.keySet().iterator(); 
 	      ovIt.hasNext();) {
 	    MethodDecl om = (MethodDecl) ovIt.next();
+
+	    if ( om.isEveryMethod() && om.hostType() != m.hostType()) {
+		// if om is EveryMethod, it is the EveryMethod that is 
+		// possibly public. However, if its hostType is a supertype
+		// of m's hostType, we need to change it to the nonPrivate
+		// version.
+		om = om.hostType().everyNonPrivateMethod();
+	    }
+
 	    if ( om instanceof PatternMethodDecl ) {
 		if ( om.equals(this)) {
 		    possOv = true;
@@ -131,7 +140,16 @@ aspect MJMethodSignature {
 	boolean possOv = false;
 	for ( Iterator ovIt = possOverrides.iterator(); 
 	      ovIt.hasNext();) {
-	    MethodDecl om = (MethodDecl) ovIt.next();	   
+	    MethodDecl om = (MethodDecl) ovIt.next();
+	    
+	    if ( om.isEveryMethod() && om.hostType() != m.hostType()) {
+		// if om is EveryMethod, it is the EveryMethod that is 
+		// possibly public. However, if its hostType is a supertype
+		// of m's hostType, we need to change it to the nonPrivate
+		// version.
+		om = om.hostType().createNonPrivateStaticForMethodMatchingName(id);
+	    }
+	    
 	    if ( om instanceof StaticForMethodDeclSubstituted ) {
 		StaticForMethodDeclSubstituted pm 
 		    = (StaticForMethodDeclSubstituted) om;

@@ -273,7 +273,7 @@ aspect MJTypeCheckCore {
     syn lazy Pattern Pattern.difference(Pattern p, Map uniMap) {
 	if ( isPositive() && p.subsumes(this, uniMap) ||
 	     !isPositive() && this.subsumes(p, uniMap)) {
-	    TrueNestedPattern tnp = new TrueNestedPattern(); 
+	    TrueNestedPattern tnp = new TrueNestedPattern(null); 
 	    tnp.bypassErrorChecking = true;
 	    return tnp;
 	}
@@ -286,44 +286,6 @@ aspect MJTypeCheckCore {
 	Pattern np = p.substitute(uniMap);
 	np.flipSign();
 	return np;
-    }
-
-    public ArrayList MethodDecl.parameterTypes () { 
-	ArrayList list = new ArrayList();
-	for ( int i=0; i<getNumParameter(); i++ )
-	    list.add(getParameter(i).type());
-	return list;
-    }
-    public ArrayList MethodDecl.exceptionTypes () {
-	ArrayList list = new ArrayList();
-	for ( int i=0; i<getNumException(); i++) 
-	    list.add(getException(i).type());
-	return list;
-    }
-
-    public ArrayList MethodPattern.parameterTypes() {
-	ArrayList list = new ArrayList();
-	for ( int i=0; i<getNumParameter(); i++ )
-	    list.add(getParameter(i).type());
-	return list;	
-    }
-    public ArrayList NestedMethodPattern.parameterTypes() {
-	ArrayList list = new ArrayList();
-	for ( int i=0; i<getNumParameter(); i++ )
-	    list.add(getParameter(i).type());
-	return list;	
-    }
-    public ArrayList MethodPattern.exceptionTypes () {
-	ArrayList list = new ArrayList();
-	for ( int i=0; i<getNumException(); i++) 
-	    list.add(getException(i).type());
-	return list;
-    }
-    public ArrayList NestedMethodPattern.exceptionTypes () {
-	ArrayList list = new ArrayList();
-	for ( int i=0; i<getNumException(); i++) 
-	    list.add(getException(i).type());
-	return list;
     }
 
     refine Generics public void ParTypeAccess.typeCheck() {
