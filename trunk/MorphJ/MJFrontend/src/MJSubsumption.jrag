@@ -155,30 +155,7 @@ aspect Subsumption {
 	    }
 	    return subFound;
 	}
-	/*
-	// this's modifiers must be a subset of p's modifiers.
-	if ( !getModifiers().subsumedBy(p.getModifiers(), uniMap))
-	    return false;
-	
-	// signitures must unify using this' type and name variables.
-	PatternMethodDecl thisMd = patternMethodDecl();
-	PatternMethodDecl pMd = p.patternMethodDecl();
 
-	// name + arg types unify
-	if ( !thisMd.canUnifySignature(pMd, uniMap, p.patternTypeVariables(), p.patternNameVariables())) 
-	    return false;
-
-	// return types unify
-	if ( !pMd.type().unifiesWith(getTypeAccess().type(), uniMap, p.patternTypeVariables()))
-	    return false;
-
-	// exceptions must unify.
-	if ( !TypeDecl.typeListUnifies(exceptionTypes(),p.exceptionTypes(),
-				       uniMap, p.patternTypeVariables()))
-	    return false;
-
-	return true;
-	*/
 	return this.unifiesWithMethodPattern(p,uniMap,
 					     p.patternTypeVariables(),
 					     p.patternNameVariables());
@@ -224,6 +201,9 @@ aspect Subsumption {
 	if ( !md.canUnifySignature(patternMd, map, tvs, nvs) ||
 	     // check return type.
 	     !md.type().unifiesWith(patternMd.type(),map, tvs) ||
+	     // check exceptions.
+	     !TypeDecl.typeListUnifies(md.exceptionTypes(), 
+				       exceptionTypes(), map, tvs) ||
 	     // check modifiers.
 	     !md.getModifiers().subsumedBy(getModifiers(), map))
 	    return false;
@@ -250,6 +230,30 @@ aspect Subsumption {
 	return true;
     }
 
+    syn lazy boolean MethodDecl.subsumes(MethodDecl md,Map uniMap) = md.subsumedByMethodDecl(this,uniMap);
+    eq StaticForMethodDecl.subsumes(MethodDecl md,Map uniMap) = md.subsumedByStaticForMethodDecl(this,uniMap);
+    syn lazy boolean MethodDecl.subsumedByMethodDecl(MethodDecl md, Map uniMap) = this.equals(md);
+    eq StaticForMethodDecl.subsumedByMethodDecl(MethodDecl md,Map uniMap) {
+	Collection<PatternTypeVariable> tvs = new ArrayList();
+	Collection<PatternNameVariable> nvs = new ArrayList();
+
+	return this.canUnifySignature(md,uniMap,tvs,nvs) && 
+	    type().unifiesWith(md.type(),uniMap,tvs) &&
+	    TypeDecl.typeListUnifies(exceptionTypes(), md.exceptionTypes(), 
+				     uniMap, tvs) && 
+	    getModifiers().subsumedBy(md.getModifiers(),uniMap);
+    }
+    syn lazy boolean MethodDecl.subsumedByStaticForMethodDecl(StaticForMethodDecl md,Map uniMap) {
+	IteratorDecl id = md.refIterator();
+	Collection<PatternTypeVariable> tvs = id.patternTypeVariables();
+	Collection<PatternNameVariable> nvs = id.patternNameVariables();
+	return this.canUnifySignature(md,uniMap,tvs,nvs) && 
+	    type().unifiesWith(md.type(),uniMap,tvs) &&
+	    TypeDecl.typeListUnifies(exceptionTypes(), md.exceptionTypes(), 
+				     uniMap, tvs) && 
+	    getModifiers().subsumedBy(md.getModifiers(),uniMap);
+    }
+
     // A method decl subsumes a method pattern mp if 
     // the method declared by this is a superset of the
     // methods in the range of mp.
@@ -267,7 +271,7 @@ aspect Subsumption {
 	Collection nvs = this.patternNameVariables();
 
 	return canUnifySignature(pmd, uniMap, tvs, nvs) &&
-	    this.type().unifiesWith(pmd.type(), uniMap, tvs) &&
+	    type().unifiesWith(pmd.type(), uniMap, tvs) &&
 	    pmd.getModifiers().subsumedBy(this.getModifiers(), uniMap);
     }
 

@@ -1,7 +1,8 @@
 package main;
+
 import AST.*;
 
-class MJCompiler extends Frontend {
+public class MJCompiler extends Frontend {
     public static void main(String args[]) {
 	if (!compile(args))
 	    System.exit(1);
@@ -74,11 +75,18 @@ class MJCompiler extends Frontend {
      * unit.transformation(); unit.generateClassfile(); }
      */
 
+    @Override
     protected String name() {
-	return "MJCompiler";
+	return "MorphJBackend";
     }
 
+    @Override
     protected String version() {
-	return "R20080124";
+	return "0.32";
+    }
+
+    @Override
+    protected String url() {
+	return "(http://code.google.com/p/morphing/)";
     }
 }

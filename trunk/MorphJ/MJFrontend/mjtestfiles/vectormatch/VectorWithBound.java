@@ -1,6 +1,6 @@
 class Foo<X> {
     X x;
-    <R,A* extends Number>[m] for ( R m (A) : X.methods )
+    <R,A* extends Number>[m] for ( public R m (A) : X.methods )
 	R m (A args) {
 	    return x.m(args);
 	}
@@ -8,9 +8,9 @@ class Foo<X> {
 
 class Bar {
 
-    int m1(Integer i) { return 0; }
-    int m2(Float f, Integer i) { return 0; }
-    int m3(Float f, Integer i, Number n) { return 0; }
+    public int m1(Integer i) { return 0; }
+    public int m2(Float f, Integer i) { return 0; }
+    public int m3(Float f, Integer i, Number n) { return 0; }
 
     public static void main(String[] argv) {
 	Foo<Bar> foobar = new Foo<Bar>();

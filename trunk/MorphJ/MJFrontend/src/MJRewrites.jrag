@@ -41,16 +41,15 @@ aspect MJRewrites {
 	    // if there's no modifier declared, then we use AnyModifier
 	    Modifiers mods = 
 		getModifiers().enhanceWithMaybes(Modifiables.FIELD,
-						 getBaseSet().type());
-	    if ( hasTypeAccess() )
-		return new FieldPattern(getBaseSet(), mods,
-					getTypeAccess(), getID(),
-					new Opt(), new List());
-	    else {
+						 getBaseSetNoTransform().type());
+	    if ( getTypeAccessOptNoTransform().getChildNoTransform(0) != null ) {
+		return new FieldPattern(getBaseSetNoTransform(), mods,
+					getTypeAccessOptNoTransform().getChildNoTransform(0), getID(), new Opt(), new List());
+	    } else {
 		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeEveryType().createBoundAccess()));	
 		R.addedByPatternRewrite = true;
 		enclosingRefIterator().addPatternTypeParameter(R);
-		return new FieldPattern(getBaseSet(), mods,
+		return new FieldPattern(getBaseSetNoTransform(), mods,
 					R.createQualifiedAccess(), getID(),
 					new Opt(), new List());
 	    }
@@ -60,19 +59,20 @@ aspect MJRewrites {
 	to NestedFieldPattern {
 	    Modifiers mods = 
 		getModifiers().enhanceWithMaybes(Modifiables.FIELD,
-						 getBaseSet().type());
-	    if ( hasTypeAccess() )
-		return new NestedFieldPattern(getBaseSet(), mods,
-					      getTypeAccess(), getID(),
+						 getBaseSetNoTransform().type());
+	    if ( getTypeAccessOptNoTransform().getNumChild() != 0 ) {
+		return new NestedFieldPattern(getBaseSetNoTransform(), mods,
+					      getTypeAccessOptNoTransform().getChildNoTransform(0),
+					      getID(),
 					      new Opt(), new List(),
 					      getIsPositive(),
 					      getIsErrorCondition());
-	    else {
+	    } else {
 		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeEveryType().createBoundAccess()));	
 		R.addedByPatternRewrite = true;
 
 		enclosingRefIterator().addPatternTypeParameter(R);
-		return new NestedFieldPattern(getBaseSet(), mods,
+		return new NestedFieldPattern(getBaseSetNoTransform(), mods,
 					      R.createQualifiedAccess(),
 					      getID(), new Opt(), new List(),
 					      getIsPositive(),
@@ -84,24 +84,24 @@ aspect MJRewrites {
 	to MethodPattern {
 	    Modifiers mods = 
 		getModifiers().enhanceWithMaybes(Modifiables.METHOD, 
-						 getBaseSet().type());
-	    if ( hasTypeAccess()) {
-		return new MethodPattern(getBaseSet(),
+						 getBaseSetNoTransform().type());
+	    if ( getTypeAccessOptNoTransform().getNumChild() != 0 ) {
+		return new MethodPattern(getBaseSetNoTransform(),
 					 mods,
-					 getTypeAccess(),
+					 getTypeAccessOptNoTransform().getChildNoTransform(0),
 					 getID(),
-					 getParameterList(),
-					 getExceptionList(),
+					 getParameterListNoTransform(),
+					 getExceptionListNoTransform(),
 					 new Opt(), new List());
 	    } else {
 		// generate a type variable with fresh name.
 		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeEveryType().createBoundAccess()));	
 		R.addedByPatternRewrite = true;
 		enclosingRefIterator().addPatternTypeParameter(R);
-		return new MethodPattern(getBaseSet(), mods,
+		return new MethodPattern(getBaseSetNoTransform(), mods,
 					 R.createQualifiedAccess(),getID(),
-					 getParameterList(), 
-					 getExceptionList(), 
+					 getParameterListNoTransform(), 
+					 getExceptionListNoTransform(), 
 					 new Opt(), new List());
 	    }
 	}
@@ -110,12 +110,13 @@ aspect MJRewrites {
 	to NestedMethodPattern {
 	    Modifiers mods = 
 		getModifiers().enhanceWithMaybes(Modifiables.METHOD,
-						 getBaseSet().type());
-	    if ( hasTypeAccess()) {
-		return new NestedMethodPattern(getBaseSet(), mods,
-					       getTypeAccess(),getID(),
-					       getParameterList(), 
-					       getExceptionList(), 
+						 getBaseSetNoTransform().type());
+	    if ( getTypeAccessOptNoTransform().getNumChild() != 0 ) {
+		return new NestedMethodPattern(getBaseSetNoTransform(), mods,
+					       getTypeAccessOptNoTransform().getChildNoTransform(0),
+					       getID(),
+					       getParameterListNoTransform(), 
+					       getExceptionListNoTransform(), 
 					       new Opt(), new List(),
 					       getIsPositive(),
 					       getIsErrorCondition());
@@ -125,11 +126,11 @@ aspect MJRewrites {
 		AllMatchingTypeVariable R = new AllMatchingTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeEveryType().createBoundAccess()));	
 		R.addedByPatternRewrite = true;
 		enclosingRefIterator().addPatternTypeParameter(R);
-		return new NestedMethodPattern(getBaseSet(), mods,
+		return new NestedMethodPattern(getBaseSetNoTransform(), mods,
 					       R.createQualifiedAccess(),
 					       getID(),
-					       getParameterList(), 
-					       getExceptionList(), 
+					       getParameterListNoTransform(), 
+					       getExceptionListNoTransform(), 
 					       new Opt(), new List(),
 					       getIsPositive(),
 					       getIsErrorCondition());
@@ -145,10 +146,10 @@ aspect MJRewrites {
 	    VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeThrowable().createBoundAccess()));
 	    E.addedByPatternRewrite = true;
 	    enclosingRefIterator().addPatternTypeParameter(E);
-	    return new MethodPattern(getBaseSet(), getModifiers(),
-				     getTypeAccess(),
+	    return new MethodPattern(getBaseSetNoTransform(), getModifiers(),
+				     getTypeAccessNoTransform(),
 				     getID(),
-				     getParameterList(),
+				     getParameterListNoTransform(),
 				     new List().add(E.createQualifiedAccess()),
 				     new Opt(), new List());
 	}
@@ -158,10 +159,11 @@ aspect MJRewrites {
 	    VectorTypeVariable E = new VectorTypeVariable(new Modifiers(), Program.generateFreshTypeVariableName(), new List(), new List().add(typeThrowable().createBoundAccess()));
 	    E.addedByPatternRewrite = true;
 	    enclosingRefIterator().addPatternTypeParameter(E);
-	    return new NestedMethodPattern(getBaseSet(), getModifiers(),
-					   getTypeAccess(),
+	    return new NestedMethodPattern(getBaseSetNoTransform(), 
+					   getModifiers(),
+					   getTypeAccessNoTransform(),
 					   getID(),
-					   getParameterList(),
+					   getParameterListNoTransform(),
 					   new List().add(E.createQualifiedAccess()),
 					   new Opt(), new List(),
 					   getIsPositive(),

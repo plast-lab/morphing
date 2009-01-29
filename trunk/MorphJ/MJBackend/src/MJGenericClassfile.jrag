@@ -336,29 +336,6 @@ aspect FixJastadd {
     eq PatternTypeVariable.constantPoolName() = classTypeSignature();
     eq VectorTypeVariable.classTypeSignature() = "T" + name() + "*;";
 
-    eq VectorTypeVariable.formalTypeParameter() {
-	StringBuffer buf = new StringBuffer();
-	// Identifier
-	buf.append(name() + "*");
-	buf.append(":");
-	if(getNumTypeBound() > 0) {
-	    // ClassBound InterfaceBound*
-	    if(getTypeBound(0).type().isClassDecl())
-		buf.append(getTypeBound(0).type().fieldTypeSignature());
-	    else
-		buf.append(":" + getTypeBound(0).type().fieldTypeSignature());
-	    for(int i = 1; i < getNumTypeBound(); i++)
-		buf.append(":" + getTypeBound(i).type().fieldTypeSignature());
-	}
-	return buf.toString();
-    }
-    eq AllMatchingTypeVariable.formalTypeParameter() {
-	StringBuffer buf = new StringBuffer();
-	buf.append(name() + "%");
-	buf.append(";");
-	return buf.toString();
-    }
-
     // fixes to casts that assume isClassDecl means the type can be cast
     // to ClassDecl
     refine InnerClasses eq TypeDecl.enclosingVariables() {

@@ -72,7 +72,11 @@ public class ExamplesTest extends MJTestCase {
     @Test
     public void testVisitor() {
 	checkExample("visitor" + File.separator + "Visitor.java");
-	noProblems();
+	clearExpected();
+	addExpected(makeError("the return type of method accept(visitor.Visitor) in visitor.Acceptor may not match the return type of method it may override in X and may thus not be overriden"));
+	addExpected(makeError("no method named visit(visitor.Acceptor) in V matches. However, there is a method visit(java.lang.Object)"));
+	
+	compareProblems();
     }
     /*
     @Test

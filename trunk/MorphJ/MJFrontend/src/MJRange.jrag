@@ -135,10 +135,20 @@ aspect MJRange {
 
     syn lazy boolean IteratorDecl.rangeEmpty(Map uniMap) = rangeEmpty(uniMap, true);
     syn lazy boolean IteratorDecl.rangeEmpty(Map uniMap, boolean subModifiers) {
+	if ( this.expandable())
+	    return reflectiveElmts().isEmpty();
+
 	// check whether primary pattern is empty
 	if ( getPattern().rangeEmpty(uniMap, subModifiers))
 	    return true;
 
+	// otherwise, check whether nested patterns are satisfiable.
+	for ( int i=0; i<getNumNestedPattern(); i++) {
+	    Pattern np = getNestedPattern(i);
+	    if ( !np.satisfiedBy(uniMap))
+		return false;
+	}
+	
 	// if not, check whether uniMap causes mutual exclusive 
 	// conditions in the patterns.
 	return Program.hasMutualExclusiveConditions(getPatternConditions(), 

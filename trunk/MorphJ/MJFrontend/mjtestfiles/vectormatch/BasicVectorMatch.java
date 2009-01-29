@@ -1,7 +1,7 @@
 class Foo<X> {
     X x;
 
-    <R,A*>[m] for ( R m(A) : X.methods)
+    <R,A*>[m] for ( public R m(A) : X.methods)
 	R m (A args) {
 	    return x.m(args);
 	}
@@ -10,11 +10,11 @@ class Foo<X> {
 class Bar {
 
     // vary argument types.
-    int m1() { return 0; }
-    int m2(int a1) { return 0; }
-    int m3(String s) { return 0; }
-    int m4(int a, String s) { return 0; }
-    int m5(Object o, String s) { return 0; }
+    public int m1() { return 0; }
+    public int m2(int a1) { return 0; }
+    public int m3(String s) { return 0; }
+    public int m4(int a, String s) { return 0; }
+    public int m5(Object o, String s) { return 0; }
 
     public static void main ( String[] argv) {
 	Foo<Bar> foobar = new Foo<Bar>();

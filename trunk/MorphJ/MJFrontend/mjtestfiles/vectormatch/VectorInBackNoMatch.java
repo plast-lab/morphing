@@ -2,7 +2,7 @@
 
 class Foo<X> {
     X x;
-    <R,A*>[m] for ( R m (String,A) : X.methods )
+    <R,A*>[m] for (public R m (String,A) : X.methods )
 	 R m (String s, A args) {
 	     return x.m(s,args);
 	 }
@@ -10,12 +10,12 @@ class Foo<X> {
 
 class Bar {
 
-    int m1() { return 0; }
-    int m2(int i) { return i; }
-    int m3(Object o) { return 0; }
-    int m4(int i, Object o) { return 0; }
-    int m5(int i, String s) { return 0; }
-    int m6(Object o, int i, String s, int j) { return 0; }
+    public int m1() { return 0; }
+    public int m2(int i) { return i; }
+    public int m3(Object o) { return 0; }
+    public int m4(int i, Object o) { return 0; }
+    public int m5(int i, String s) { return 0; }
+    public int m6(Object o, int i, String s, int j) { return 0; }
 
     public static void main (String[] argv) {
 	Foo<Bar> foobar = new Foo<Bar>();

@@ -436,6 +436,16 @@ aspect MJPattern {
 				       new Opt(), new List(),
 				       isPositive, isErrorCondition);
     }
+    public OptMethodPattern OptMethodPattern.makeNestedPattern(boolean isPositive, boolean isErrorCondition) {
+	return new OptNestedMethodPattern(getBaseSet().fullCopy(), 
+					  getModifiers().fullCopy(), 
+					  getTypeAccessOpt().fullCopy(), 
+					  getID(), 
+					  getParameterList().fullCopy(), 
+					  getExceptionList().fullCopy(), 
+					  new Opt(),
+					  isPositive, isErrorCondition);
+    }
     public FieldPattern FieldPattern.makeNestedPattern(boolean isPositive, boolean isErrorCondition) {
 	return new NestedFieldPattern(getBaseSet().fullCopy(), 
 				      getModifiers().fullCopy(), 
@@ -443,7 +453,13 @@ aspect MJPattern {
 				      getID(), new Opt(), 
 				      new List(), isPositive, isErrorCondition);
     }
-
+    public OptFieldPattern OptFieldPattern.makeNestedPattern(boolean isPositive,boolean isErrorCondition) {
+	return new OptNestedFieldPattern(getBaseSet().fullCopy(), 
+					 getModifiers().fullCopy(), 
+					 getTypeAccessOpt().fullCopy(), 
+					 getID(),isPositive, isErrorCondition);
+    }
+    
     public void Pattern.flipSign() {
 	throw new Error("flipSign() not supported by " + 
 			getClass().getName());

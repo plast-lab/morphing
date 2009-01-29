@@ -3,7 +3,7 @@
 
 class Foo<X> {
     X x;
-    <R,A*>[m] for ( R m (A, String) : X.methods )
+    <R,A*>[m] for ( public R m (A, String) : X.methods )
 	R m (A arg, String s) {
 	    return x.m(arg, s);
 	}

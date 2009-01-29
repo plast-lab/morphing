@@ -178,11 +178,23 @@ aspect ModifierUnification {
 	    if (!m.subsumedBy(mods, newMap)) 
 		subsumed = false;
 	}
+	if ( getNumModifier() == 0 ) {
+	    NoModifier nm = new NoModifier("NOMOD");
+	    for ( int i=0; i<mods.getNumModifier(); i++) {
+		Modifier m = mods.getModifier(i);
+		if ( !m.subsumesNoModifier(nm))
+		    subsumed = false;
+	    }
+	}
+	
 	if ( subsumed ) 
 	    uniMap.putAll(newMap);
 	return subsumed;
     }
 
+    syn lazy boolean Modifier.isNoModifier() = false;
+    eq NoModifier.isNoModifier() = true;
+    
     syn lazy boolean Modifier.subsumedBy(Modifiers mods, Map uniMap) {
 	boolean subsumed = false;
 	for ( int i=0; i<mods.getNumModifier(); i++) { 
@@ -224,10 +236,10 @@ aspect ModifierUnification {
     eq MaybeModifier.subsumesModifier(Modifier m) = getID().equals(m.getID());
 	//!mutuallyExclusive(getID(), m.getID());
 
-    // The only modifier that subsumes NoModifier is NoModifier
     syn lazy boolean Modifier.subsumesNoModifier(NoModifier m) = false;
     eq NoModifier.subsumesNoModifier(NoModifier m) = true;
     eq MaybeModifier.subsumesNoModifier(NoModifier m) = true;
+    eq NegativeModifier.subsumesNoModifier(NoModifier m) = true;
 
     // Regular modifier never subsumes NegativeModifier UNLESS 
     // the regular modifier excludes the negative modifier.

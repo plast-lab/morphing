@@ -64,11 +64,27 @@ aspect MJAccessControl {
     }
 
     refine AccessControl eq MethodDecl.accessibleFrom(TypeDecl type) {
-	if ( AccessControl.MethodDecl.accessibleFrom(type) )
+	// from AccessControl.MethodDecl.accessibleFrom
+	if(isPublic()) {
 	    return true;
-
-	if (!isPrivate()) {
+	}
+	else if(isProtected()) {
 	    if(hostPackage().equals(type.hostPackage()))
+		return true;
+	    if(type.withinBodyThatSubclasses(hostType()) != null)
+		return true;
+	    //	    return false;
+	}
+	else if(isPrivate() &&
+		hostType().topLevelType() == type.topLevelType())
+	    return true;
+	else if (hostPackage().equals(type.hostPackage()) &&
+		 !hostType().isTypeVariable())
+	    return true;
+	
+	if (!possiblyPrivate()) {
+	    if(hostPackage().equals(type.hostPackage()) && 
+	       !hostType().isTypeVariable())
 		return true;
 	    if(type.withinBodyThatSubclasses(hostType()) != null)
 		return true;

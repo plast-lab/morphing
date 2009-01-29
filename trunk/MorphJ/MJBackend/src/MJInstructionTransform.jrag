@@ -70,6 +70,30 @@ aspect MJInstructionTransform {
 	    //return t.substitute(substitutions).type();
 	}
 
+	protected java.util.List<TypeDecl> retrieveTypeListFromContext(Access ta) {
+	    TypeDecl t = null;
+	    if ( staticForStmt != null )
+		t = staticForStmt.retrieveType(ta);
+	    else t = md.retrieveType(ta);
+	    
+	    java.util.List<Access> expandedAccess = 
+		t.expandAccessList(substitutions);
+
+	    ArrayList<TypeDecl> substitutedList = new ArrayList<TypeDecl>();
+	    for ( int i=0; i< expandedAccess.size(); i++) {
+		TypeDecl expandedType = expandedAccess.get(i).type();
+		Access ta2 = (Access) expandedType.substitute(parClass);
+
+		TypeDecl st2 = staticForStmt != null ?
+		    staticForStmt.retrieveType(ta2) 
+		    : md.retrieveType(ta2);
+		
+		substitutedList.add(st2);
+	    }
+	    return substitutedList;
+	}
+
+
 	protected TypeDecl retrieveOwnerType(String owner) {
 	    // parse owner to get the actual type.
 	    TypeDecl ownerType = null;
@@ -232,10 +256,10 @@ aspect MJInstructionTransform {
 		//		TypeAccess ta = (TypeAccess) ptIt.next();
 		Access ta = (Access) ptIt.next();
 		TypeDecl t = retrieveTypeFromContext(ta);
-		List argList = t.expandAccessList(substitutions);
+		java.util.List argList = t.expandAccessList(substitutions);
 
-		for ( int i=0; i<argList.getNumChild(); i++)
-		    pList.add(((Access) argList.getChild(i)).type());
+		for ( int i=0; i<argList.size(); i++)
+		    pList.add(((Access) argList.get(i)).type());
 	    }
 	    return pList;
 	}
@@ -251,12 +275,15 @@ aspect MJInstructionTransform {
 		//		TypeAccess ta = (TypeAccess) ptIt.next();
 		Access ta = (Access) ptIt.next();
 
-		//		List argList = md.retrieveType(ta).expandAccessList(substitutions);
+		/*
 		TypeDecl t = retrieveTypeFromContext(ta);
-		List argList = t.expandAccessList(substitutions);
+		java.util.List argList = t.expandAccessList(substitutions);
+		*/
+		java.util.List<TypeDecl> argList
+		    = retrieveTypeListFromContext(ta);
 
-		for ( int i=0; i<argList.getNumChild(); i++)
-		    buf.append(((Access) argList.getChild(i)).type().typeDescriptor());
+		for ( int i=0; i<argList.size(); i++)
+		    buf.append(argList.get(i).typeDescriptor());
 	    }
 	    buf.append(")");
 

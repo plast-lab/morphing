@@ -190,7 +190,8 @@ aspect MJLookupMethod {
 			continue;
 		    StaticForMethodDecl decl = (StaticForMethodDecl) getBodyDecl(i);
 		    if ( decl.grounded()) {
-			map.put(decl.signature(), decl);
+			if ( !decl.refIterator().rangeEmpty(new HashMap()))
+			    map.put(decl.signature(), decl);
 		    } else if (decl.expandable()) {
 			List<? extends MethodDecl> expandedMethods = 
 			    decl.expandedMethods();
@@ -216,8 +217,9 @@ aspect MJLookupMethod {
 	HashMap map = new HashMap();
 	for(Iterator iter = original().localMethodsIterator(); iter.hasNext(); ) {
 	    MethodDecl decl = (MethodDecl)iter.next();
-	    if(!decl.isReflectiveDecl() && 
-	       !decl.isStatic() && (decl.usesTypeVariable() || isRawType())) {
+	    if(decl.isReflectiveDecl()) continue;
+	    if (!decl.isStatic() && 
+		(decl.usesTypeVariable() || isRawType())) {
 		BodyDecl b = decl.p(this);
 		b.is$Final = true;
 		addBodyDecl(b);
@@ -230,8 +232,9 @@ aspect MJLookupMethod {
 	Collection refMethods = reflectiveMethods();
 	for ( Iterator refIt = refMethods.iterator(); refIt.hasNext(); ) {
 	    StaticForMethodDeclSubstituted md = (StaticForMethodDeclSubstituted) refIt.next();
-	    if ( md.grounded()) {
-		map.put(md.signature(), md);
+	    if ( md.grounded() ) {
+		if ( !md.refIterator().rangeEmpty(new HashMap()))
+		    map.put(md.signature(), md);
 	    } else if ( md.expandable() ) {
 		List expandedMethods = md.expandedMethods();
 		for ( int i=0; i<expandedMethods.getNumChild(); i++ ) {
@@ -615,6 +618,8 @@ aspect MJLookupMethod {
 	if ( !id.expandable()) {
 	    return new List<MethodDecl>();
 	}
+
+	setExpandedMethodsList(new List());
 
 	// get the mappings for each element in the iterator decl's range. 
 	for ( Iterator subMaps = id.reflectiveElmts().values().iterator();

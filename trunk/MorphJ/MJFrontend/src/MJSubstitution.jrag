@@ -125,6 +125,8 @@ aspect MJSubstitution {
 					       new List(), new List(), new List());
 	m.original = this;
 	m.is$Final = true;
+	//	m.makeAllChildrenSameFinal();
+
 	m.expansionSubstitutions.putAll(substitutions);
 
 	parent.addChild(m);
@@ -181,6 +183,8 @@ aspect MJSubstitution {
 
 	f.original = this;
 	f.is$Final = true;
+	//	f.makeAllChildrenSameFinal();
+
 	f.expansionSubstitutions.putAll( substitutions );
 
 	this.addStaticForFieldDeclarationSubstituted(f);
@@ -203,6 +207,7 @@ aspect MJSubstitution {
 	SubstitutedStaticForStmt p = new SubstitutedStaticForStmt(getIteratorDecl().substitute(substitutions), new List(), new List());
 	p.original = this;
 	p.is$Final = true;
+	//	p.makeAllChildrenSameFinal();
 	p.substitutions.putAll(substitutions);
 
 	addSubstitutedStaticForStmt(p);
@@ -219,14 +224,15 @@ aspect MJSubstitution {
 	    TypeVariable t = getPatternTypeParameter(i).fullCopy();
 	    t.setID(Program.generateFreshTypeVariableName());
 	    t.addedByPatternRewrite = getPatternTypeParameter(i).addedByPatternRewrite;
-	    pid.addPatternTypeParameter((PatternTypeVariable)t.substitute(substitutions).type());
+	    PatternTypeVariable tv = 
+		(PatternTypeVariable)t.substitute(substitutions).type();
+	    pid.addPatternTypeParameter(tv);
 	}
 	for ( int i=0; i<getNumPatternNameParameter(); i++) {
 	    PatternNameVariable nv = getPatternNameParameter(i).fullCopy();
 	    nv.setID(Program.generateFreshNameVariableName());
 	    pid.addPatternNameParameter(nv);
 	}
-	//	pid.setPatternNameParameterList(getPatternNameParameterList().fullCopy());
 
 	// create the mapping to be used for pattern and nested pattern
 	// substitution.
@@ -254,7 +260,6 @@ aspect MJSubstitution {
 	    pid.addNestedPattern(getNestedPattern(i).substitute(map, subModifiers));
 	
 	pid.original = this;
-	//	pid.parameterizationMapping.putAll(substitutions);
 	pid.parameterizationMapping.putAll(map);
 
 	return pid;
