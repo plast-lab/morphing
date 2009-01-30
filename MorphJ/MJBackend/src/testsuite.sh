@@ -55,6 +55,11 @@ if [ $# = 0 ]; then
     echo "CompileBooleanExpression"
     junit testcases.junit.CompileBooleanExpression
 
+    echo "******************************************"
+    echo "CompileBooleanExpressionSeparately"
+    junit testcases.junit.CompileBooleanExpressionSeparately
+
+
 else
     case "$1" in
 	"adder")
@@ -87,6 +92,13 @@ else
 	"booleanexpr")
 	    testname="CompileBooleanExpression"
 	    testfile="testcases.junit.CompileBooleanExpression"
+	    mjunit_name="BooleanExprTest"
+	    mjunit_file="testcases.mjunit.BooleanExprTest"
+	    ;;
+
+	"booleanexprTest")
+	    testname="CompileBooleanExpressionSeparately"
+	    testfile="testcases.junit.CompileBooleanExpressionSeparately"
 	    mjunit_name="BooleanExprTest"
 	    mjunit_file="testcases.mjunit.BooleanExprTest"
 	    ;;
