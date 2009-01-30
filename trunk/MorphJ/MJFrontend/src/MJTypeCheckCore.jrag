@@ -137,7 +137,11 @@ aspect MJTypeCheckCore {
 		  " is violated by " + this.enclosingBodyDecl().hostType().toString());
 	}
 
-	return !isPositiveCondition();
+	// if this is a negative condition and base type is a type variable, then we cannot
+	// guarantee anything.
+	// if this is a positive condition and we're heer, then it's definitely false.
+	return !isPositiveCondition() && !subed.getBaseSet().type().isTypeVariable();
+	//	return !isPositiveCondition();
     }
     eq NestedFieldPattern.satisfiedBy(Map uniMap) {
 	NestedFieldPattern subed = substitute(uniMap);
