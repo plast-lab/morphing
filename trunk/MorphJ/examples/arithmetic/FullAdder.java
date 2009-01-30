@@ -1,10 +1,10 @@
-package arithmetic;
+package examples.arithmetic;
 
 import java.util.*;
 
 class TruthMethods<class T> {
 	T instance;
-	<R,A*,E*>[m] for(R proposition_#m(A) throws E : T.methods)
+	<R,A*,E*>[m] for(public R proposition_#m(A) throws E : T.methods)
 	public R proposition_#m(A args) throws E {
 		return instance.proposition_#m(args);
 	}
@@ -12,7 +12,7 @@ class TruthMethods<class T> {
 
 class ForceFalse<class T> {
 	T instance;
-	<R,A*,E*>[m] for(R m(A) throws E : T.methods ; no R m(A) throws E : TruthMethods<T>.methods)
+	<R,A*,E*>[m] for(public R m(A) throws E : T.methods ; no R m(A) throws E : TruthMethods<T>.methods)
 	public R m(A args) throws E {
 		return instance.m(args);
 	}
@@ -20,7 +20,7 @@ class ForceFalse<class T> {
 
 class ForceTrue<class T> {
 	T instance;
-	<R,A*,E*>[m] for(R m(A) throws E : T.methods ; no boolean proposition_true() : T.methods)
+	<R,A*,E*>[m] for(public R m(A) throws E : T.methods ; no boolean proposition_true() : T.methods)
 	public R m(A args) throws E {
 		return instance.m(args);
 	}
@@ -32,7 +32,7 @@ class ForceTrue<class T> {
 class And<class T,class U> {
 	T instance;
 
-	<R,A*,E*>[m] for(R m(A) throws E : T.methods ; some R m(A) throws E : U.methods)
+	<R,A*,E*>[m] for(public R m(A) throws E : T.methods ; some R m(A) throws E : U.methods)
 	public R m(A args) throws E {
 		return instance.m(args);
 	}
@@ -42,17 +42,17 @@ class Or<class T,class U> {
 	T x;
 	U y;
 
-	<R,A*,E*>[l] for(R l(A) throws E : T.methods ; some R l(A) throws E : U.methods)
+	<R,A*,E*>[l] for(public R l(A) throws E : T.methods ; some R l(A) throws E : U.methods)
 	public R l(A args) throws E {
 		return x.l(args);
 	}
 
-	<R,A*,E*>[m] for(R m(A) throws E : T.methods ; no R m(A) throws E : U.methods)
+	<R,A*,E*>[m] for(public R m(A) throws E : T.methods ; no R m(A) throws E : U.methods)
 	public R m(A args) throws E {
 		return x.m(args);
 	}
 
-	<R,A*,E*>[n] for(R n(A) throws E : U.methods ; no R n(A) throws E : T.methods)
+	<R,A*,E*>[n] for(public R n(A) throws E : U.methods ; no R n(A) throws E : T.methods)
 	public R n(A args) throws E {
 		return y.n(args);
 	}
@@ -61,13 +61,13 @@ class Or<class T,class U> {
 class Complement<class T> {
 	T instance;
 	//If T lacks a "proposition_####" method to make it TRUE, add one.
-	<R,A*,E*>[m] for(R proposition_#m(A) throws E : ForceTrue<T>.methods ; no R proposition_#m(A) throws E : T.methods)
+	<R,A*,E*>[m] for(public R proposition_#m(A) throws E : ForceTrue<T>.methods ; no R proposition_#m(A) throws E : T.methods)
 	public boolean proposition_true() {
 		return true;
 	}
 
 	//If T has at least one "proposition_####" method remove all of them.
-	<R,A*,E*>[m] for(R m(A) throws E : T.methods ; no R m(A) throws E : TruthMethods<T>.methods)
+	<R,A*,E*>[m] for(public R m(A) throws E : T.methods ; no R m(A) throws E : TruthMethods<T>.methods)
 	public R m(A args) throws E {
 		return instance.m(args);
 	}
@@ -78,6 +78,7 @@ class Ident<class T> extends Complement<Complement<T>> { }
 class Implication<class T,class U> extends Or<Complement<T>,U> { }
 
 class XOr<class T,class U> extends And<Or<T,U>,Complement<And<T,U>>> { }
+
 
 class Sum<class X,class Y> extends XOr<X,Y> { }
 class Carry<class X,class Y> extends And<X,Y> { }
