@@ -4,13 +4,13 @@ import java.util.*;
 
 class ShouldWork<class T> {
 	T delegate;
-
-	<R,A*,E*>[m] for(R m(A) throws E : T.methods)
+	
+	<R,A*,E*>[m] for(public R m(A) throws E : T.methods)
 	public R m(A args) throws E {
 		return delegate.m(args);
 	}
 
-	<A*,E*>[m] for(void m(A) throws E : T.methods)
+	<A*,E*>[m] for(public void m(A) throws E : T.methods)
 	public void m(A args) throws E {
 		delegate.m(args);
 	}
@@ -19,7 +19,7 @@ class ShouldWork<class T> {
 class AlsoWorks<class T> {
 	T delegate;
 
-	<A*,E*> [m] for(m(A) throws E : T.methods)
+	<A*,E*> [m] for(public m(A) throws E : T.methods)
 	public void m(A args) throws E {
 		((T)delegate).m(args);
 	}

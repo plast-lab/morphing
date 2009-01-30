@@ -28,11 +28,11 @@ class SelfLogger<class X> extends X {
 		return result;
 	}
 
-	<R,A*,E*>[m] for(!final R m(A) throws E : X.methods ; 
+	<R,A*,E*>[m] for(!final !private R m(A) throws E : X.methods ; 
 			 no R m(A) throws E : FilterOut<X>.methods)
 	public R m(A args) throws E {
-		R result = super.m(args);
-		System.out.println(toString());
-		return result;
+	    R result = super.m(args);
+	    System.out.println(toString());
+	    return result;
 	}
 }
