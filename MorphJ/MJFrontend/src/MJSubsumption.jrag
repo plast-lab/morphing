@@ -305,11 +305,13 @@ aspect Subsumption {
 					    nmp.patternNameVariables()))
 		continue;
 	    
+
 	    // The negative conditions can be on the return type,
 	    // modifiers, or exception types. Right now, we just
 	    // deal with modifiers.
 	    // TODO: handle other things.
-	    map.putAll(pm.getModifiers().maskByMapping(nmp.getModifiers()));
+	    map.putAll(this.getModifiers().maskByMapping(nmp.getModifiers()));
+	    //map.putAll(pm.getModifiers().maskByMapping(nmp.getModifiers()));
 	}
 	return map;
     }

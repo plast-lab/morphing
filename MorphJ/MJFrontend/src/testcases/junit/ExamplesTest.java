@@ -78,7 +78,7 @@ public class ExamplesTest extends MJTestCase {
 	
 	compareProblems();
     }
-    /*
+    
     @Test
     public void testDefaultImpelmentation() {
 	Collection<Problem> actualProblems = checkExample(
@@ -86,7 +86,7 @@ public class ExamplesTest extends MJTestCase {
 	Collection<Problem> expectedProblems = new ArrayList<Problem>();
 	compareProblems(expectedProblems, actualProblems);
     }
-*/
+
 /*
     @Test
     public void testGetterSetter() {

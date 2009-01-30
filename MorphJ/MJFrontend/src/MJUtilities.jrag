@@ -40,8 +40,9 @@ aspect MJUtilities {
 
 
     public VectorTypeVariable TypeDecl.createNonVoidVectorTypeVariable(String id) {
-	return createVectorTypeVariable(id, 
-					new List().add(typeNonVoid().createBoundAccess()));
+	Access t = typeNonVoid().createBoundAccess();
+	t.addedByPatternRewrite = true;
+	return createVectorTypeVariable(id, new List().add(t));
     }
     public VectorTypeVariable TypeDecl.createThrowableVectorTypeVariable(String id) {
 	return createVectorTypeVariable(id,
@@ -58,7 +59,7 @@ aspect MJUtilities {
 					   new List());
     }
 
-    public StaticForMethodDecl TypeDecl.createStaticForMethodMatchingName(String name ) {
+   public StaticForMethodDecl TypeDecl.createStaticForMethodMatchingName(String name ) {
     	/**
 	 * pattern: _ name(A) throws E : T.methods
 	 * where _ is the AllMatchingTypeVariable, which matches void.

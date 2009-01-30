@@ -163,6 +163,7 @@ aspect MJUnification {
 	// At this point, neither this or t is mapped.
 	// But t may be a parameterized type with parts mapped.
 	TypeDecl tsub = t.substitute(uniMap).type();
+	if (tsub == t ) return tsub == this;
 	return tsub.unifiesWith(this, uniMap, uniTypeVars);
     }
 
