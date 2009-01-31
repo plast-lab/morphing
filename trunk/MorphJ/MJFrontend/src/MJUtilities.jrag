@@ -1,38 +1,38 @@
 aspect MJUtilities {
 
-    public ArrayList MethodDecl.parameterTypes () { 
+    public java.util.List<TypeDecl> MethodDecl.parameterTypes () { 
 	ArrayList list = new ArrayList();
 	for ( int i=0; i<getNumParameter(); i++ )
 	    list.add(getParameter(i).type());
 	return list;
     }
-    public ArrayList MethodDecl.exceptionTypes () {
+    public java.util.List<TypeDecl> MethodPattern.parameterTypes() {
+	java.util.List<TypeDecl> list = new ArrayList();
+	for ( int i=0; i<getNumParameter(); i++ )
+	    list.add(getParameter(i).type());
+	return list;	
+    }
+    public java.util.List<TypeDecl> NestedMethodPattern.parameterTypes() {
 	ArrayList list = new ArrayList();
-	for ( int i=0; i<getNumException(); i++) 
-	    list.add(getException(i).type());
-	return list;
+	for ( int i=0; i<getNumParameter(); i++ )
+	    list.add(getParameter(i).type());
+	return list;	
     }
 
-    public ArrayList MethodPattern.parameterTypes() {
-	ArrayList list = new ArrayList();
-	for ( int i=0; i<getNumParameter(); i++ )
-	    list.add(getParameter(i).type());
-	return list;	
+    public java.util.List<TypeDecl> MethodDecl.exceptionTypes () {
+	java.util.List<TypeDecl> list = new ArrayList();
+	for ( int i=0; i<getNumException(); i++) 
+	    list.add(getException(i).type());
+	return list;
     }
-    public ArrayList NestedMethodPattern.parameterTypes() {
-	ArrayList list = new ArrayList();
-	for ( int i=0; i<getNumParameter(); i++ )
-	    list.add(getParameter(i).type());
-	return list;	
-    }
-    public ArrayList MethodPattern.exceptionTypes () {
+    public java.util.List<TypeDecl> MethodPattern.exceptionTypes () {
 	ArrayList list = new ArrayList();
 	for ( int i=0; i<getNumException(); i++) 
 	    list.add(getException(i).type());
 	return list;
     }
-    public ArrayList NestedMethodPattern.exceptionTypes () {
-	ArrayList list = new ArrayList();
+    public java.util.List<TypeDecl> NestedMethodPattern.exceptionTypes () {
+	java.util.List<TypeDecl> list = new ArrayList();
 	for ( int i=0; i<getNumException(); i++) 
 	    list.add(getException(i).type());
 	return list;
@@ -129,10 +129,24 @@ aspect MJUtilities {
 	return l;
     }
 
+    public static Collection<PatternTypeVariable> Program.allTypeVariables(PatternCondition p1,PatternCondition p2) {
+	Collection<PatternTypeVariable> l = new ArrayList<PatternTypeVariable>();
+	l.addAll(p1.patternTypeVariables());
+	l.addAll(p2.patternTypeVariables());
+	return l;
+    }
+
     public static Collection<PatternNameVariable> Program.allNameVariables(IteratorDecl id1, IteratorDecl id2) {
 	Collection<PatternNameVariable> l = new ArrayList<PatternNameVariable>();
 	l.addAll(id1.patternNameVariables());
 	l.addAll(id2.patternNameVariables());
+	return l;
+    }
+
+    public static Collection<PatternNameVariable> Program.allNameVariables(PatternCondition p1,PatternCondition p2) {
+	Collection<PatternNameVariable> l = new ArrayList<PatternNameVariable>();
+	l.addAll(p1.patternNameVariables());
+	l.addAll(p2.patternNameVariables());
 	return l;
     }
 
@@ -143,5 +157,30 @@ aspect MJUtilities {
 		getChild(i).makeAllChildrenSameFinal();
 	    }
 	}
+    }
+
+
+    public static boolean Program.sameParameterLists(java.util.List p1params, java.util.List p2params) {
+	if ( p1params.size() != p2params.size()) 
+	    return false;
+	for ( int i=0; i<p1params.size(); i++) {
+	    if (!p1params.get(i).equals(p2params.get(i)))
+		return false;
+	}
+	return true;
+    }
+
+    public static List List.fromJavaList(java.util.List l) {
+	List nl = new List();
+	for ( int i=0; i<l.size(); i++)
+	    nl.add((ASTNode) l.get(i));
+	return nl;
+    }
+
+    public static java.util.List List.toJavaList(List l) {
+	ArrayList nl = new ArrayList();
+	for ( int i=0; i<l.getNumChild(); i++) 
+	    nl.add(l.getChild(i));
+	return nl;
     }
 }

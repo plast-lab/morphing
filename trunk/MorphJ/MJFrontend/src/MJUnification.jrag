@@ -16,7 +16,7 @@ aspect MJUnification {
 	}
 	return false;
     }
-    
+    /*
     syn boolean Pattern.unifiesWith(Pattern p2, Map uniMap,Collection uniTypeVars, Collection uniNameVars) = false;
     eq MethodPattern.unifiesWith(Pattern p2, Map uniMap,Collection uniTypeVars, Collection uniNameVars) = p2.unifiesWithMethodPattern(this,uniMap,uniTypeVars,uniNameVars);
     eq FieldPattern.unifiesWith(Pattern p2, Map uniMap,Collection uniTypeVars, Collection uniNameVars) = p2.unifiesWithFieldPattern(this,uniMap,uniTypeVars,uniNameVars);
@@ -57,6 +57,143 @@ aspect MJUnification {
 	    return false;
 	uniMap.putAll(newMap);
 	return true;
+    }
+
+*/
+
+    syn boolean Pattern.unifiesWith(PatternCondition p2, Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars) = false;
+    eq MethodPattern.unifiesWith(PatternCondition p2, Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars) = p2.unifiesWithMethodPattern(this,uniMap,uniTypeVars,uniNameVars);
+    eq FieldPattern.unifiesWith(PatternCondition p2, Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars) = p2.unifiesWithFieldPattern(this,uniMap,uniTypeVars,uniNameVars);
+    syn boolean MethodDecl.unifiesWith(PatternCondition p2, Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars) = p2.unifiesWithMethodPattern(this,uniMap,uniTypeVars,uniNameVars);
+    syn boolean FieldDeclaration.unifiesWith(PatternCondition p2, Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars) = p2.unifiesWithFieldPattern(this,uniMap,uniTypeVars,uniNameVars);
+
+    syn boolean Pattern.unifiesWithMethodPattern(MethodPatternCondition p2, Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars) = false;    
+    syn boolean FieldDeclaration.unifiesWithMethodPattern(MethodPatternCondition p2, Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars) = false;    
+    syn boolean MethodDecl.unifiesWithMethodPattern(MethodPatternCondition p2, Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars) = unifiesWithMethodPatternHelper(p2,uniMap,uniTypeVars,uniNameVars);
+    eq MethodPattern.unifiesWithMethodPattern(MethodPatternCondition p2, Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars) = unifiesWithMethodPatternHelper(p2,uniMap,uniTypeVars,uniNameVars);
+    public boolean MethodPatternCondition.unifiesWithMethodPatternHelper(MethodPatternCondition p2, Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars) {
+	if ( this == p2 ) return true;
+	HashMap newMap = new HashMap(uniMap);
+	if ( ! identifier().unifiesWith(p2.identifier(), newMap, uniNameVars))
+	    return false;
+	// unify parameter types.
+	if ( !TypeDecl.typeListUnifies(parameterTypes(), p2.parameterTypes(), newMap, uniTypeVars)) return false;
+	
+	// unify return type.
+	if ( !getTypeAccess().type().unifiesWith(p2.getTypeAccess().type(), newMap, uniTypeVars))
+	    return false;
+	
+	// unify exception types.
+	if ( !TypeDecl.typeListUnifies(exceptionTypes(), p2.exceptionTypes(), newMap, uniTypeVars))
+	    return false;
+
+	// unify modifiers.
+	if (!getModifiers().unifiesWith(p2.getModifiers(),newMap))
+	    return false;
+
+	uniMap.putAll(newMap);
+	return true;
+    }
+
+    syn boolean Pattern.unifiesWithFieldPattern(FieldPatternCondition p2, Map uniMap,Collection uniTypeVars, Collection uniNameVars) = false;
+    syn boolean MethodDecl.unifiesWithFieldPattern(FieldPatternCondition p2, Map uniMap,Collection uniTypeVars, Collection uniNameVars) = false;
+    syn boolean FieldDeclaration.unifiesWithFieldPattern(FieldPatternCondition p2, Map uniMap,Collection uniTypeVars, Collection uniNameVars) = this.unifiesWithFieldPatternHelper(p2,uniMap,uniTypeVars,uniNameVars);
+    eq FieldPattern.unifiesWithFieldPattern(FieldPatternCondition p2, Map uniMap,Collection uniTypeVars, Collection uniNameVars) = this.unifiesWithFieldPatternHelper(p2,uniMap,uniTypeVars,uniNameVars);
+
+    public boolean FieldPatternCondition.unifiesWithFieldPatternHelper(FieldPatternCondition p2, Map uniMap,Collection uniTypeVars, Collection uniNameVars) {
+	if ( this == p2 ) return true;
+	HashMap newMap = new HashMap(uniMap);
+	if ( !identifier().unifiesWith(p2.identifier(), newMap, uniNameVars))
+	    return false;
+	if (!getTypeAccess().type().unifiesWith(p2.getTypeAccess().type(), newMap, uniTypeVars))
+	    return false;
+	if (!getModifiers().unifiesWith(p2.getModifiers(),newMap))
+	    return false;
+	uniMap.putAll(newMap);
+	return true;
+    }
+
+    public boolean FieldPatternCondition.isMutuallyExclusiveFromFieldPatternConditionHelp(FieldPatternCondition p2,Map uniMap) {
+	if ( isPositiveCondition() && p2.isPositiveCondition()) {
+	    // this and p2 are mutually exclusive if 
+	    // - their host types are in subtyping relationships.
+	    // - their names unify and their types do not unify
+	    // - OR their modifiers exclude one another.
+	    TypeDecl rb = this.reflectiveBaseType().substitute(uniMap).type();
+	    TypeDecl p2rb = p2.reflectiveBaseType().substitute(uniMap).type();
+	    if ( ! rb.subtype(p2rb) && ! p2rb.subtype(rb))
+		return false;
+
+	    if (this.getModifiers().excludedBy(p2.getModifiers()))
+		return true;
+
+	    return identifier().substitutedName(uniMap).equals(p2.identifier().substitutedName(uniMap)) &&
+		!getTypeAccess().type().substitute(uniMap).type().equals(p2.getTypeAccess().type().substitute(uniMap).type());
+	} else if ( isPositiveCondition() ) {
+	    return p2.subsumes(this, uniMap);
+	} else if ( p2.isPositiveCondition()) {
+	    return this.subsumes(p2, uniMap);
+	}
+	return false;
+    }
+
+    public boolean MethodPatternCondition.isMutuallyExclusiveFromMethodPatternConditionHelper(MethodPatternCondition p2,Map uniMap) {
+	if ( isPositiveCondition() && p2.isPositiveCondition()) {
+	    return this.isMutuallyExclusiveWithPositiveCondition(p2,uniMap);
+	} else if ( isPositiveCondition() ) {
+	    // If this is +, p2 is -, and p2 subsumes this, then 
+	    // this and p2 are mutually exclusive
+	    return p2.subsumes(this, uniMap);
+	} else if ( p2.isPositiveCondition()) {
+	    return this.subsumes(p2, uniMap);
+	}
+	return false;
+    }
+    public boolean MethodPatternCondition.isMutuallyExclusiveWithPositiveCondition(MethodPatternCondition p2,Map uniMap) {
+	// first see whether these unify.
+	Collection<PatternTypeVariable> uniTypeVars = 
+	    Program.allTypeVariables(this,p2);
+	Collection<PatternNameVariable> uniNameVars = 
+	    Program.allNameVariables(this,p2);
+
+	// if this and p2 have same method argument types and name, but
+	// different return types, then these conditions
+	// are disjoint.
+	TypeDecl rb = this.reflectiveBaseType().substitute(uniMap).type();
+	TypeDecl p2rb = p2.reflectiveBaseType().substitute(uniMap).type();
+	if ( ! rb.subtype(p2rb) && ! p2rb.subtype(rb))
+	    return false;
+	
+	java.util.List p1params = substitutedParameterTypes(uniMap);
+	java.util.List p2params = p2.substitutedParameterTypes(uniMap);
+	
+	// If the method parameters do not match the same ones to
+	// begin with, then there's no chance that the two will match
+	// the same methods,
+	/*
+	if ( !Program.sameParameterLists(p1params,p2params))
+	    return false;
+	*/
+	if ( !rb.typeListUnifies(p1params,p2params,uniMap,uniTypeVars))
+	    return false;
+
+	// TODO: name?
+
+	TypeDecl thisRetType = getTypeAccess().type().substitute(uniMap).type();
+	TypeDecl p2RetType = p2.getTypeAccess().type().substitute(uniMap).type();
+	// TODO: check whether this is correct.
+	// thisRetType and p2RetType could be substituted already 
+	// Thus, what use to be a supertype could be substituted to a 
+	// subtype.  Only check here that some subtyping relationship
+	// exists.
+	if ( !thisRetType.subtype(p2RetType) && 
+	     !p2RetType.subtype(thisRetType) && 
+	     !thisRetType.unifiesWith(p2RetType,uniMap,uniTypeVars))
+	    return true;
+
+	if (this.getModifiers().substitute(uniMap).excludedBy(p2.getModifiers().substitute(uniMap)))
+	    return true;
+	return false;
     }
 
     public boolean MethodDecl.canUnifySignature(MethodDecl m, 

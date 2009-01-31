@@ -202,16 +202,6 @@ aspect MJTypeCheckCore {
 
     eq TrueNestedPattern.satisfiedBy(Map uniMap) = true;
 
-    public boolean Pattern.sameParameterLists(java.util.List p1params, java.util.List p2params) {
-	if ( p1params.size() != p2params.size()) 
-	    return false;
-	for ( int i=0; i<p1params.size(); i++) {
-	    if (!p1params.get(i).equals(p2params.get(i)))
-		return false;
-	}
-	return true;
-    }
-
     syn lazy boolean MethodDecl.canOnewayUnifyTo(MethodDecl m) {
 	return canUnifySignature(m, new HashMap(), 
 				 patternTypeVariables(),

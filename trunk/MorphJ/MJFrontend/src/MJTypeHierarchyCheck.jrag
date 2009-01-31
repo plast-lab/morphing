@@ -440,7 +440,9 @@ aspect MJTypeHierarchyCheck {
 	// that means the return types MUST unify.
 	// Furthermore, we need to make sure thisRetType can match
 	// mRetType.
-	Collection patternConditions = m.patternConditions();
+	//	Collection patternConditions = m.patternConditions();
+	Collection patternConditions = thisIt.patternConditions();
+	patternConditions.addAll(mIt.patternConditions());
 	HashMap newMap = new HashMap(uniMap);
 	if ( Program.hasMutualExclusiveConditions(patternConditions, newMap, false)) {
 	    return thisRetType.matches(mRetType, uniMap, typeVars);
@@ -469,132 +471,7 @@ aspect MJTypeHierarchyCheck {
 	TypeDecl subMType = mRetType.substitute(newMap).type();
 	return subMType.subtype(subThisType);
 
-	// First, if without unifying the return types, the 
-	// iterators of this and m are mutually exclusive, that means 
-	// it's possible for these iterators to generate declarations
-	// where the return types are not in subtyping relationships.
-	/*
-	Collection<Pattern> conditions = new ArrayList<Pattern>();
-	conditions.addAll(thisIt.getPatternConditions());
-	conditions.addAll(mIt.getPatternConditions());
-	HashMap newMap = new HashMap(uniMap);
-	if ( !Program.hasMutualExclusiveConditions(conditions, newMap))
-	    return false;
-
-	// If iterators are mutually exclusive without unifying 
-	// the return types, we next try to match the return types
-	// according to the expected subtyping relationship.
-	// If this relationship causes the two iterator decls to
-	// have no itersection, then this contradicts our
-	// assumption before (in signatureOverrides) that the two
-	// ranges do intersect. Thus we return false.
-	newMap = new HashMap(uniMap);
-	Collection<PatternTypeVariable> typeVars = 
-	    Program.allTypeVariables(thisIt, mIt);
-	if ( thisRetType.matches(mRetType, newMap, typeVars)) {
-	    if (!thisIt.intersects(mIt, newMap))
-		return false;
-	    return true;
-	} else 
-	    // There's no matching between the two types. naturally, false.
-	    return false;
-	*/
-	// find the conditions under which mRetType <: thisRetType 
-	// This is the same as matching mRetType with thisRetType, using
-	// the pattern type variables from both iterators as unification
-	// variables.
-	/*
-	Collection<TypeVariable> uniVars = new ArrayList<TypeVariable>();
-	uniVars.addAll(thisIt.patternTypeVariables());
-	uniVars.addAll(mIt.patternTypeVariables());
-
-	HashMap newMap = new HashMap(uniMap);
-	if ( thisRetType.matches(mRetType, newMap, uniVars)) {
-	    // a subtyping is possible.  We need to see whether this mapping
-	    // introduces any conflicts in the pattern conditions of
-	    // this's iterator, m's iterator, *AND* the conditions
-	    // stipulated by this and m -- namely, there exists methods 
-	    // this and m.
-	    Collection<Pattern> conditions = new ArrayList<Pattern>();
-	    conditions.addAll(this.patternConditions());
-	    conditions.addAll(m.patternConditions());
-
-	    return !Program.hasMutualExclusiveConditions(conditions, newMap);
-	}
-	return false;
-	*/
-		/*
-	// There are three conditions under which this and m can exist
-	// at the same time.
-	// 1) mIt subsumes thisIt
-	HashMap newMap = new HashMap(uniMap);
-	if ( !mIt.subsumes(thisIt, newMap)) {
-	    newMap = new HashMap(uniMap);
-	    // 2) thisIt subsumes mIt
-	    if ( !thisIt.subsumes(mIt, newMap)) {
-		newMap = new HashMap(uniMap);
-		// 3) mIt intersects thisIt
-		if ( !mIt.intersects(thisIt, newMap))
-		    // If there's no way both methods can exist at the
-		    // same time, then return true.
-		    return true;
-	    }
-	}
-	TypeDecl subThisType = thisRetType.substitute(newMap).type();
-	TypeDecl subMType = mRetType.substitute(newMap).type();
-	return subMType.subtype(subThisType);
-		*/
     }
-    /*
-    eq StaticForMethodDecl.mayOverrideReturn(MethodDecl m) {
-	if ( this.grounded()) return super.mayOverrideReturn(m);
-
-	Map uniMap = this.signatureOverridesWithMap(m);
-	if ( uniMap == null ) return false;
-	TypeDecl thisRetType = this.type().substitute(uniMap).type();
-	TypeDecl mRetType = m.type().substitute(uniMap).type();
-
-	return thisRetType.instanceOf(mRetType);
-	// Since signatureOverrideWithMap only unifies the signature part
-	// of this and m, i.e. name and argument types,
-	// uniMap does not have the neccessary mapping to
-	// make the two return types equal.  
-	// 
-	// We 
-	// 1) Find a proper unification mapping that allows
-	// thisRetType to be a subtype of mRetType.  This is the same as
-	// thisRetType matches mRetType
-	// 2) apply this mapping to the iterator of this and m(if any)
-	//    to make sure these ranges are non-empty.
-
-	// Use both set of pattern type variables as unification variables.
-	
-	thisRetType.matches(mRetType, uniMap, 
-
-
-	// We apply uniMap to this's iterator and m's (if any),
-	// and resolve the remaining mapping that would make this's 
-	// iterator a subrange of m's.
-	// Then, apply the mapping to return type of both.
-	if ( m instanceof StaticForMethodDecl ) {
-	    IteratorDecl mIt = ((StaticForMethodDecl) m).refIterator();
-	    
-	    Map newMap = new HashMap(uniMap);
-	    if (!mIt.subsumes(this.refIterator(), newMap)) {
-		// if subsumption doesn't happen, reset newMap to uniMap
-		newMap = uniMap;
-	    }
-	    TypeDecl thisRetType = this.type().substitute(newMap).type();
-	    TypeDecl mRetType = m.type().substitute(newMap).type();
-	    return thisRetType.instanceOf(mRetType);
-	} else {
-	    TypeDecl thisRetType = this.type().substitute(uniMap).type();
-	    TypeDecl mRetType = m.type().substitute(uniMap).type();
-	    return thisRetType.instanceOf(mRetType);
-	}
-    }
-*/
-
 
     protected void TypeDecl.checkOverride(ASTNode target, MethodDecl m, MethodDecl decl) {
 	if(m.overrides(decl)) {

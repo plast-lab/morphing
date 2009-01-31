@@ -75,7 +75,6 @@ aspect MJRange {
     syn lazy Map Pattern.range(boolean includeRefDecl)  {
 	throw new Error("range(boolean) is unsupported by " + getClass().getName());
     }
-
     eq MethodPattern.range(boolean includeRefDecl) {
 	// Maps from element in the range to the unification map
 	// that resulted in the element being subsumed by the pattern.
@@ -130,8 +129,50 @@ aspect MJRange {
 	return rangeElmtsMap;
     }
 
-
     syn lazy Map Pattern.range() = range(false);
+
+    syn lazy Map MethodDecl.range(boolean includeRefDecl) = range();
+    syn lazy Map MethodDecl.range() {
+	Map<MethodDecl, Map> rangeElmtsMap = new HashMap<MethodDecl, Map>();
+	rangeElmtsMap.put(this, new HashMap());
+	return rangeElmtsMap;
+    }
+    eq StaticForMethodDecl.range() {
+	Map map = new HashMap();
+	if ( expandable()) {
+	    List expandedMethods = this.expandedMethods();
+	    for ( int i=0; i<expandedMethods.getNumChild(); i++) {
+		StaticForMethodDeclSubstituted m = 
+		    (StaticForMethodDeclSubstituted) expandedMethods.getChild(i);
+		// m must be a StaticForMethodDeclSubstituted 
+		map.put(m, m.expansionSubstitutions);
+	    }
+	} else {    
+	    map.put(this, new HashMap());
+	}
+	return map;
+    }
+
+    syn lazy Map FieldDeclaration.range(boolean includeRefDecl) = range();
+    syn lazy Map FieldDeclaration.range() {
+	Map<FieldDeclaration,Map> rangeElmtsMap = new HashMap<FieldDeclaration,Map>();
+	rangeElmtsMap.put(this, new HashMap());
+	return rangeElmtsMap;
+    }
+    eq StaticForFieldDeclaration.range() {
+	Map map = new HashMap();
+	if ( expandable()) {
+	    List expandedFields = this.expandedFields();
+	    for ( int i=0; i<expandedFields.getNumChild(); i++) {
+		StaticForFieldDeclarationSubstituted f = 
+		    (StaticForFieldDeclarationSubstituted) expandedFields.getChild(i);
+		// m must be a StaticForMethodDeclSubstituted 
+		map.put(f, f.expansionSubstitutions);
+	    }
+	} else 
+	    map.put(this,new HashMap());
+	return map;
+    }
 
     syn lazy boolean IteratorDecl.rangeEmpty(Map uniMap) = rangeEmpty(uniMap, true);
     syn lazy boolean IteratorDecl.rangeEmpty(Map uniMap, boolean subModifiers) {
@@ -151,7 +192,7 @@ aspect MJRange {
 	
 	// if not, check whether uniMap causes mutual exclusive 
 	// conditions in the patterns.
-	return Program.hasMutualExclusiveConditions(getPatternConditions(), 
+	return Program.hasMutualExclusiveConditions(patternConditions(), 
 						    uniMap);
     }
 

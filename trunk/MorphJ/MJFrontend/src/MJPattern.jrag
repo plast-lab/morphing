@@ -313,7 +313,7 @@ aspect MJPattern {
     eq PatternTypeVariable.isPatternTypeVariable() = true;
 
     // return the pattern conditions.
-    syn Collection IteratorDecl.getPatternConditions() {
+    syn Collection IteratorDecl.patternConditions() {
 	Collection l = new ArrayList();
 	l.add(getPattern());
 	
@@ -325,16 +325,16 @@ aspect MJPattern {
     syn Collection BodyDecl.patternConditions() = Collections.EMPTY_LIST;
     eq MethodDecl.patternConditions() {
 	Collection l = new ArrayList();
-
-	ArrayList params = parameterTypes();
+	/*
+	java.util.List<TypeDecl> params = parameterTypes();
 	List paramTypes = new List();
 	for ( int i=0; i<params.size(); i++)
-	    paramTypes.add(((TypeDecl) params.get(i)).createBoundAccess());
+	    paramTypes.add(params.get(i).createBoundAccess());
 
-	ArrayList exceptions = exceptionTypes();
+	java.util.List<TypeDecl> exceptions = exceptionTypes();
 	List expTypes = new List();
 	for ( int i=0; i<exceptions.size(); i++)
-	    expTypes.add(((TypeDecl) exceptions.get(i)).createBoundAccess());
+	    expTypes.add(exceptions.get(i).createBoundAccess());
 
 	StaticMethodPattern mp = 
 	    new StaticMethodPattern(new BaseSet(hostType().createBoundAccess(),
@@ -343,27 +343,31 @@ aspect MJPattern {
 				    type().createBoundAccess(),
 				    getID(), paramTypes, expTypes, new Opt(), new List());
 	l.add(mp);
+	*/
+	l.add(this);
 	return l;
     }
 
     eq StaticForMethodDecl.patternConditions() {
- 	Collection l = refIterator().getPatternConditions();
+ 	Collection l = refIterator().patternConditions();
 	// the existence of this method is a condition on its own.
 	l.addAll(super.patternConditions());
 	return l;
     }
     eq StaticForFieldDeclaration.patternConditions() {
-	Collection l = refIterator().getPatternConditions();
+	Collection l = refIterator().patternConditions();
 	l.addAll(super.patternConditions());
 	return l;
     }
     eq FieldDeclaration.patternConditions() {
 	Collection l = new ArrayList();
+	/*
 	l.add(new StaticFieldPattern(new BaseSet(hostType().createBoundAccess(),
 						 new RefElmt("fields")),
 				     (Modifiers) getModifiers().fullCopy(),
 				     type().createBoundAccess(),
-				     getID(), new Opt(), new List()));
+				     getID(), new Opt(), new List()));*/
+	l.add(this);
 	return l;
     }
 

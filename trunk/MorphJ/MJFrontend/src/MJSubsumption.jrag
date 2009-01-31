@@ -32,6 +32,78 @@ aspect Subsumption {
     // TrueIterator subsumes everything.
     eq TrueIteratorDecl.subsumes(IteratorDecl that,Map uniMap) = true;
 
+    syn lazy boolean Pattern.subsumes(PatternCondition p, Map uniMap) = false;
+    eq EmptyPrimaryPattern.subsumes(PatternCondition p, Map uniMap) = true;
+
+    syn lazy boolean MethodDecl.subsumes(PatternCondition p, Map uniMap) = p.subsumedByMethodPatternCondition(this, uniMap);
+    syn lazy boolean FieldDeclaration.subsumes(PatternCondition p, Map uniMap) = p.subsumedByFieldPatternCondition(this, uniMap);
+
+    eq MethodPattern.subsumes(PatternCondition p, Map uniMap) = p.subsumedByMethodPatternCondition(this, uniMap);
+    eq FieldPattern.subsumes(PatternCondition p, Map uniMap) = p.subsumedByFieldPatternCondition(this, uniMap);
+
+
+    syn lazy boolean Pattern.subsumedByFieldPatternCondition(FieldPatternCondition p, Map uniMap) = false;
+
+    // error nested conditions are always subsumed.
+    eq NestedFieldPattern.subsumedByFieldPatternCondition(FieldPatternCondition p, Map uniMap) {
+	if ( getIsErrorCondition())
+	    return true;
+	return super.subsumedByFieldPatternCondition(p, uniMap);
+    }
+    eq NestedMethodPattern.subsumedByMethodPatternCondition(MethodPatternCondition p, Map uniMap) {
+	if ( getIsErrorCondition()) return true;
+	return super.subsumedByMethodPatternCondition(p, uniMap);
+    }
+    syn lazy boolean MethodDecl.subsumedByFieldPatternCondition(FieldPatternCondition p, Map uniMap) = false;
+    syn lazy boolean FieldDeclaration.subsumedByFieldPatternCondition(FieldPatternCondition p, Map uniMap) = subsumedByFieldPatternConditionHelper(p,uniMap);
+    eq FieldPattern.subsumedByFieldPatternCondition(FieldPatternCondition p, Map uniMap) = subsumedByFieldPatternConditionHelper(p,uniMap);
+
+    public boolean FieldPatternCondition.subsumedByFieldPatternConditionHelper(FieldPatternCondition p, Map uniMap) {
+	if ( this == p ) return true;
+	if ( !p.reflectiveBaseType().subtype(reflectiveBaseType())) {
+	    return false;
+	}
+	return this.unifiesWithFieldPattern(p,uniMap,p.patternTypeVariables(), 
+					    p.patternNameVariables());
+    }
+
+    syn lazy boolean Pattern.subsumedByMethodPatternCondition(MethodPatternCondition p, Map uniMap) = false;
+    eq MethodPattern.subsumedByMethodPatternCondition(MethodPatternCondition p, Map uniMap) = subsumedByMethodPatternConditionHelper(p,uniMap);
+    syn lazy boolean MethodDecl.subsumedByMethodPatternCondition(MethodPatternCondition p,Map uniMap) = subsumedByMethodPatternConditionHelper(p,uniMap);
+    syn lazy boolean FieldDeclaration.subsumedByMethodPatternCondition(MethodPatternCondition p,Map uniMap) = false;
+
+    public boolean MethodPatternCondition.subsumedByMethodPatternConditionHelper(MethodPatternCondition p, Map uniMap) {
+	if ( this == p ) return true;
+
+	// this's base type must be a supertype of p's base type.
+	TypeDecl thisBaseType = reflectiveBaseType().substitute(uniMap).type();
+	TypeDecl pBaseType = p.reflectiveBaseType().substitute(uniMap).type();
+	if ( !pBaseType.subtype(thisBaseType)) {
+	    // otherwise, this pattern must be subsumed by 
+	    // the methods of thisBaseType, that can be matched by 
+	    // pattern p. First, retrevie the range of p.
+	    Map<MethodDecl,Map> pRange = p.range(true);
+	    
+	    // for each method in p's range, one must subsume this.
+	    boolean subFound = false;
+	    for (MethodDecl pm : pRange.keySet()) {
+		Map pmMap = pRange.get(pm);
+		HashMap newMap = new HashMap(uniMap); newMap.putAll(pmMap);
+		
+		if ( pm.subsumes(this, newMap) ) {
+		    subFound = true;
+		    break;
+		}
+	    }
+	    return subFound;
+	}
+
+	return this.unifiesWithMethodPattern(p,uniMap,
+					     p.patternTypeVariables(),
+					     p.patternNameVariables());
+    }
+
+    /*
     syn lazy boolean Pattern.subsumes(Pattern p, Map uniMap) = false;
     eq EmptyPrimaryPattern.subsumes(Pattern p, Map uniMap) = true;
     eq MethodPattern.subsumes(Pattern p, Map uniMap) = p.subsumedByMethodPattern(this, uniMap);
@@ -53,6 +125,7 @@ aspect Subsumption {
 	if ( this == p ) return true;
 
 	if ( !p.reflectiveBaseType().subtype(reflectiveBaseType())) {
+    */
 	    /* Doesn't really work without full normalization of all
 	       ranges.
 	    // we can deconstruct this pattern to be a union of patterns,
@@ -105,28 +178,11 @@ aspect Subsumption {
 		}
 	    }
 	    */
+    /*
 	    return false;
 	}
 	return this.unifiesWithFieldPattern(p,uniMap,p.patternTypeVariables(), 
 					    p.patternNameVariables());
-	
-	/*
-	PatternFieldDeclaration thisFd = this.patternFieldDeclaration();
-	PatternFieldDeclaration pFd = p.patternFieldDeclaration();
-
-	// this's modifiers must be a subset of p's modifiers.
-	if ( !thisFd.getModifiers().subsumedBy(pFd.getModifiers(), uniMap))
-	    return false;
-	
-	if ( !thisFd.canUnifySignature(pFd, uniMap, p.patternTypeVariables(), p.patternNameVariables()))
-	    return false;
-
-	// check that types can be unified.
-	if (!p.getTypeAccess().type().unifiesWith(getTypeAccess().type(), uniMap, p.patternTypeVariables()))
-	    return false;
-	
-	return false;
-	*/
     }
 
     syn lazy boolean Pattern.subsumedByMethodPattern(MethodPattern p, Map uniMap) = false;
@@ -160,7 +216,7 @@ aspect Subsumption {
 					     p.patternTypeVariables(),
 					     p.patternNameVariables());
     }
-
+    */
 
     syn lazy boolean BodyDecl.isSubsumedBy(IteratorDecl id, Map map) {
 	// 2. BodyDecl must be within range of the primary pattern.

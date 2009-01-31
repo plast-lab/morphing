@@ -510,11 +510,10 @@ aspect MJFields {
 	    }
 
 	    StaticForFieldDeclarationSubstituted fd = substitute(substitutions);
-	    fd.expansionSubstitutions = substitutions;
+	    fd.expansionSubstitutions.putAll(substitutions);
 	    fd.original = this;
 
 	    fd.is$Final = true;
-	    //	    addExpandedFieldDeclaration(fd);
 	}
 
 	return getStaticForFieldDeclarationSubstitutedList();

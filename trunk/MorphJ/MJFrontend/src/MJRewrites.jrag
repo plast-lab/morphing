@@ -17,11 +17,11 @@ aspect MJRewrites {
     
     public static int Program.generatedTypeVariableCount = 0;
     public static String Program.generateFreshTypeVariableName() {
-	return "__MJT_" + generatedTypeVariableCount++;
+	return "__MJT" + generatedTypeVariableCount++;
     }
     public static int Program.generatedNameVariableCount = 0;
     public static String Program.generateFreshNameVariableName() {
-	return "__MJN_" + generatedNameVariableCount++;
+	return "__MJN" + generatedNameVariableCount++;
     }
 
 

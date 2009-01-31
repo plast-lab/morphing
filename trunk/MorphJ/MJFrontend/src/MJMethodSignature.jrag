@@ -71,11 +71,14 @@ aspect MJMethodSignature {
 	} else 
 	    uniMap = signatureOverridenMapHelper(m, m.getID(), patternTVs, patternNVs);
 	
-	// check that both iterator ranges are non-empty -- without
+	// check that 
+	// 1) both iterator ranges are non-empty -- without
 	// substituting modifiers, since we never did modifier unification.
+	// 2) the iterators are not mutually exclusive
 	if ( uniMap != null && 
 	     !thisIt.rangeEmpty(new HashMap(uniMap),false) && 
-	     !mIt.rangeEmpty(new HashMap(uniMap),false))
+	     !mIt.rangeEmpty(new HashMap(uniMap),false) && 
+	     !thisIt.isMutuallyExclusiveFrom(mIt, new HashMap(uniMap)))
 	    return uniMap;
 	return null;
     }

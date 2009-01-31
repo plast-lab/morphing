@@ -1,0 +1,53 @@
+aspect MJPatternCondition {
+
+    // An interface representing a condition specified by a pattern.
+    // Method and field declarations are positive conditions
+    public interface PatternCondition {
+	boolean isPositiveCondition();
+	TypeDecl reflectiveBaseType();
+	Identifier identifier();
+
+	Map range(boolean includeRefDecl);
+	PatternCondition substitute(Map uniMap,boolean subModifiers);
+
+	boolean subsumes(PatternCondition p2, Map uniMap);
+	Collection<PatternTypeVariable> patternTypeVariables();
+	Collection<PatternNameVariable> patternNameVariables();
+	boolean unifiesWith(PatternCondition p,Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars);
+
+	boolean isMutuallyExclusiveFrom(PatternCondition p2,Map uniMap);
+	boolean isMutuallyExclusiveFromFieldPatternCondition(FieldPatternCondition p2, Map uniMap);
+	boolean isMutuallyExclusiveFromMethodPatternCondition(MethodPatternCondition p2, Map uniMap);
+
+	boolean subsumedByFieldPatternCondition(FieldPatternCondition p, Map uniMap);
+	boolean subsumedByMethodPatternCondition(MethodPatternCondition p, Map uniMap);
+
+	boolean unifiesWithFieldPattern(FieldPatternCondition p2, Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars);
+	boolean unifiesWithMethodPattern(MethodPatternCondition p2, Map uniMap,Collection<PatternTypeVariable> uniTypeVars, Collection<PatternNameVariable> uniNameVars);
+	
+    }
+    public interface MethodPatternCondition extends PatternCondition {
+	List getParameterList();
+	java.util.List<TypeDecl> parameterTypes();
+	java.util.List<TypeDecl> exceptionTypes();
+	Modifiers getModifiers();
+	Access getTypeAccess();
+    }
+    public interface FieldPatternCondition extends PatternCondition { 
+	Modifiers getModifiers();
+	Access getTypeAccess();
+    }
+
+    Pattern implements PatternCondition;
+    MethodDecl implements MethodPatternCondition;
+    MethodPattern implements MethodPatternCondition;
+    NestedMethodPattern implements MethodPatternCondition;
+    FieldDeclaration implements FieldPatternCondition;
+    FieldPattern implements FieldPatternCondition;
+    NestedFieldPattern implements FieldPatternCondition;
+
+    public boolean MethodDecl.isPositiveCondition() { return true; }
+    public boolean FieldDeclaration.isPositiveCondition() { return true; }
+    public TypeDecl MethodDecl.reflectiveBaseType() { return hostType(); }
+    public TypeDecl FieldDeclaration.reflectiveBaseType() { return hostType(); }
+}

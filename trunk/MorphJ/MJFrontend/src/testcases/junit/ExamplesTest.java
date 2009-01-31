@@ -44,13 +44,13 @@ public class ExamplesTest extends MJTestCase {
 	checkExample("recref" + File.separator + "Matrix.java");
 	noProblems();
     }
-    
+    /*
     @Test
     public void testMergeSort() {
 	checkExample("mergesort" + File.separator + "MergeSort.java");
 	noProblems();
     }
-    
+    */
     @Test
     public void testSychronizeMe() {
 	checkExample("SynchronizeMe.java");
@@ -87,15 +87,12 @@ public class ExamplesTest extends MJTestCase {
 	compareProblems(expectedProblems, actualProblems);
     }
 
-/*
     @Test
     public void testGetterSetter() {
-	Collection<Problem> actualProblems = checkExample("GetterSetter.java",
-		new String[] { "-verbose" }, true);
-	Collection<Problem> expectedProblems = new ArrayList<Problem>();
-	compareProblems(expectedProblems, actualProblems);
+	this.checkExample("GetterSetter.java");
+	noProblems();
     }
-*/
+
     /*
     @Test
     public void testDstm2() {
