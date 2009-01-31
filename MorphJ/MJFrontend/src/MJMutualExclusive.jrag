@@ -1,0 +1,47 @@
+aspect MJMutualExclusive {
+
+    syn lazy boolean IteratorDecl.isMutuallyExclusiveFrom(IteratorDecl id,Map uniMap) {
+	HashMap newMap = new HashMap(uniMap);
+	Collection conditions = this.patternConditions();
+	conditions.addAll(id.patternConditions());
+	return Program.hasMutualExclusiveConditions(conditions, newMap);
+    }
+
+    public static boolean Program.hasMutualExclusiveConditions(Collection<PatternCondition> patternConditions, Map uniMap) {
+	return hasMutualExclusiveConditions(patternConditions,uniMap,true);
+    }
+    public static boolean Program.hasMutualExclusiveConditions(Collection<PatternCondition> patternConditions, Map uniMap, boolean subModifiers) {
+	for ( Iterator<PatternCondition> outerIt = patternConditions.iterator(); outerIt.hasNext(); ) {
+	    PatternCondition p1 = outerIt.next();
+	    // apply substitution first.
+	    PatternCondition p1sub = p1.substitute(uniMap, subModifiers);
+	    
+	    for ( Iterator<PatternCondition> innerIt = patternConditions.iterator(); innerIt.hasNext(); ) {
+		PatternCondition p2 = innerIt.next();
+		if ( p1 == p2) continue;
+		
+		PatternCondition p2sub = p2.substitute(uniMap, subModifiers);
+		if (p1sub.isMutuallyExclusiveFrom(p2sub, new HashMap()))
+		    return true;
+	    }
+	}
+	return false;
+    }
+
+    syn lazy boolean Pattern.isMutuallyExclusiveFrom(PatternCondition p2,Map uniMap) = false;
+    eq MethodPattern.isMutuallyExclusiveFrom(PatternCondition p2, Map uniMap) = p2.isMutuallyExclusiveFromMethodPatternCondition(this, uniMap);
+    syn lazy boolean MethodDecl.isMutuallyExclusiveFrom(PatternCondition p2, Map uniMap) = p2.isMutuallyExclusiveFromMethodPatternCondition(this, uniMap);
+    eq FieldPattern.isMutuallyExclusiveFrom(PatternCondition p2, Map uniMap) = p2.isMutuallyExclusiveFromFieldPatternCondition(this, uniMap);
+    syn lazy boolean FieldDeclaration.isMutuallyExclusiveFrom(PatternCondition p2, Map uniMap) = p2.isMutuallyExclusiveFromFieldPatternCondition(this, uniMap);
+    
+    syn lazy boolean Pattern.isMutuallyExclusiveFromFieldPatternCondition(FieldPatternCondition p2, Map uniMap) = false;
+    syn lazy boolean MethodDecl.isMutuallyExclusiveFromFieldPatternCondition(FieldPatternCondition p2, Map uniMap) = false;
+    eq FieldPattern.isMutuallyExclusiveFromFieldPatternCondition(FieldPatternCondition p2,Map uniMap) = isMutuallyExclusiveFromFieldPatternConditionHelp(p2,uniMap);
+    syn lazy boolean FieldDeclaration.isMutuallyExclusiveFromFieldPatternCondition(FieldPatternCondition p2,Map uniMap) = isMutuallyExclusiveFromFieldPatternConditionHelp(p2,uniMap);
+
+    syn lazy boolean Pattern.isMutuallyExclusiveFromMethodPatternCondition(MethodPatternCondition p2,Map uniMap)=false;
+    syn lazy boolean FieldDeclaration.isMutuallyExclusiveFromMethodPatternCondition(MethodPatternCondition p2,Map uniMap)=false;
+    syn lazy boolean MethodDecl.isMutuallyExclusiveFromMethodPatternCondition(MethodPatternCondition p2, Map uniMap) = isMutuallyExclusiveFromMethodPatternConditionHelper(p2,uniMap);
+    eq MethodPattern.isMutuallyExclusiveFromMethodPatternCondition(MethodPatternCondition p2, Map uniMap) = isMutuallyExclusiveFromMethodPatternConditionHelper(p2,uniMap);
+
+}

@@ -32,10 +32,6 @@ aspect MJIntersection {
 	// definitioly no intersection between the two iterators.
 	if ( !getPattern().intersects(id.getPattern(), newMap))
 	    return false;
-	/*	
-	if (getPattern().isMutuallyExclusiveFrom(id.getPattern(), newMap))
-	    return false;
-	*/
 	// if an intersection is found between the two primary patterns,
 	// we need to check whether this intersection satisfies all
 	// nested conditions.
@@ -49,7 +45,6 @@ aspect MJIntersection {
 	}
 	return true;
     }
-
 
     syn lazy boolean Pattern.intersects(Pattern p2, Map uniMap)=false;
     eq MethodPattern.intersects(Pattern p2,Map uniMap) = p2.intersectsMethodPattern(this,uniMap);
@@ -73,7 +68,7 @@ aspect MJIntersection {
 	// If the method parameters do not match the same ones to
 	// begin with, then there's no chance that the two will match
 	// the same methods,
-	if ( !sameParameterLists(p1params,p2params))
+	if ( !Program.sameParameterLists(p1params,p2params))
 	    return false;
 	
 	// name.
@@ -127,14 +122,12 @@ aspect MJIntersection {
 	    return false;
 	return true;	
     }
-
-
+    /*
     syn lazy boolean Pattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = false;
     eq MethodPattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = p2.isMutuallyExclusiveFromMethodPattern(this, uniMap);
     eq FieldPattern.isMutuallyExclusiveFrom(Pattern p2, Map uniMap) = p2.isMutuallyExclusiveFromFieldPattern(this, uniMap);
     
     syn lazy boolean Pattern.isMutuallyExclusiveFromFieldPattern(FieldPattern p2, Map uniMap) = false;	   
-
     eq FieldPattern.isMutuallyExclusiveFromFieldPattern(FieldPattern p2, Map uniMap) {
 	if ( isPositiveCondition() && p2.isPositiveCondition()) {
 	    // this and p2 are mutually exclusive if 
@@ -191,10 +184,6 @@ aspect MJIntersection {
 	    if ( !thisRetType.subtype(p2RetType) && 
 		 !p2RetType.subtype(thisRetType))
 		return true;
-	    /*
-	    if ( !getTypeAccess().type().substitute(uniMap).type().equals(p2.getTypeAccess().type().substitute(uniMap).type()))
-		return true;
-	    */
 	    if (this.getModifiers().substitute(uniMap).excludedBy(p2.getModifiers().substitute(uniMap)))
 		return true;
 	} else if ( isPositiveCondition() ) {
@@ -206,27 +195,7 @@ aspect MJIntersection {
 	}
 	return false;
     }
-
-    public static boolean Program.hasMutualExclusiveConditions(Collection patternConditions, Map uniMap) {
-	return hasMutualExclusiveConditions(patternConditions,uniMap,true);
-    }
-    public static boolean Program.hasMutualExclusiveConditions(Collection patternConditions, Map uniMap, boolean subModifiers) {
-	for ( Iterator outerIt = patternConditions.iterator(); outerIt.hasNext(); ) {
-	    Pattern p1 = (Pattern) outerIt.next();
-	    // apply substitution first.
-	    Pattern p1sub = p1.substitute(uniMap, subModifiers);
-	    
-	    for ( Iterator innerIt = patternConditions.iterator(); innerIt.hasNext(); ) {
-		Pattern p2 = (Pattern) innerIt.next();
-		if ( p1 == p2) continue;
-		
-		Pattern p2sub = p2.substitute(uniMap, subModifiers);
-		if (p1sub.isMutuallyExclusiveFrom(p2sub, new HashMap())) // uniMap))
-		    return true;
-	    }
-	}
-	return false;
-    }
+    */
 
 
 }
