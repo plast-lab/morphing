@@ -8,6 +8,8 @@ aspect MJUnification {
 	if ( !this.getPattern().unifiesWith(id.getPattern(), newMap,
 					    uniTypeVars, uniNameVars))
 	    return false;
+
+	/*
 	// check that all nested patterns are satisfied.
 	if ( id.substitute(newMap).nestedPatternsSatisfied() &&
 	     this.substitute(newMap).nestedPatternsSatisfied()) {
@@ -15,6 +17,17 @@ aspect MJUnification {
 	    return true;
 	}
 	return false;
+	*/
+	// check that nested patterns are not mutually exclusive with one
+	// another.
+	Collection<PatternCondition> nested = id.substitute(newMap).nestedPatternConditions();
+	nested.addAll(this.substitute(newMap).nestedPatternConditions());
+
+	if ( Program.hasMutualExclusiveConditions(nested,newMap,false))
+	    return false;
+
+	uniMap.putAll(newMap);
+	return true;
     }
     /*
     syn boolean Pattern.unifiesWith(Pattern p2, Map uniMap,Collection uniTypeVars, Collection uniNameVars) = false;
