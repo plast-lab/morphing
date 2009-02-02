@@ -8,7 +8,7 @@ import main.*;
 import java.io.File;
 
 public class ExamplesTest extends MJTestCase {
-    
+    	
     @Test
     public void testAdder () {
 	checkExample("arithmetic" + File.separator + "Adder.java");
@@ -44,13 +44,13 @@ public class ExamplesTest extends MJTestCase {
 	checkExample("recref" + File.separator + "Matrix.java");
 	noProblems();
     }
-    /*
+    
     @Test
     public void testMergeSort() {
 	checkExample("mergesort" + File.separator + "MergeSort.java");
 	noProblems();
     }
-    */
+    
     @Test
     public void testSychronizeMe() {
 	checkExample("SynchronizeMe.java");

@@ -435,6 +435,67 @@ aspect MJTypeHierarchyCheck {
 	Collection<PatternNameVariable> nameVars = 
 	    Program.allNameVariables(thisIt, mIt);
 
+	HashMap newMap = new HashMap(uniMap);
+
+	// If, without unifying the return types, there are mutually 
+	// exclusive conditions reperesented by m's iterator AND m
+	// that means the return types MUST unify.
+	// Furthermore, we need to make sure thisRetType can match
+	// mRetType.
+	//	Collection patternConditions = m.patternConditions();
+	/*
+	Collection patternConditions = thisIt.patternConditions();
+	patternConditions.addAll(mIt.patternConditions());
+	if ( Program.hasMutualExclusiveConditions(patternConditions, 
+						  newMap, false)) {
+	    return thisRetType.matches(mRetType, uniMap, typeVars);
+	}
+	*/
+
+	// Now we attempt to unify this's iterator and m's iterator.
+	newMap = new HashMap(uniMap);
+	if (thisIt.unifiesWith(mIt, newMap, typeVars, nameVars)) {
+	    // thisIt and mIt must have base types that are subtypes. Otherwise 
+	    // we can't guarantee anything.
+	    // TODO: this might be relaxed to be base types that are dependent
+	    // on one another reflectively.
+	    if ( !thisIt.baseType().subtype(mIt.baseType()) &&
+		 !mIt.baseType().subtype(thisIt.baseType()))
+		return false;
+	    
+	    // With this new unification, find whether mRetType is a subtype
+	    // of thisRetType.
+	    TypeDecl subThisType = thisRetType.substitute(newMap).type();
+	    TypeDecl subMType = mRetType.substitute(newMap).type();
+	    return subMType.subtype(subThisType);
+	} 
+
+	// If iterators do not unify, then it means 1) names must have
+	// been manipulated in the declarations be appending or
+	// removing a prefix, or 2) one iterator iterates over fields
+	// and another methods. In this case, If thisRetType matches
+	// mRetType (or one of mRetType's supertypes), i.e. they can
+	// unify in a way that mRetType <: thisRetType, then we can
+	// return true if the iterators still unify under this situation.
+	ArrayList<TypeDecl> rtWorkList = new ArrayList<TypeDecl>();
+	rtWorkList.add(mRetType);
+	while ( rtWorkList.size() > 0 ) {
+	    TypeDecl currRetType = rtWorkList.get(0);
+
+	    newMap = new HashMap(uniMap);
+	    if ( thisRetType.matches(currRetType,newMap,typeVars)) {
+		if ( thisIt.unifiesWith(mIt,newMap,typeVars,nameVars))
+		    return true;
+	    }
+	    // remove currRetType from rtWorkList
+	    rtWorkList.remove(currRetType);
+
+	    Collection<TypeDecl> supers = currRetType.supertypes();
+	    rtWorkList.addAll(supers);
+	}
+	return false;
+
+	/*
 	// If, without unifying the return types, there are mutually 
 	// exclusive conditions reperesented by m's iterator AND m
 	// that means the return types MUST unify.
@@ -470,7 +531,7 @@ aspect MJTypeHierarchyCheck {
 	TypeDecl subThisType = thisRetType.substitute(newMap).type();
 	TypeDecl subMType = mRetType.substitute(newMap).type();
 	return subMType.subtype(subThisType);
-
+	*/
     }
 
     protected void TypeDecl.checkOverride(ASTNode target, MethodDecl m, MethodDecl decl) {

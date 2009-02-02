@@ -1,4 +1,24 @@
 aspect MJLookupType {
+
+    syn lazy Collection<TypeDecl> TypeDecl.supertypes() = Collections.EMPTY_LIST;
+    eq ClassDecl.supertypes() { 
+	ArrayList<TypeDecl> types = new ArrayList<TypeDecl>();
+	if ( hasSuperclass()) {
+	    types.add(superclass());
+	}
+	for ( Iterator ifIt = interfacesIterator(); ifIt.hasNext(); ) {
+	    types.add((TypeDecl) ifIt.next());
+	}
+	return types;
+    }
+    eq InterfaceDecl.supertypes() {
+	ArrayList<TypeDecl> types = new ArrayList<TypeDecl>();
+	for ( Iterator ifIt = superinterfacesIterator(); ifIt.hasNext(); ) {
+	    types.add((TypeDecl) ifIt.next());
+	}
+	return types;
+    }
+
     private boolean Program.initMJSpecificTypes = false;
 
     public void Program.addMJTypes() {
@@ -72,4 +92,6 @@ aspect MJLookupType {
 
     inh TypeDecl IteratorDecl.typeVoid();
     inh TypeDecl BodyDecl.typeVoid();
+
+    inh TypeDecl Pattern.typeObject();
 }

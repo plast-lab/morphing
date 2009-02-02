@@ -322,6 +322,14 @@ aspect MJPattern {
 	return l;
     }
 
+    syn Collection IteratorDecl.nestedPatternConditions() {
+	Collection l = new ArrayList();
+	for ( int i=0; i<getNumNestedPattern(); i++)
+	    l.add(getNestedPattern(i));
+	return l;
+    }
+
+
     syn Collection BodyDecl.patternConditions() = Collections.EMPTY_LIST;
     eq MethodDecl.patternConditions() {
 	Collection l = new ArrayList();

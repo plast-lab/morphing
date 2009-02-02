@@ -70,7 +70,8 @@ aspect MJMethodSignature {
 	    uniMap = signatureOverridenMapHelper(m, id, patternTVs, patternNVs);
 	} else 
 	    uniMap = signatureOverridenMapHelper(m, m.getID(), patternTVs, patternNVs);
-	
+
+	/*
 	// check that 
 	// 1) both iterator ranges are non-empty -- without
 	// substituting modifiers, since we never did modifier unification.
@@ -81,8 +82,75 @@ aspect MJMethodSignature {
 	     !thisIt.isMutuallyExclusiveFrom(mIt, new HashMap(uniMap)))
 	    return uniMap;
 	return null;
+	*/
+
+	if ( uniMap == null ) return null;
+
+	// check that 
+	// 1) both iterator ranges are non-empty -- without
+	// substituting modifiers, since we never did modifier unification.
+	if ( thisIt.rangeEmpty(new HashMap(uniMap),false) ||
+	     mIt.rangeEmpty(new HashMap(uniMap),false))
+	    return null;
+
+	// 2) the iterators are not mutually exclusive, without taking
+	// into account exceptions and return types, since we
+	// never unified those.
+	// We fake this by making a new map where return and 
+	// exception types from both iterators are mapped
+	// to the same things.
+	HashMap newMap = new HashMap(uniMap);
+	thisIt.mapAllNonSignatureTypes(newMap);
+	mIt.mapAllNonSignatureTypes(newMap);
+	if (thisIt.isMutuallyExclusiveFrom(mIt, newMap))
+	    return null;
+	
+	return uniMap;
     }
     
+    public void IteratorDecl.mapAllNonSignatureTypes(Map uniMap) {
+	getPattern().mapAllNonSignatureTypes(uniMap);
+	for ( int i=0; i<getNumNestedPattern(); i++) 
+	    getNestedPattern(i).mapAllNonSignatureTypes(uniMap);
+    }
+    public void Pattern.mapAllNonSignatureTypes(Map uniMap) {
+	throw new Error("Pattern.mapAllNonSignatureTypes is not supported by " + 
+			getClass().getName());
+    }
+    public void EmptyPrimaryPattern.mapAllNonSignatureTypes(Map uniMap) {}
+    public void TrueNestedPattern.mapAllNonSignatureTypes(Map uniMap) {}
+    public void MethodPattern.mapAllNonSignatureTypes(Map uniMap) {
+	// map all pattern-matching type variable to Object.
+	getTypeAccess().type().mapTo(uniMap, typeObject());
+
+	// map exceptions to Throwable.
+	for ( int i=0; i<getNumException(); i++)
+	    getException(i).type().mapTo(uniMap, typeThrowable());
+    }
+    public void FieldPattern.mapAllNonSignatureTypes(Map uniMap) {
+	// map type
+	getTypeAccess().type().mapTo(uniMap, typeObject());
+    }
+    
+    public void TypeDecl.mapTo(Map uniMap, TypeDecl target) {}
+    public void ParTypeDecl.mapTo(Map uniMap, TypeDecl target) {
+	for ( int i=0; i<getNumArgument(); i++)
+	    getArgument(i).type().mapTo(uniMap,target);
+    }
+    public void PatternTypeVariable.mapTo(Map uniMap, TypeDecl target) {
+	// only map if it is not already mapped, and it is a pattern-matching
+	// type variable.
+	if ( !uniMap.containsKey(this))
+	    uniMap.put(this, target);
+    }
+    public void VectorTypeVariable.mapTo(Map uniMap, TypeDecl target) {
+	if ( !uniMap.containsKey(this)) {
+	    ArrayList al = new ArrayList();
+	    al.add(target);
+	    uniMap.put(this, al);
+	}
+    }
+
     syn lazy Map StaticForMethodDecl.signatureOverridenMapHelper(MethodDecl m, Identifier id, Collection patternTypeVariables, Collection patternNameVariables) {
 	// 1. Fetch method named by this's name in m's host type.
 	// 2. Find a unification mapping between the this and that method's 
