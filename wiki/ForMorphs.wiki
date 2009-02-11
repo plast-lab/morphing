@@ -1,0 +1,15 @@
+#summary *For* morphings iterate over the members of a class.
+
+*For* morphings iterate over the members of a class, declaring a new member according to the given definition for each member that matches the pattern given to for.  In this way, it is actually more like a Java "for each" for statement than like a traditional for iteration in such languages as C or C++.
+
+Let's examine the structure of a MorphJ for iteration.
+
+{{{
+<VARIABLE DECLARATIONS> for(<PRIMARY PATTERN> [; <SECONDARY PATTERN>])
+<METHOD SIGNATURE> {
+<METHOD BODY>
+}
+}}}
+
+
+In addition to the basic variable declarations, method signature, and method body contained by a for iteration, there can also be a secondary pattern.  This secondary pattern can either filter _in_ members recognized by the secondary pattern using the "some" keyword at the beginning or filter _out_ members recognized by the secondary pattern using the "no" keyword at the beginning.
