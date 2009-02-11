@@ -1,10 +1,6 @@
 #summary The pattern-matching syntax used by MorphJ to specify how to morph the fields and methods of a class.
 
-= Introduction =
-
 MorphJ specifies which fields of a class to examine for morphing by using a pattern syntax.  This syntax effectively specifies the parameters used to _filter fields/methods out_ of the original class, thus giving the MorphJ compiler a finite set of fields/methods upon which to operate and thereby create the new fields and methods of the morphed class.
-
-= Details =
 
 To begin we will demonstrate pattern-matching with the simplest morphed class possible: a delegation.
 
