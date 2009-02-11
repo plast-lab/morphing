@@ -1,0 +1,37 @@
+#summary This is a listing of design patterns MorphJ allows that produce interesting effects.
+
+*The Removal Pattern*
+This pattern creates a class parameterized on a class X that possesses all members of X matching a primary pattern without any matching a secondary pattern based upon the same variables.  By separating out the patterns into two different morphed classes, the programmer creates a boundary that allows MorphJ's unification of patterns to avoid collisions.
+
+{{{
+class AllGetters<class T> {
+	T instance;
+
+	public AllGetters ( T t ) { instance = t; }
+
+	<R,A*,E*>[m] for(public R get_#m(A) throws E : T.methods)
+	public R get_#m(A args) {
+		return instance.get_#m(args);
+	}
+}
+
+public class AntiGetter<class T> {
+	T instance;
+
+	public AntiGetter ( T t ) { instance = t; }
+
+	<R,A*,E*>[m] for(public R m(A) throws E : T.methods; 
+			 no R m(A) throws E : AllGetters<T>.methods)
+	public R m(A args) {
+		 return instance.m(args);
+	}
+	/*
+	public static void main(String argv[]) {
+	    AntiGetter<Foo> baz = new AntiGetter<Foo>(new Foo());
+	    System.out.println(baz.givefour());
+	    //This following line should cause compilation to fail if not commented out.
+	    //System.out.println(baz.get_bar());
+	}
+	*/
+}
+}}}
