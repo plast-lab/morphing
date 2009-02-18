@@ -22,3 +22,21 @@ After this comes the keyword *for* or *if* to open a morphing and a pattern decl
 Then an actual method definition is written using the pattern-matching variables to specify the new method that will be made based on each method found to match the pattern in X.methods.  In this actual method definition each pattern-matching variable is bound to the specific types or lists of types found in the signature of an individual method from the matching set.  The method body can use both the pattern-matching variables and any other variables in its scope to define a new method in the morphed class that will correspond isomorphically to the original method upon which it is based.
 
 Thus, this class as a whole specializes on another class X, contains an instance of X, and implements all of X's public methods with a return value by redirecting the call to its member instance of X.
+
+_Nested_ patterns work by further filtering the range of members bound by the primary pattern.  In order for a member to match a full pattern, they must be first bound by the primary pattern and then match each nested pattern.  For example, in the following code a public method signature must exist in _both_ the classes that `Pair` is parametrized upon.
+
+{{{
+public class Pair<X,Y> { 
+ X x; Y y; 
+ public Pair(X x, Y y) { this.x = x; this.y = y; }
+ 
+ <RX extends Object, RY extends Object, A*>[m]
+ for( public RX m(A) : X.methods ;
+      some public RY m(A) : Y.methods )
+ public Pair<RX,RY> m(A args) {
+  return new Pair<RX,RY>(x.m(args), y.m(args));
+ }
+}
+}}}
+
+Negative nested patterns are exemplified by the "Removal" [[DesignPatterns design pattern]], which first selects all methods with a return type in the primary pattern but then uses the nested pattern, signified by the keyword `no`, to remove from that selected set all methods of that signature in the `AllGetters<X>` class -- those methods whose name begins with "get_".
