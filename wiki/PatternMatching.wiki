@@ -39,4 +39,4 @@ public class Pair<X,Y> {
 }
 }}}
 
-Negative nested patterns are exemplified by the "Removal" [[DesignPatterns design pattern]], which first selects all methods with a return type in the primary pattern but then uses the nested pattern, signified by the keyword `no`, to remove from that selected set all methods of that signature in the `AllGetters<X>` class -- those methods whose name begins with "get_".
+Negative nested patterns are exemplified by the "Removal" [DesignPatterns design pattern], which first selects all methods with a return type in the primary pattern but then uses the nested pattern, signified by the keyword `no`, to remove from that selected set all methods of that signature in the `AllGetters<X>` class -- those methods whose name begins with "get_".
