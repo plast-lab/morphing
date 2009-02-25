@@ -1,5 +1,26 @@
 #summary This is a listing of design patterns MorphJ allows that produce interesting effects.
 
+*The Delegation Pattern*
+One of the most basic patterns in MorphJ, a delegation pattern simply creates a morphing class that contains an instance of its parameter class, implements all the public methods of that class, and delegates all those methods to the internal instance.  This pattern is a building block for many others.
+
+{{{
+public class Delegator<class X> {
+	X x;
+	
+	public Delegator(X x) { this.x = x; }
+	
+	<R,A*,E*>[m] for(public R m(A) throws E : X.methods)
+	public R m(A args) throws E {
+		return x.m(args);
+	}
+	
+	<A*,E*>[m] for(public void m(A) throws E : X.methods)
+	public void m(A args) throws E {
+		x.m(args);
+	}
+}
+}}}
+
 *The Removal Pattern*
 This pattern creates a class parameterized on a class X that possesses all members of X matching a primary pattern without any matching a secondary pattern based upon the same variables.  By separating out the patterns into two different morphed classes, the programmer creates a boundary that allows MorphJ's unification of patterns to avoid collisions.
 
@@ -28,7 +49,8 @@ public class AntiGetter<class T> {
 }
 }}}
 
-***The Modifier Pattern*** This pattern simply reproduces a class with a new modifier added to each public method.  As seen in the following example, this can allow the addition of useful behavior to classes, including forwards-compatibility with future additions to the Java language.
+*The Modifier Pattern*
+This pattern simply reproduces a class with a new modifier added to each public method.  As seen in the following example, this can allow the addition of useful behavior to classes, including forwards-compatibility with future additions to the Java language.
 
 {{{
 class Synchronized<class T> extends T {
@@ -44,7 +66,8 @@ class Synchronized<class T> extends T {
 }
 }}}
 
-***The Decorator Pattern*** MorphJ can vastly reduce the amount of code that need be written to use the common Decorator design pattern.  A programmer wishing to use the Decorator pattern just needs to write a single Decorator morphing class:
+*The Decorator Pattern*
+MorphJ can vastly reduce the amount of code that need be written to use the common Decorator design pattern by building upon the Delegation pattern.  A programmer wishing to use the Decorator pattern just needs to write a single Decorator morphing class:
 
 {{{
 public class Decorator<class X> extends X {
