@@ -44,7 +44,7 @@ class Synchronized<class T> extends T {
 }
 }}}
 
-***The Decorator Pattern*** MorphJ can vastly shorten the amount of code that need be written to use the common Decorator design pattern.  A programmer wishing to use the Decorator pattern just needs to write a single Decorator morphing class:
+***The Decorator Pattern*** MorphJ can vastly reduce the amount of code that need be written to use the common Decorator design pattern.  A programmer wishing to use the Decorator pattern just needs to write a single Decorator morphing class:
 
 {{{
 public class Decorator<class X> extends X {
