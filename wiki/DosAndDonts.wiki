@@ -8,7 +8,7 @@ Every language has a set of idioms that programmers find very useful, and a set 
 
 {{{
 public class DefaultImplementation<class X, interface I> extends X implements I {
-   ... class contents go here ...
+   //class contents go here ...
 }
 }}}
 
