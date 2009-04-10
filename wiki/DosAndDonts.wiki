@@ -13,3 +13,5 @@ public class DefaultImplementation<class X, interface I> extends X implements I 
 }}}
 
 Because `X` and `I` can, in general (rather than for specific `X`s and `I`s), have conflicting methods, this idiom will simply never work.  Either `X` and `I` conflict, or the programmer delineates their code enough to avoid a conflict in a way that will fail at implementing `I` completely.  While proving that such a problem _must_ occur is non-trivial, every attempt tried has resulted in either a conflict between `X` and `I` or a failure to properly implement `I`.
+
+Instead, try using delegation.
