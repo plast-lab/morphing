@@ -21,3 +21,5 @@ class SizeMixin<X> extends X {
 }}}
 
 `errorif` here notifies the compiler that any X that already possesses a field named "size" is inappropriate to instantiate `SizeMixin<X>`.
+
+Note that the patterns used in `if` and `errorif` declarations work like nested patterns: the type variables specified don't actually bind to anything.  Those type variables cannot be used in the resulting declaration.
