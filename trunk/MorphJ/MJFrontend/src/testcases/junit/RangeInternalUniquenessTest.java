@@ -11,10 +11,10 @@ import org.junit.Before;
 
 public class RangeInternalUniquenessTest extends MJTestCase {
 
-    @Before
-    public void setUp() {
-	super.testDir = "internaluniqueness" + File.separator;
-    }
+	@Before
+	public void setUp() {
+		super.testDir = "internaluniqueness" + File.separator;
+	}
 
     // OK: pattern: R m (A*); decl: void m (A*)
     @Test
