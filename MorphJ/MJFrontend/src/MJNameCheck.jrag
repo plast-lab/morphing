@@ -238,7 +238,7 @@ aspect MJNameCheck {
 
 		if ( this.expandedMethodsInclude(md)) continue;
 		
-		if ( !this.overrides(md) && md.overrides(this) && 
+		if ( !this.overrides(md) && !md.overrides(this) && 
 		     !this.isUniqueFrom(md)) {
 		    Program.indent += 3;
 		    String s1 = infoSignature();
