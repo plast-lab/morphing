@@ -1,6 +1,6 @@
 #summary A page on the MorphJ programming language.
 
-= MORPHJ: Compile-Time Reflection for Creating New Classes from Old =
+= MorphJ: Compile-Time Reflection =
 
 MorphJ is a Java-derived programming language based upon the concept of class morphing. Class morphing is an abstraction mechanism that allows a class to abstract over the structure of other types. For instance, one can define a parametric class `Log<X>` with the definition "for each method of X, provide an identical method that calls the original and logs the return value".
 
@@ -32,6 +32,9 @@ This wiki can tell you about:
 
 MorphJ is under development by [http://www.cs.umass.edu/~yannis/ Dr. Yannis Smaragdakis] and [http://www.freeflygeek.com/ Shan-Shan Huang], and both will appreciate any comments, tips, or ideas you might have for the MorphJ language.
 
+
+<wiki:comment>
 = See Also =
 
   * [http://www.eclipse.org/aspectj/ AspectJ]
+</wiki:comment>
