@@ -21,3 +21,7 @@ This wiki can tell you about:
 = People =
 
 MorphJ is under development by [http://www.cs.umass.edu/~yannis/ Dr. Yannis Smaragdakis] and [http://www.freeflygeek.com/ Shan-Shan Huang], and both will appreciate any comments, tips, or ideas you might have for the MorphJ language.
+
+= See Also =
+
+  * [http://www.eclipse.org/aspectj/ AspectJ]
