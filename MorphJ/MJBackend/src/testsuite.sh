@@ -1,10 +1,12 @@
 #!/bin/sh -e
 
-export MJ_ROOT=/home/shuang/workspace
+#export MJ_ROOT=/home/shuang/workspace
+export MJ_ROOT=/home/eli/Research_Work/morphing/MorphJ
 export MJ_BACK=$MJ_ROOT/MJBackend
 export MJ_EXAMPLES=$MJ_ROOT/examples
 export MJ_JUNIT_DIR=$MJ_BACK/src/testcases/mjunit
-export JUNIT_JAR=/home/shuang/lib/eclipse/plugins/org.junit4_4.3.1/junit.jar:
+#export JUNIT_JAR=/home/shuang/lib/eclipse/plugins/org.junit4_4.3.1/junit.jar:
+export JUNIT_JAR=/usr/share/java/junit4.jar
 
 export CLASSPATH=.:$MJ_BACK/thirdparty/asm-all-3.1.jar:$MJ_BACK/bin:$MJ_JUNIT_DIR:$MJ_ROOT
 

@@ -78,6 +78,36 @@ aspect MJGenerateClassfile {
 	return outFileName;
     }
 
+   protected String ParInterfaceDecl.sourceFile() {
+	TypeDecl gt = genericDecl();
+
+	String outDir = null;
+	String destPath = gt.destinationPath();
+	
+	String filePath = expandedConstantPoolName().lastIndexOf(File.separator) > -1 ?	    
+	    expandedConstantPoolName().substring(0, expandedConstantPoolName().lastIndexOf(File.separator))
+	    : "";
+	
+	if ( gt.compilationUnit().fromSource()) 
+	    outDir = destPath + File.separator + filePath;
+	else
+	    outDir = destPath.substring(0, destPath.lastIndexOf(File.separator) + 1);
+
+	String outFileName = null;
+
+	// check whether outDir is writeable.
+	File outDirFile = new File(outDir);
+	if ( !outDirFile.canWrite()) {
+	    // TODO: write into output dir + expandedConstantPoolName
+	    if(Program.hasValueForOption("-d")) 
+		outFileName = Program.getValueForOption("-d");
+	    else outFileName = ".";
+	    outFileName += expandedConstantPoolName();
+	} else 
+	    outFileName = outDirFile + File.separator + expandedName() + ".class";
+	return outFileName;
+    }
+
     public boolean TypeDecl.generated = false;
     refine GenerateClassfile public void ClassDecl.generateClassfile() {
 	GenerateClassfile.ClassDecl.generateClassfile();
@@ -89,6 +119,93 @@ aspect MJGenerateClassfile {
     }
 
     public void ParClassDecl.generateClassfile() {
+	if ( generated ) return;
+	try {
+	    TypeDecl gt = genericDecl();
+	    
+	    // TODO: should check whether gt already exists and has the proper
+	    // timestamp: i.e. its timestamp is newer than the timestamp of its
+	    // generic decl as well as all type arguments.
+
+	    // Check that all type arguments can be accessed from this
+	    // package. If not, 
+	    // - increase visibility of type argument.
+	    for ( int i=0; i<getNumArgument(); i++) {
+		TypeDecl at = getArgument(i).type();
+		if ( !at.accessibleFrom(this)) {
+		    at.makeAccessibleFrom(this);
+		}
+	    }
+
+	    // TODO: fix JastAddJ PathPart.getCompilationUnit()
+	    // inner class overrides the pathname of the outerclass.
+	    /*
+	      String gtSource = gt.compilationUnit().fromSource() ? 
+	      gt.destinationPath() + File.separator + gt.constantPoolName() + ".class"
+	      : gt.destinationPath();
+	    */
+
+	    String gtSource = null;
+	    if ( gt.compilationUnit().fromSource() ) 
+		gtSource = gt.destinationPath() + File.separator + gt.constantPoolName() + ".class";
+	    else {
+		String relativeName = gt.fullName().replace(".", File.separator);
+		String destPath = gt.destinationPath();
+		int i = destPath.indexOf(relativeName);
+		gtSource = destPath.substring(0, i) + relativeName + ".class";
+	    }
+
+	    String outFileName = sourceFile();
+
+	    if(Program.verbose()) 
+		System.out.println("Writing class file to " + outFileName);
+
+	    File gtFile = new File(gtSource);
+	    FileInputStream fis = new FileInputStream(gtFile);
+
+	    // load class.
+	    ClassReader cr = new ClassReader(fis);
+	    ClassNode cn = new ClassNode();
+
+	    cr.accept(cn, 
+		      new org.objectweb.asm.Attribute[] { 
+			  new ASMIteratorDeclAttribute(null, null),
+			  new ASMStaticForStmtsAttribute(null) },
+		      0);
+	    
+	    // transform ClassNode cn.
+	    expand(cn);
+
+	    // write class.
+	    File outFile = new File(outFileName);
+	    ClassWriter cw = new ClassWriter(0);
+	    cn.accept(cw);
+	    
+	    FileOutputStream f = new FileOutputStream(outFileName);
+	    DataOutputStream out = new DataOutputStream(new BufferedOutputStream(f));
+	    
+	    out.write(cw.toByteArray());
+	    
+	    // bytecode verifier.
+	    if ( Program.verbose()) {
+		try {
+		    ClassReader verifyReader = new ClassReader(cw.toByteArray());
+		    org.objectweb.asm.util.CheckClassAdapter.verify(verifyReader, false, new PrintWriter(System.err));
+		} catch ( Throwable e) {
+		    System.err.println("Exception when verifying bytecode: ");// + e.getMessage());
+		}
+	    }
+
+	    out.close();
+	    fis.close();
+
+	    generated = true;
+	} catch (IOException e) {
+	    e.printStackTrace();
+	}
+    }
+
+    public void ParInterfaceDecl.generateClassfile() {
 	if ( generated ) return;
 	try {
 	    TypeDecl gt = genericDecl();

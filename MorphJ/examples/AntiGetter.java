@@ -23,14 +23,6 @@ public class AntiGetter<class T> {
 	public R m(A args) {
 		 return instance.m(args);
 	}
-	/*
-	public static void main(String argv[]) {
-	    AntiGetter<Foo> baz = new AntiGetter<Foo>(new Foo());
-	    System.out.println(baz.givefour());
-	    //This following line should cause compilation to fail if not commented out.
-	    //System.out.println(baz.get_bar());
-	}
-	*/
 }
 
 class Foo {
@@ -41,5 +33,3 @@ class Foo {
 	return 4;
     }
 }
-
-//Write classes that morph on various boolean combinations of patterns: and, or, not.  See what practical applications they may have.
