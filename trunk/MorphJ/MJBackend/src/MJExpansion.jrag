@@ -33,8 +33,40 @@ aspect MJExpansion {
 	expandMethods(cn);
     }
 
+    protected void ParInterfaceDecl.expand(ClassNode cn) {
+	// change name
+	cn.name = expandedConstantPoolName();
+
+	// remove signature.
+	cn.signature = null;
+	// change source file.
+	//	cn.sourceFile = sourceFile();
+	
+	java.util.List interfaces = new java.util.ArrayList();
+	for(Iterator ifIt = superinterfacesIterator(); ifIt.hasNext(); ) {
+	    InterfaceDecl superInterface = (InterfaceDecl)ifIt.next();
+	    if(!superInterface.shouldErase())
+	        interfaces.add(superInterface.expandedConstantPoolName());
+	    else
+	        interfaces.add(superInterface.constantPoolName());
+	}
+	
+	cn.interfaces = interfaces;
+
+	// transform fields.
+	//expandFields(cn);
+
+	// transform methods.
+	expandMethods(cn);
+    }
+
     // TODO: this may not be right... 
     protected MemberNode BodyDecl.transformMemberNode(MemberNode mn, ParClassDecl parClass) {
+	throw new Error("transformMemberNode not implemented by " +
+			getClass().getName());
+    }
+    
+    protected MemberNode BodyDecl.transformMemberNode(MemberNode mn, ParInterfaceDecl parClass) {
 	throw new Error("transformMemberNode not implemented by " +
 			getClass().getName());
     }
@@ -367,26 +399,80 @@ aspect MJExpansion {
 		NodeCopier.removeInsns(newNode.instructions, instr_begin, instr_end);
 	    }
 	}
+	return newNode;
+    }
 
-	InsnTransformVisitor insnVisitor = new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), parClass, this, expansionSubstitutions);
+    protected MemberNode MethodDecl.transformMemberNode(MemberNode mn, ParInterfaceDecl parClass) {
+	// if this is a bridge method, delete it.
+	if ( ( ((MethodNode) mn).access & Opcodes.ACC_BRIDGE ) != 0 ) {
+	    return null;
+	}
 
-	newNode.accept(insnVisitor);
-	newNode.instructions = insnVisitor.instructions;
-	newNode.localVariables = insnVisitor.localVariables;
-	newNode.tryCatchBlocks = insnVisitor.tryCatchBlocks;
-	newNode.maxStack = insnVisitor.maxStack;
-	//	newNode.maxLocals = newNode.localVariables.size();
+	MethodNode newNode = NodeCopier.copyMethodNode((MethodNode)mn);
+	
+	// see if we need to change name.
+	newNode.name = getID();
+	
+	// TODO: modify exceptions.
+	
+	transformLocalVariables(newNode);
 
-	newNode.maxLocals = type().isVoid() ? insnVisitor.maxLocals : insnVisitor.maxLocals+1;
+	// find all static for stmts.
+	java.util.List staticForStmts = retrieveStaticForStmts(newNode);
+	for ( Iterator sit = staticForStmts.iterator(); sit.hasNext(); ) {
+	    StaticForStmt s = (StaticForStmt) sit.next();
 
-	transformDescriptor(newNode, insnVisitor);
+	    // get the corresponding iterator decl stmt.
+	    ASMStaticForStmtsAttribute.StaticForStmtsAttribute staticForStmtAttr = s.staticForStmtAttr;
+	    int begin = staticForStmtAttr.begin_instr;
+	    int end = staticForStmtAttr.end_instr;
 
-	// remove IteratorDecl attribute.
-	if ( newNode.attrs != null ) {
-	    for ( int j=0; j<newNode.attrs.size(); j++) {
-		if ( ((org.objectweb.asm.Attribute)newNode.attrs.get(j)).type.equals("IteratorDecl"))
-		    newNode.attrs.remove(j);
+	    /* InsnList replicatedInsns = new InsnList();
+
+	    // get the mappings for each element in the iterator decl's range. 
+	    IteratorDecl sid = s.getIteratorDecl();
+	    IteratorDecl sidSub = sid.lookupParIteratorDecl(parClass);
+
+	    int instr_begin = -1;
+	    int instr_end = -1;
+
+	    for ( Iterator subMaps = sidSub.reflectiveElmts().values().iterator();
+		  subMaps.hasNext(); ) {
+		Map substitutions = (Map) subMaps.next();
+		substitutions.putAll(expansionSubstitutions);
+
+		// create a copy of the instructions to be replicated.
+		//
+		InsnList toReplicate = NodeCopier.copyInsnList(newNode.instructions,
+							       begin, end);
+		//
+		InsnCopyVisitor icv =
+		    new InsnCopyVisitor(new org.objectweb.asm.commons.EmptyVisitor(), begin, end);
+		newNode.accept(icv);
+		InsnList toReplicate = icv.instructions;
+		
+		instr_begin = icv.instr_begin;
+		instr_end = icv.instr_end;
+
+		// create replicated instructions.
+		InsnTransformVisitor iv = 
+		    new InsnTransformVisitor(new org.objectweb.asm.commons.EmptyVisitor(), 
+					     parClass, this, substitutions, s);
+		toReplicate.accept(iv);
+		replicatedInsns.add(iv.instructions);
 	    }
+
+	    //	    
+	    newNode.instructions.insert(newNode.instructions.get(end-1), replicatedInsns);
+	    // remove instructions used for replication.
+	    NodeCopier.removeInsns(newNode.instructions, begin, end);
+	    //
+	    if ( instr_end > -1 && instr_begin > -1 ) {
+		newNode.instructions.insert(newNode.instructions.get(instr_end-1), replicatedInsns);
+		
+		// remove instructions used for replication.
+		NodeCopier.removeInsns(newNode.instructions, instr_begin, instr_end);
+	    }*/
 	}
 	return newNode;
     }
@@ -494,6 +580,52 @@ aspect MJExpansion {
     }
     
     protected void ParClassDecl.expandMethods(ClassNode cn) {
+	java.util.List methods = cn.methods;
+	java.util.List newMethods = new ArrayList();
+
+	for ( Iterator mIt = methods.iterator(); mIt.hasNext(); ) {
+	    MethodNode mn = (MethodNode) mIt.next();
+	    if ( reflectiveMemberNode(mn) ) {
+		// find the corresponding method in gd.
+		// we do this because gd's corresponding method already has
+		// the reflective iteration info parsed with the appropriate
+		// information.
+		StaticForMethodDecl md = genericDecl().reflectiveMethod(mn);
+		
+		if ( md != null ) {
+		    StaticForMethodDeclSubstituted subMd = 
+			(StaticForMethodDeclSubstituted) md.findSubstitutedMethodDecl(this);
+			//			(StaticForMethodDeclSubstituted) md.p(this);
+		    List expandedMethods = subMd.expandedMethods();
+
+		    for ( int i=0; i<expandedMethods.getNumChild(); i++) {
+			MethodDecl expandedMd = 
+			    (MethodDecl) expandedMethods.getChild(i);
+
+			MethodNode newNode = 
+			    (MethodNode) expandedMd.transformMemberNode(mn, this);
+			if ( newNode != null )
+			    newMethods.add(newNode);
+		    }
+		} else {
+		    // something is seriously wrong.
+		    throw new Error("Cannot find the definition for " +
+				    "reflectively declared method " +
+				    mn.name);
+		}
+	    } else {
+		BodyDecl bd = findMethod(mn);
+		if ( bd != null ){ 
+		    MethodNode newMn = (MethodNode) bd.transformMemberNode(mn, this);
+		    if ( newMn != null ) 
+			newMethods.add(newMn);
+		}
+	    }
+	}
+	cn.methods = newMethods;
+    }
+
+    protected void ParInterfaceDecl.expandMethods(ClassNode cn) {
 	java.util.List methods = cn.methods;
 	java.util.List newMethods = new ArrayList();
 
@@ -848,5 +980,36 @@ aspect MJExpansion {
     eq MethodDeclSubstituted.isSubstitutedDecl() = true;
     eq ConstructorDeclSubstituted.isSubstitutedDecl() = true;
 
-    
+    private boolean StaticForMethodDeclSubstituted.expandedMethods_visited = false;
+    private List<? extends MethodDecl> StaticForMethodDeclSubstituted.expandedMethods_compute() {
+	Map paramMap = new HashMap();
+	if ( hostType().isParameterizedType()) {
+	    ParTypeDecl ht = (ParTypeDecl) hostType();
+	    GenericTypeDecl gtd = (GenericTypeDecl) ht.genericDecl();
+	    for ( int i=0; i<gtd.getNumTypeParameter(); i++) {
+		paramMap.put(gtd.getTypeParameter(i),
+			     ht.getArgument(i).type());
+	    }
+	}
+
+	IteratorDecl id = getIteratorDecl();
+	if ( !id.expandable()) {
+	    return new List<MethodDecl>();
+	}
+
+	setExpandedMethodsList(new List());
+	
+	if(expandedMethods_visited == false) {
+		expandedMethods_visited = true;
+		// get the mappings for each element in the iterator decl's range. 
+		for ( Iterator subMaps = id.reflectiveElmts().values().iterator(); subMaps.hasNext(); ) {
+	    		Map substitutions = new HashMap((Map) subMaps.next());
+	    		substitutions.putAll(paramMap);
+	    
+	   		 StaticForMethodDeclSubstituted md = substitute(substitutions, this.getExpandedMethodsList());
+		}
+	}
+	
+	return getExpandedMethodsList();
+    }
 }
