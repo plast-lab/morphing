@@ -981,6 +981,9 @@ aspect MJExpansion {
     eq ConstructorDeclSubstituted.isSubstitutedDecl() = true;
 
     private boolean StaticForMethodDeclSubstituted.expandedMethods_visited = false;
+    public void StaticForMethodDeclSubstituted.setExpandedMethodsVisited(boolean value) {
+    	expandedMethods_visited = value;
+    }
     private List<? extends MethodDecl> StaticForMethodDeclSubstituted.expandedMethods_compute() {
 	Map paramMap = new HashMap();
 	if ( hostType().isParameterizedType()) {
@@ -1000,7 +1003,6 @@ aspect MJExpansion {
 	setExpandedMethodsList(new List());
 	
 	if(expandedMethods_visited == false) {
-		expandedMethods_visited = true;
 		// get the mappings for each element in the iterator decl's range. 
 		for ( Iterator subMaps = id.reflectiveElmts().values().iterator(); subMaps.hasNext(); ) {
 	    		Map substitutions = new HashMap((Map) subMaps.next());
