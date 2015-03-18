@@ -1,0 +1,40 @@
+MorphJ specifies which fields of a class to examine for morphing by using a pattern syntax.  This syntax effectively specifies the parameters used to _filter fields/methods out_ of the original class, thus giving the MorphJ compiler a finite set of fields/methods upon which to operate and thereby create the new fields and methods of the morphed class.
+
+To begin we will demonstrate pattern-matching with the simplest morphed class possible: a delegation.
+
+```
+class Delegate<class X> {
+ X delegate;
+
+ <R,A*,E*>[m] for(public R m(A) throws E : X.methods)
+ public R m(A args) throws E {
+  return delegate.m(args);
+ }
+}
+```
+
+The pattern begins by specifying, in angle brackets, a list of pattern-matching variables that can represent types or lists of types.  It then, in square brackets, specifies pattern-matching variables representing names of methods.
+
+After this comes the keyword **for** or **if** to open a morphing and a pattern declaration.  The next piece is called the 'primary pattern'; it consists of using the variables specified earlier on to write the signature of the fields or methods upon which one wishes to operate followed by a colon, a type parameter to the morphing class ("X" in this case) and finally a dot operator followed by the keyword "fields" or the keyword "methods".  Thus, the pattern shown above specifies that the morphing will be an iteration over each public method of X with a return type R that takes any number of arguments of any types and throws any number of exceptions of any types.
+
+Then an actual method definition is written using the pattern-matching variables to specify the new method that will be made based on each method found to match the pattern in X.methods.  In this actual method definition each pattern-matching variable is bound to the specific types or lists of types found in the signature of an individual method from the matching set.  The method body can use both the pattern-matching variables and any other variables in its scope to define a new method in the morphed class that will correspond isomorphically to the original method upon which it is based.
+
+Thus, this class as a whole specializes on another class X, contains an instance of X, and implements all of X's public methods with a return value by redirecting the call to its member instance of X.
+
+_Nested_ patterns work by further filtering the range of members bound by the primary pattern.  In order for a member to match a full pattern, they must be first bound by the primary pattern and then match each nested pattern.  For example, in the following code a public method signature must exist in _both_ the classes that `Pair` is parametrized upon.
+
+```
+public class Pair<X,Y> { 
+ X x; Y y; 
+ public Pair(X x, Y y) { this.x = x; this.y = y; }
+ 
+ <RX extends Object, RY extends Object, A*>[m]
+ for( public RX m(A) : X.methods ;
+      some public RY m(A) : Y.methods )
+ public Pair<RX,RY> m(A args) {
+  return new Pair<RX,RY>(x.m(args), y.m(args));
+ }
+}
+```
+
+Negative nested patterns are exemplified by the "Removal" [design pattern](DesignPatterns.md), which first selects all methods with a return type in the primary pattern but then uses the nested pattern, signified by the keyword `no`, to remove from that selected set all methods of that signature in the `AllGetters<X>` class -- those methods whose name begins with "get

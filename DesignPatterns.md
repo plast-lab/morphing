@@ -1,0 +1,167 @@
+**The Delegation Pattern**
+One of the most basic patterns in MorphJ, a delegation pattern simply creates a morphing class that contains an instance of its parameter class, implements all the public methods of that class, and delegates all those methods to the internal instance.  This pattern is a building block for many others.
+
+```
+public class Delegator<class X> {
+	X x;
+	
+	public Delegator(X x) { this.x = x; }
+	
+	<R,A*,E*>[m] for(public R m(A) throws E : X.methods)
+	public R m(A args) throws E {
+		return x.m(args);
+	}
+	
+	<A*,E*>[m] for(public void m(A) throws E : X.methods)
+	public void m(A args) throws E {
+		x.m(args);
+	}
+}
+```
+
+**The Removal Pattern**
+This pattern creates a class parameterized on a class X that possesses all members of X matching a primary pattern without any matching a secondary pattern based upon the same variables.  By separating out the patterns into two different morphed classes, the programmer creates a boundary that allows MorphJ's unification of patterns to avoid collisions.
+
+```
+class AllGetters<class T> {
+	T instance;
+
+	public AllGetters ( T t ) { instance = t; }
+
+	<R,A*,E*>[m] for(public R get_#m(A) throws E : T.methods)
+	public R get_#m(A args) {
+		return instance.get_#m(args);
+	}
+}
+
+public class AntiGetter<class T> {
+	T instance;
+
+	public AntiGetter ( T t ) { instance = t; }
+
+	<R,A*,E*>[m] for(public R m(A) throws E : T.methods; 
+			 no R m(A) throws E : AllGetters<T>.methods)
+	public R m(A args) {
+		 return instance.m(args);
+	}
+}
+```
+
+**The Modifier Pattern**
+This pattern simply reproduces a class with a new modifier added to each public method.  As seen in the following example, this can allow the addition of useful behavior to classes, including forwards-compatibility with future additions to the Java language.
+
+```
+class Synchronized<class T> extends T {
+    <R1,A1*,E1*>[m1] for (!private R1 m1 (A1) throws E1 : T.methods ; no final R1 m1(A1) throws E1 : T.methods)
+	synchronized public R1 m1(A1 args) throws E1 {
+		return super.m1(args);
+	    }
+    
+    <A2*,E2*>[m2] for (!private void m2 (A2) throws E2 : T.methods ; no final void m2(A2) throws E2 : T.methods)
+	 synchronized public void m2(A2 args) throws E2 {
+		 super.m2(args);
+	   }
+}
+```
+
+**The Decorator Pattern**
+MorphJ can vastly reduce the amount of code that need be written to use the common Decorator design pattern by building upon the Delegation pattern.  A programmer wishing to use the Decorator pattern just needs to write a single Decorator morphing class:
+
+```
+public class Decorator<class X> extends X {
+	X x;
+	
+	public Decorator(X x) { this.x = x; }
+	
+	<R,A*,E*>[m] for(!final public R m(A) throws E : X.methods)
+	public R m(A args) throws E {
+		return x.m(args);
+	}
+	
+	<A*,E*>[m] for(!final public void m(A) throws E : X.methods)
+	public void m(A args) throws E {
+		x.m(args);
+	}
+}
+```
+
+And instantiate it for every class to which they wish to add decorators.  Then they need only subclass `Decorator<X>` and override the methods to which they wish to add functionality.  The default methods that delegate to the original object were already written by the Decorator morphing class.
+
+**The Default Implementation**
+A full-fledged class that provides a default implementation for every method of an interface `I` that a given class `X` doesn't.
+
+```
+public class DefaultImplementation<X, interface I> implements I {
+    X x;
+    public DefaultImplementation(X x) { this.x = x; }
+
+    // for all methods in I, if the same method does
+    // not appear in X, provide default implementation.
+    <R extends Object,A*,E*>[m]
+    for( R m (A) throws E: I.methods ; no R m (A) throws E: X.methods )
+    public R m (A a) throws E { return null; }
+
+    <A1*,E*>[m]
+    for( void m (A1) throws E : I.methods ; 
+	 no void m (A1) throws E : X.methods )
+    public void m (A1 a) throws E { }
+
+
+    <A2*,E*>[m]
+    for( boolean m (A2) throws E : I.methods ; 
+	 no  boolean m (A2) throws E : X.methods )
+    public boolean m (A2 a) throws E { return false; }
+
+    <A3*,E*>[m]
+    for( int m (A3) throws E : I.methods ; 
+	 no  int m (A3) throws E : X.methods )
+    public int m (A3 a) throws E { return 0; }
+
+
+    <A*,E*>[m]
+    for( byte m (A) throws E : I.methods ; 
+	 no  byte m (A) throws E : X.methods )
+	public byte m (A a) throws E { return 0; }
+
+    <A*,E*>[m]
+    for( short m (A) throws E : I.methods ; 
+	 no  short m (A) throws E : X.methods )
+	public short m (A a) throws E { return 0; }
+
+    <A*,E*>[m]
+    for( long m (A) throws E : I.methods ; 
+	 no  long m (A) throws E : X.methods )
+	public long m (A a) throws E { return 0; }
+
+    <A*,E*>[m]
+    for( char m (A) throws E : I.methods ; 
+	 no  char m (A) throws E : X.methods )
+	public char m (A a) throws E { return 0; }
+
+    <A*,E*>[m]
+    for( float m (A) throws E : I.methods ; 
+	 no  float m (A) throws E : X.methods )
+	public float m (A a) throws E { return 0; }
+
+    <A*,E*>[m]
+    for( double m (A) throws E : I.methods ; 
+	 no  double m (A) throws E : X.methods )
+	public double m (A a) throws E { return 0; }
+
+    // for all methods in X that *do* correctly override
+    // methods in I, we need to copy them. 
+    <R,A*,E*>[m]
+    for( !final R m (A) throws E : I.methods ; some public R m (A) throws E: X.methods )
+    public R m (A a) throws E { return x.m(a); }
+
+    <A*,E*>[m]
+    for( !final void m (A) throws E : I.methods ; some public void m (A) throws E : X.methods )
+    public void m (A a) throws E { x.m(a); }
+
+    // for all methods in X, such that there is no method
+    // in I with the same name and arguments, copy method.
+    <R,A*>[m]for( public R m (A) : X.methods; no m (A) : I.methods)
+    public R m (A a) { return x.m(a); }
+
+}
+```
