@@ -7,8 +7,7 @@ Project members:
   Shan Shan Huang (ssh@cc.gatech.edu)
   Yannis Smaragdakis (yannis@cs.uoregon.edu)
 
-*************************************************************************
-Getting started with the BINARY download
+## Getting started with the BINARY download
 
 Contents of the binary download:
 
@@ -38,8 +37,7 @@ For all compiler options, run:
   java -jar MJCompiler.jar
 
 
-*************************************************************************
-Getting started with the SOURCE download
+## Getting started with the SOURCE download
 
 Contents of the source download:
 - morphing/JastAddJ: includes the Java compiler built using JastAdd.  
@@ -56,21 +54,18 @@ To use:
 - First, put in CLASSPATH:
   morphing/MJ/MJBackend/src
   morphing/MJ/MJBackend/thirdparty/asm-all-3.1.jar
-
 - Run:
   java main.MJCompiler [files|directories]
 
 To see all compiler options:
   java main.MJCompiler 
 
-*************************************************************************
-Example files
+## Example files
 
 Both binary and source distribution contains example 
 
 
-*************************************************************************
-RELEASE NOTES:
+## Release notes:
 
 Version 0.21 06/04/2008
 
