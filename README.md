@@ -12,53 +12,61 @@ Project members:
 Contents of the binary download:
 
 directories
-- morphing/MJ/MJBackend/src
-    - include executable jar MJCompiler.jar
-- morphing/MJ/examples: includes some example MorphJ files
-- morphing/MJ/testcases: includes some test files.
+- ```morphing/MJ/MJBackend/src```
+  - include executable jar ```MJCompiler.jar```
+- ```morphing/MJ/examples```: includes some example MorphJ files
+- ```morphing/MJ/testcases```: includes some test files.
 
 To use:
 
 Option1:
-- Put morphing/MJ/MJBackend/src/MJCompiler.jar in your CLASSPATH
+- Put ```morphing/MJ/MJBackend/src/MJCompiler.jar``` in your ```CLASSPATH```
 - invoke:
-  java main.MJCompiler [files|directories]
+```shell
+java main.MJCompiler [files|directories]
+```
 
 For all compiler options, run:
-  java main.MJCompiler
+```shell
+java main.MJCompiler
+```
 
 Option2:
 - You can directly invoke MJCompiler.jar as an executable jar file.
   Change into the directory containing MJCompiler.jar, invoke:
 
-  java -jar MJCompiler.jar [files|directories]
+```shell
+java -jar MJCompiler.jar [files|directories]
+```
 
 For all compiler options, run:
-  java -jar MJCompiler.jar
+```shell
+java -jar MJCompiler.jar
+```
 
 
 ## Getting started with the SOURCE download
 
 Contents of the source download:
-- morphing/JastAddJ: includes the Java compiler built using JastAdd.  
-- morphing/MJ/MJFrontend: source files for MJ frontend parsing and type checking
-- morphing/MJ/MJFrontend: source files for MJ backend classfile generation.
-- morphing/MJ/examples: includes some example MorphJ files
-- morphing/MJ/testcases: includes some test files.
+- ```morphing/JastAddJ```: includes the Java compiler built using JastAdd.  
+- ```morphing/MJ/MJFrontend```: source files for MJ frontend parsing and type checking
+- ```morphing/MJ/MJFrontend```: source files for MJ backend classfile generation.
+- ```morphing/MJ/examples```: includes some example MorphJ files
+- ```morphing/MJ/testcases```: includes some test files.
 
 To build:
-- Change into morphing/MJ/MJBackend/src
-- run: ant build
+- Change into ```morphing/MJ/MJBackend/src```
+- run: ```ant build```
 
 To use:
 - First, put in CLASSPATH:
-  morphing/MJ/MJBackend/src
-  morphing/MJ/MJBackend/thirdparty/asm-all-3.1.jar
+  ```morphing/MJ/MJBackend/src```
+  ```morphing/MJ/MJBackend/thirdparty/asm-all-3.1.jar```
 - Run:
-  java main.MJCompiler [files|directories]
+  ```java main.MJCompiler [files|directories]```
 
 To see all compiler options:
-  java main.MJCompiler 
+  ```java main.MJCompiler```
 
 ## Example files
 
